@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cfa-west-bryan-weekly.sites.openai.com"),
+  metadataBase: new URL(
+    "https://cfa-west-bryan-weekly.nathanieldavis.chatgpt.site",
+  ),
   title: {
     default: "CFA West Bryan | Weekly team newsletter",
     template: "%s | CFA West Bryan",
