@@ -88,6 +88,7 @@ export function SiteHero({
     "--hero-desktop-content-position": vertical(header.desktop.verticalAlign),
     "--hero-edge-depth": `${header.shapeDepth}px`,
     "--hero-edge-offset": `${header.shapeOffset}px`,
+    "--hero-edge-position": `${header.shapePosition}px`,
     "--hero-transition": header.transitionColor,
     "--hero-bg": header.backgroundColor,
     "--hero-gradient-start": colorWithOpacity(header.gradientStart, Math.max(0, Math.min(100, header.gradientOpacity)) / 100),

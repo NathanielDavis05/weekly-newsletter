@@ -686,10 +686,12 @@ h3 {
   inset: 0;
   content: "";
   opacity: var(--hero-image-opacity);
-  background-image: var(--hero-image);
-  background-position: var(--hero-image-position);
-  background-size: var(--hero-image-size);
-  background-repeat: no-repeat;
+  /* The cover layer keeps uploaded photos and the pattern continuous through
+     the whole lower edge. The adjustable layer remains on top for framing. */
+  background-image: var(--hero-image), var(--hero-image);
+  background-position: var(--hero-image-position), center;
+  background-size: var(--hero-image-size), cover;
+  background-repeat: no-repeat, no-repeat;
   background-blend-mode: var(--hero-image-blend);
 }
 
@@ -705,7 +707,7 @@ h3 {
   position: absolute;
   z-index: 1;
   right: -8%;
-  bottom: -1px;
+  bottom: calc(-1px - var(--hero-edge-position));
   left: -8%;
   height: var(--hero-edge-depth);
   content: "";
@@ -727,6 +729,10 @@ h3 {
 
 .site-hero__topline,
 .site-hero__copy { position: relative; z-index: 2; }
+.site-hero:has(.site-menu[open]) { z-index: 10050; overflow: visible; }
+.site-hero__topline:has(.site-menu[open]) { z-index: 10051; }
+.site-hero .site-menu[open] { z-index: 10052; }
+.site-hero .site-menu[open] nav { z-index: 10053; }
 .hero-item { position: relative; display: inline-flex; min-width: 0; }.site-hero__copy .hero-item { display: block; }.hero-item--selected { outline: 2px solid #fff; outline-offset: 4px; }.hero-item__handle { position: absolute; z-index: 5; top: -16px; right: -18px; display: none; width: 22px; height: 22px; padding: 0; border: 1px solid rgba(255,255,255,.65); border-radius: 5px; color: var(--navy); background: #fff; font: 700 .8rem/1 Apercu, sans-serif; touch-action: none; cursor: grab; }.site-hero--editable .hero-item:hover .hero-item__handle, .site-hero--editable .hero-item--selected .hero-item__handle { display: block; }
 .site-hero__topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .site-hero__brand { display: inline-flex; flex-direction: column; color: var(--hero-brand); font-size: var(--hero-brand-size); font-weight: 700; line-height: 1.05; text-decoration: none; }

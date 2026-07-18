@@ -344,6 +344,8 @@ export interface HeaderStyle {
   shape: HeroShape;
   shapeDepth: number;
   shapeOffset: number;
+  /** Moves the lower edge independently of the hero content and height. */
+  shapePosition: number;
   transitionColor: string;
   backgroundColor: string;
   gradientStart: string;
