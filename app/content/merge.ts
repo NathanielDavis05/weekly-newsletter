@@ -28,7 +28,14 @@ function mergeValue(base: unknown, override: unknown): unknown {
 
 /** Merge parsed, possibly-partial stored content onto the canonical defaults. */
 export function mergeContent(stored: unknown): NewsletterContent {
-  return withVisualDocument(mergeValue(defaultContent, stored) as NewsletterContent);
+  const merged = mergeValue(defaultContent, stored) as NewsletterContent;
+  // `visual` is intentionally not part of the authored newsletter defaults.
+  // Keep it explicitly when a saved draft is read back, otherwise the generic
+  // default merge would drop every freeform position, size, and style setting.
+  if (isPlainObject(stored) && stored.visual !== undefined) {
+    merged.visual = stored.visual as NewsletterContent["visual"];
+  }
+  return withVisualDocument(merged);
 }
 
 /** Safely parse a JSON content string, falling back to defaults on any error. */
