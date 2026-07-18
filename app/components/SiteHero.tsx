@@ -4,6 +4,7 @@ import type { NewsletterContent, VisualPageId } from "../content/types";
 import { visualDocument } from "../content/visual";
 import { SiteMenu } from "./SiteMenu";
 import type { CanvasEditorState } from "./PageBlocks";
+import { HeroItem } from "./HeroItem";
 
 type HeroVars = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -112,6 +113,15 @@ export function SiteHero({
     ...safeCss(header.advancedCss),
   };
   const editable = Boolean(editor);
+  const topItems = {
+    back: detail ? <HeroItem key="back" id={`hero:${page}:back`} label="back link" editor={editor}><Link className="site-hero__back" href="/"><span aria-hidden="true">←</span> {shared.detailBackLabel}</Link></HeroItem> : null,
+    brand: header.showBrand ? <HeroItem key="brand" id={`hero:${page}:brand`} label="brand" editor={editor}><Link className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link></HeroItem> : null,
+    menu: header.showMenu ? <HeroItem key="menu" id={`hero:${page}:menu`} label="menu" editor={editor}><SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /></HeroItem> : null,
+  };
+  const copyItems = {
+    kicker: header.showKicker ? <HeroItem key="kicker" id={`hero:${page}:kicker`} label="kicker" editor={editor}><p>{kicker}</p></HeroItem> : null,
+    title: header.showTitle ? <HeroItem key="title" id={`hero:${page}:title`} label="heading" editor={editor}><h1>{title}</h1></HeroItem> : null,
+  };
   return (
     <header
       data-hero-shape={header.shape}
@@ -122,13 +132,10 @@ export function SiteHero({
       {editable ? <span className="site-hero__badge">Hero</span> : null}
       <span className="site-hero__overlay" aria-hidden="true" />
       <div className="site-hero__topline">
-        {detail ? <Link className="site-hero__back" href="/"><span aria-hidden="true">←</span> {shared.detailBackLabel}</Link> : null}
-        {header.showBrand ? <Link className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link> : null}
-        {header.showMenu ? <SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /> : <span />}
+        {header.topOrder.map((item) => topItems[item])}
       </div>
       <div className="site-hero__copy">
-        {header.showKicker ? <p>{kicker}</p> : null}
-        {header.showTitle ? <h1>{title}</h1> : null}
+        {header.copyOrder.map((item) => copyItems[item])}
       </div>
     </header>
   );

@@ -727,6 +727,7 @@ h3 {
 
 .site-hero__topline,
 .site-hero__copy { position: relative; z-index: 2; }
+.hero-item { position: relative; display: inline-flex; min-width: 0; }.site-hero__copy .hero-item { display: block; }.hero-item--selected { outline: 2px solid #fff; outline-offset: 4px; }.hero-item__handle { position: absolute; z-index: 5; top: -16px; right: -18px; display: none; width: 22px; height: 22px; padding: 0; border: 1px solid rgba(255,255,255,.65); border-radius: 5px; color: var(--navy); background: #fff; font: 700 .8rem/1 Apercu, sans-serif; touch-action: none; cursor: grab; }.site-hero--editable .hero-item:hover .hero-item__handle, .site-hero--editable .hero-item--selected .hero-item__handle { display: block; }
 .site-hero__topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .site-hero__brand { display: inline-flex; flex-direction: column; color: var(--hero-brand); font-size: var(--hero-brand-size); font-weight: 700; line-height: 1.05; text-decoration: none; }
 .site-hero__brand small { margin-top: 3px; color: var(--hero-kicker); font-size: .64em; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
@@ -741,6 +742,34 @@ h3 {
 .site-hero--editable:hover, .site-hero--selected { outline: 3px solid var(--red) !important; outline-offset: -3px; }
 .site-hero__badge { position: absolute; z-index: 5; top: 5px; left: 6px; padding: 4px 6px; border-radius: 5px; color: white; background: var(--navy); font-size: .61rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: 0; }
 .site-hero--editable:hover .site-hero__badge, .site-hero--selected .site-hero__badge { opacity: 1; }
+
+/* Responsive visual-block sizing. Values are stored by the editor and remain
+   constrained to their parent flow so pages stay mobile-safe. */
+.page-block {
+  width: var(--block-phone-width, auto);
+  min-height: var(--block-phone-min-height, auto);
+  padding-top: var(--block-phone-padding-top, var(--block-padding-top, initial));
+  padding-right: var(--block-phone-padding-right, var(--block-padding-right, initial));
+  padding-bottom: var(--block-phone-padding-bottom, var(--block-padding-bottom, initial));
+  padding-left: var(--block-phone-padding-left, var(--block-padding-left, initial));
+  margin-top: var(--block-phone-margin-top, var(--block-margin-top, initial));
+  margin-bottom: var(--block-phone-margin-bottom, var(--block-margin-bottom, initial));
+  justify-self: var(--block-phone-align, stretch);
+}
+
+@media (min-width: 640px) {
+  .page-block {
+    width: var(--block-desktop-width, var(--block-phone-width, auto));
+    min-height: var(--block-desktop-min-height, var(--block-phone-min-height, auto));
+    padding-top: var(--block-desktop-padding-top, var(--block-phone-padding-top, initial));
+    padding-right: var(--block-desktop-padding-right, var(--block-phone-padding-right, initial));
+    padding-bottom: var(--block-desktop-padding-bottom, var(--block-phone-padding-bottom, initial));
+    padding-left: var(--block-desktop-padding-left, var(--block-phone-padding-left, initial));
+    margin-top: var(--block-desktop-margin-top, var(--block-phone-margin-top, initial));
+    margin-bottom: var(--block-desktop-margin-bottom, var(--block-phone-margin-bottom, initial));
+    justify-self: var(--block-desktop-align, var(--block-phone-align, stretch));
+  }
+}
 
 /* Very compact mobile-first defaults. The editor can restore or exceed them. */
 .section { padding: 24px 20px; }

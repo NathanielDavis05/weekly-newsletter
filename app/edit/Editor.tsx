@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -28,6 +28,7 @@ import type {
   HeaderDeviceStyle,
   HeaderStyle,
   NewsletterContent,
+  ResponsiveLayout,
   VisualBlock,
   VisualBlockKind,
   VisualPageId,
@@ -61,15 +62,31 @@ function makeBlock(kind: Exclude<VisualBlockKind, "native">): VisualBlock {
   return { ...base, label: "Divider" };
 }
 
-function SortableCanvasBlock({ block, children }: { block: VisualBlock; children: ReactNode }) {
+function SortableCanvasBlock({ block, children, selected, onResize }: { block: VisualBlock; children: ReactNode; selected: boolean; onResize: (id: string, patch: Partial<ResponsiveLayout>) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+  const startResize = (event: PointerEvent<HTMLButtonElement>, axis: "width" | "height") => {
+    event.preventDefault(); event.stopPropagation();
+    const element = event.currentTarget.closest(".canvas-sortable") as HTMLElement | null;
+    const canvas = event.currentTarget.closest(".visual-canvas") as HTMLElement | null;
+    if (!element || !canvas) return;
+    const initial = element.getBoundingClientRect(); const parent = canvas.getBoundingClientRect();
+    const start = axis === "width" ? event.clientX : event.clientY;
+    const move = (next: globalThis.PointerEvent) => {
+      const delta = axis === "width" ? next.clientX - start : next.clientY - start;
+      if (axis === "width") onResize(block.id, { width: Math.max(20, Math.min(100, Math.round(((initial.width + delta) / parent.width) * 100))) });
+      else onResize(block.id, { minHeight: Math.max(0, Math.min(900, Math.round(initial.height + delta))) });
+    };
+    const end = () => { globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
+    globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
+  };
   return (
     <div
       ref={setNodeRef}
-      className={`canvas-sortable${isDragging ? " canvas-sortable--dragging" : ""}`}
+      className={`canvas-sortable${isDragging ? " canvas-sortable--dragging" : ""}${selected ? " canvas-sortable--selected" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       <button type="button" className="canvas-sortable__handle" aria-label={`Move ${block.label}`} {...attributes} {...listeners}>⠿</button>
+      {selected ? <><button type="button" className="canvas-resize-handle canvas-resize-handle--width" aria-label={`Resize ${block.label} width`} onPointerDown={(event) => startResize(event, "width")} /><button type="button" className="canvas-resize-handle canvas-resize-handle--height" aria-label={`Resize ${block.label} height`} onPointerDown={(event) => startResize(event, "height")} /></> : null}
       {children}
     </div>
   );
@@ -156,6 +173,8 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const [page, setPage] = useState<VisualPageId>("home");
   const [device, setDevice] = useState<"phone" | "desktop">("phone");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [history, setHistory] = useState<NewsletterContent[]>([]);
+  const [future, setFuture] = useState<NewsletterContent[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const sensors = useSensors(
@@ -167,12 +186,28 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const blocks = document.pages[page].blocks;
   const selected = blocks.find((block) => block.id === selectedId) ?? null;
   const header = document.headers[page];
-  const heroSelected = selectedId === `hero-${page}`;
+  const heroSelected = selectedId === `hero-${page}` || selectedId?.startsWith(`hero:${page}:`);
+  const heroSortIds = [...header.topOrder.map((item) => `hero:${page}:${item}`), ...header.copyOrder.map((item) => `hero:${page}:${item}`)];
   const isDirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(savedDraft), [content, savedDraft]);
 
   const edit = useCallback((mutator: (draft: NewsletterContent) => void) => {
-    setContent((previous) => { const next = structuredClone(previous); mutator(next); next.visual = visualDocument(next); return next; });
+    setContent((previous) => {
+      const next = structuredClone(previous); mutator(next); next.visual = visualDocument(next);
+      setHistory((entries) => [...entries, previous].slice(-50)); setFuture([]);
+      return next;
+    });
   }, []);
+
+  const undoLocal = () => setHistory((entries) => {
+    const previous = entries.at(-1); if (!previous) return entries;
+    setContent((current) => { setFuture((next) => [current, ...next].slice(0, 50)); return previous; });
+    return entries.slice(0, -1);
+  });
+  const redoLocal = () => setFuture((entries) => {
+    const next = entries[0]; if (!next) return entries;
+    setContent((current) => { setHistory((previous) => [...previous, current].slice(-50)); return next; });
+    return entries.slice(1);
+  });
 
   const patchBlock = useCallback((blockId: string, patch: Partial<VisualBlock>) => {
     edit((draft) => {
@@ -186,6 +221,15 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
     if (!selected) return;
     patchBlock(selected.id, { style: { ...selected.style, [key]: value } });
   }, [patchBlock, selected]);
+
+  const patchResponsiveLayout = useCallback((blockId: string, device: "phone" | "desktop", patch: Partial<ResponsiveLayout>) => {
+    const block = blocks.find((candidate) => candidate.id === blockId);
+    if (!block) return;
+    const style = block.style ?? {};
+    const next = { ...style, [device]: { ...style[device], ...patch } } as BlockStyle;
+    if (style.linkedDevices) next[device === "phone" ? "desktop" : "phone"] = { ...style[device === "phone" ? "desktop" : "phone"], ...patch };
+    patchBlock(blockId, { style: next });
+  }, [blocks, patchBlock]);
 
   const patchHeader = useCallback((patch: Partial<HeaderStyle>) => {
     edit((draft) => {
@@ -237,6 +281,23 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
+    const activeHero = String(active.id).match(/^hero:(home|training|results):(back|brand|menu|kicker|title)$/);
+    const overHero = String(over.id).match(/^hero:(home|training|results):(back|brand|menu|kicker|title)$/);
+    if (activeHero && overHero && activeHero[1] === overHero[1]) {
+      const group = (item: string) => item === "kicker" || item === "title" ? "copyOrder" : "topOrder";
+      if (group(activeHero[2]) !== group(overHero[2])) return;
+      edit((draft) => {
+        const next = visualDocument(draft); const current = next.headers[page];
+        const key = group(activeHero[2]); const entries = [...current[key]];
+        const oldIndex = entries.indexOf(activeHero[2] as never); const newIndex = entries.indexOf(overHero[2] as never);
+        if (oldIndex >= 0 && newIndex >= 0) {
+          if (key === "topOrder") current.topOrder = arrayMove(current.topOrder, oldIndex, newIndex);
+          else current.copyOrder = arrayMove(current.copyOrder, oldIndex, newIndex);
+        }
+        draft.visual = next;
+      });
+      return;
+    }
     edit((draft) => {
       const pageBlocks = visualDocument(draft).pages[page].blocks;
       const oldIndex = pageBlocks.findIndex((block) => block.id === active.id);
@@ -289,7 +350,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const editor: CanvasEditorState = {
     selectedId,
     onSelect: setSelectedId,
-    renderBlock: (block, inner) => <SortableCanvasBlock key={block.id} block={block}>{inner}</SortableCanvasBlock>,
+    renderBlock: (block, inner) => <SortableCanvasBlock key={block.id} block={block} selected={selectedId === block.id} onResize={(id, patch) => patchResponsiveLayout(id, device, patch)}>{inner}</SortableCanvasBlock>,
   };
 
   return <div className="visual-editor">
@@ -297,6 +358,8 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
       <div><strong>Newsletter canvas</strong><span>Signed in as {userEmail}</span></div>
       <div className="visual-editor__bar-actions">
         <span className={isDirty ? "visual-dirty" : "visual-status"}>{isDirty ? "● Unsaved changes" : status || "All changes saved"}</span>
+        <button type="button" onClick={undoLocal} disabled={!history.length || busy}>Undo</button>
+        <button type="button" onClick={redoLocal} disabled={!future.length || busy}>Redo</button>
         <button type="button" onClick={() => setContent(savedDraft)} disabled={!isDirty || busy}>Discard</button>
         <button type="button" onClick={reset} disabled={busy}>Undo to published</button>
         <button type="button" onClick={save} disabled={busy || !isDirty}>Save draft</button>
@@ -317,7 +380,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
       <main className="visual-editor__main">
         <div className="visual-canvas-toolbar"><span>Live canvas</span><div><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div></div>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={[...blocks.map((block) => block.id), ...heroSortIds]} strategy={verticalListSortingStrategy}>
             <div className={`visual-canvas visual-canvas--${device}`}>
               {page === "home" ? <HomeView content={content} editor={editor} /> : null}
               {page === "training" ? <TrainingView content={content} editor={editor} /> : null}
@@ -337,7 +400,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
             {(selected.kind === "button") ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchBlock(selected.id, { href: event.target.value })} /></label> : null}
             {selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} placeholder="https://…" onChange={(event) => patchBlock(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-control"><span>Alt text</span><input value={selected.alt ?? ""} onChange={(event) => patchBlock(selected.id, { alt: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadImage(file); }} /></label></> : null}
           </> : <NativeCopyFields blockId={selected.nativeId ?? ""} content={content} edit={edit} />}
-          <details className="inspector-section" open><summary>Spacing</summary><div className="inspector-grid"><StyleNumber label="Top padding" value={selected.style?.paddingTop} onChange={(v) => patchStyle("paddingTop", v)} /><StyleNumber label="Bottom padding" value={selected.style?.paddingBottom} onChange={(v) => patchStyle("paddingBottom", v)} /><StyleNumber label="Side padding" value={selected.style?.paddingLeft} onChange={(v) => { patchStyle("paddingLeft", v); patchStyle("paddingRight", v); }} /><StyleNumber label="Top margin" value={selected.style?.marginTop} onChange={(v) => patchStyle("marginTop", v)} /><StyleNumber label="Bottom margin" value={selected.style?.marginBottom} onChange={(v) => patchStyle("marginBottom", v)} /></div><div className="spacing-presets"><button type="button" onClick={() => patchBlock(selected.id, { style: { ...selected.style, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 } })}>Small</button><button type="button" onClick={() => patchBlock(selected.id, { style: { ...selected.style, paddingTop: 32, paddingRight: 24, paddingBottom: 32, paddingLeft: 24 } })}>Medium</button><button type="button" onClick={() => patchBlock(selected.id, { style: { ...selected.style, paddingTop: 56, paddingRight: 32, paddingBottom: 56, paddingLeft: 32 } })}>Large</button></div></details>
+          <details className="inspector-section" open><summary>Resize & spacing</summary><p className="visual-native-note">Drag the right or bottom handle on the selected block, or use exact values below.</p><label className="visual-switch"><input type="checkbox" checked={selected.style?.linkedDevices ?? true} onChange={(event) => patchBlock(selected.id, { style: { ...selected.style, linkedDevices: event.target.checked } })} /> Link phone & desktop layout</label><div className="inspector-grid"><StyleNumber label={`${device === "phone" ? "Phone" : "Desktop"} width %`} value={selected.style?.[device]?.width} onChange={(v) => patchResponsiveLayout(selected.id, device, { width: v })} min={20} max={100} /><StyleNumber label="Min height" value={selected.style?.[device]?.minHeight} onChange={(v) => patchResponsiveLayout(selected.id, device, { minHeight: v })} max={900} /><StyleNumber label="Top padding" value={selected.style?.[device]?.paddingTop ?? selected.style?.paddingTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingTop: v })} max={300} /><StyleNumber label="Bottom padding" value={selected.style?.[device]?.paddingBottom ?? selected.style?.paddingBottom} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingBottom: v })} max={300} /><StyleNumber label="Side padding" value={selected.style?.[device]?.paddingLeft ?? selected.style?.paddingLeft} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingLeft: v, paddingRight: v })} max={300} /><StyleNumber label="Top margin" value={selected.style?.[device]?.marginTop ?? selected.style?.marginTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { marginTop: v })} max={300} /></div><div className="spacing-presets"><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12 })}>Small</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 24, paddingRight: 20, paddingBottom: 24, paddingLeft: 20 })}>Medium</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 48, paddingRight: 32, paddingBottom: 48, paddingLeft: 32 })}>Large</button></div></details>
           <details className="inspector-section"><summary>Appearance</summary><div className="inspector-grid"><StyleColor label="Background" value={selected.style?.background} onChange={(v) => patchStyle("background", v)} /><StyleColor label="Text color" value={selected.style?.color} onChange={(v) => patchStyle("color", v)} /><StyleColor label="Border color" value={selected.style?.borderColor} onChange={(v) => patchStyle("borderColor", v)} /><StyleNumber label="Border width" value={selected.style?.borderWidth} onChange={(v) => patchStyle("borderWidth", v)} max={12} /><StyleNumber label="Corner radius" value={selected.style?.borderRadius} onChange={(v) => patchStyle("borderRadius", v)} max={80} /><StyleNumber label="Font size" value={selected.style?.fontSize} onChange={(v) => patchStyle("fontSize", v)} min={10} max={80} /><StyleNumber label="Font weight" value={selected.style?.fontWeight} onChange={(v) => patchStyle("fontWeight", v)} min={100} max={900} /></div><label className="visual-control"><span>Text alignment</span><select value={selected.style?.textAlign ?? "left"} onChange={(event) => patchStyle("textAlign", event.target.value as BlockStyle["textAlign"])}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><button type="button" className="inspector-reset" onClick={() => patchBlock(selected.id, { style: undefined })}>Reset block styling</button></details>
         </> : <div className="inspector-empty"><p className="visual-kicker">Inspector</p><h2>Choose a block</h2><p>Click a section in the canvas to adjust its space, colors, typography, borders, and content.</p></div>}
       </aside>

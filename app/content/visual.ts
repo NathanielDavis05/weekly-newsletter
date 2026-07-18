@@ -98,6 +98,8 @@ export function defaultHeader(page: VisualPageId): HeaderStyle {
     showTitle: page === "home",
     showMenu: true,
     advancedCss: "",
+    topOrder: ["back", "brand", "menu"],
+    copyOrder: ["kicker", "title"],
   };
 }
 
@@ -199,6 +201,8 @@ function normaliseHeader(value: HeaderStyle | undefined, fallback: HeaderStyle):
     showTitle: typeof value.showTitle === "boolean" ? value.showTitle : fallback.showTitle,
     showMenu: typeof value.showMenu === "boolean" ? value.showMenu : fallback.showMenu,
     advancedCss: cleanAdvancedCss(value.advancedCss),
+    topOrder: Array.isArray(value.topOrder) ? value.topOrder.filter((item): item is "back" | "brand" | "menu" => item === "back" || item === "brand" || item === "menu") : fallback.topOrder,
+    copyOrder: Array.isArray(value.copyOrder) ? value.copyOrder.filter((item): item is "kicker" | "title" => item === "kicker" || item === "title") : fallback.copyOrder,
   };
 }
 
@@ -236,6 +240,12 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     paddingLeft: px(style.paddingLeft),
     marginTop: px(style.marginTop),
     marginBottom: px(style.marginBottom),
+    "--block-padding-top": px(style.paddingTop),
+    "--block-padding-right": px(style.paddingRight),
+    "--block-padding-bottom": px(style.paddingBottom),
+    "--block-padding-left": px(style.paddingLeft),
+    "--block-margin-top": px(style.marginTop),
+    "--block-margin-bottom": px(style.marginBottom),
     backgroundColor: style.background || undefined,
     color: style.color || undefined,
     borderColor: style.borderColor || undefined,
@@ -246,8 +256,26 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     fontWeight: style.fontWeight,
     textAlign: style.textAlign,
     maxWidth: px(style.maxWidth),
+    "--block-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
+    "--block-phone-min-height": px(style.phone?.minHeight),
+    "--block-phone-padding-top": px(style.phone?.paddingTop),
+    "--block-phone-padding-right": px(style.phone?.paddingRight),
+    "--block-phone-padding-bottom": px(style.phone?.paddingBottom),
+    "--block-phone-padding-left": px(style.phone?.paddingLeft),
+    "--block-phone-margin-top": px(style.phone?.marginTop),
+    "--block-phone-margin-bottom": px(style.phone?.marginBottom),
+    "--block-phone-align": style.phone?.align,
+    "--block-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
+    "--block-desktop-min-height": px(style.desktop?.minHeight),
+    "--block-desktop-padding-top": px(style.desktop?.paddingTop),
+    "--block-desktop-padding-right": px(style.desktop?.paddingRight),
+    "--block-desktop-padding-bottom": px(style.desktop?.paddingBottom),
+    "--block-desktop-padding-left": px(style.desktop?.paddingLeft),
+    "--block-desktop-margin-top": px(style.desktop?.marginTop),
+    "--block-desktop-margin-bottom": px(style.desktop?.marginBottom),
+    "--block-desktop-align": style.desktop?.align,
     display: style.hidden ? "none" : undefined,
-  };
+  } as CSSProperties;
 }
 
 export function withVisualDocument(content: NewsletterContent): NewsletterContent {

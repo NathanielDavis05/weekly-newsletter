@@ -234,7 +234,23 @@ export interface BlockStyle {
   fontWeight?: number;
   textAlign?: "left" | "center" | "right";
   maxWidth?: number;
+  /** Responsive visual sizing, persisted for both the canvas and public page. */
+  phone?: ResponsiveLayout;
+  desktop?: ResponsiveLayout;
+  linkedDevices?: boolean;
   hidden?: boolean;
+}
+
+export interface ResponsiveLayout {
+  width?: number;
+  minHeight?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  align?: "left" | "center" | "right" | "stretch";
 }
 
 export interface VisualBlock {
@@ -321,4 +337,6 @@ export interface HeaderStyle {
   showTitle: boolean;
   showMenu: boolean;
   advancedCss: string;
+  topOrder: Array<"back" | "brand" | "menu">;
+  copyOrder: Array<"kicker" | "title">;
 }
