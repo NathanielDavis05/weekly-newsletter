@@ -4,11 +4,11 @@ import { PageBlocks } from "./PageBlocks";
 import type { CanvasEditorState } from "./PageBlocks";
 
 export function ResultsView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
-  const { shared, results } = content;
+  const { results } = content;
 
   return (
     <div className="site-shell site-shell--detail">
-      <DetailHeader shared={shared} />
+      <DetailHeader content={content} page="results" title={results.heading} kicker={results.eyebrow} editor={editor} />
       <main className="detail-main" id="main-content">
         <PageBlocks content={content} page="results" native={{
           "results-intro": <section className="detail-intro detail-intro--center" aria-labelledby="results-title">

@@ -4,11 +4,11 @@ import { PageBlocks } from "./PageBlocks";
 import type { CanvasEditorState } from "./PageBlocks";
 
 export function TrainingView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
-  const { shared, training } = content;
+  const { training } = content;
 
   return (
     <div className="site-shell site-shell--detail">
-      <DetailHeader shared={shared} />
+      <DetailHeader content={content} page="training" title={training.heading} kicker={training.badge} editor={editor} />
       <main className="detail-main" id="main-content">
         <PageBlocks content={content} page="training" native={{
           "training-intro": <section className="detail-intro" aria-labelledby="training-title">

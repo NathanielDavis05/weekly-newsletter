@@ -255,6 +255,70 @@ export interface VisualPageDocument {
 }
 
 export interface VisualDocument {
-  version: 1;
+  version: 2;
   pages: Record<VisualPageId, VisualPageDocument>;
+  headers: Record<VisualPageId, HeaderStyle>;
+}
+
+export type HeroShape =
+  | "straight"
+  | "curve"
+  | "inverted-curve"
+  | "wave"
+  | "angled"
+  | "double-angle"
+  | "zigzag"
+  | "scallop"
+  | "rounded"
+  | "asymmetric";
+
+export interface HeaderDeviceStyle {
+  minHeight: number;
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+  contentGap: number;
+  contentWidth: number;
+  verticalAlign: "top" | "center" | "bottom";
+  textAlign: "left" | "center" | "right";
+  brandSize: number;
+  titleSize: number;
+  kickerSize: number;
+  menuSize: number;
+}
+
+export interface HeaderStyle {
+  linked: boolean;
+  phone: HeaderDeviceStyle;
+  desktop: HeaderDeviceStyle;
+  shape: HeroShape;
+  shapeDepth: number;
+  shapeOffset: number;
+  transitionColor: string;
+  backgroundColor: string;
+  gradientStart: string;
+  gradientEnd: string;
+  gradientOpacity: number;
+  imageUrl: string;
+  imagePosition: string;
+  imageScale: number;
+  imageOpacity: number;
+  imageBlend: "normal" | "multiply" | "overlay" | "soft-light" | "screen";
+  overlayColor: string;
+  overlayOpacity: number;
+  textColor: string;
+  kickerColor: string;
+  brandColor: string;
+  menuColor: string;
+  menuBackground: string;
+  menuBorderColor: string;
+  titleWeight: number;
+  titleLetterSpacing: number;
+  kickerLetterSpacing: number;
+  showBrand: boolean;
+  showKicker: boolean;
+  showTitle: boolean;
+  showMenu: boolean;
+  advancedCss: string;
 }

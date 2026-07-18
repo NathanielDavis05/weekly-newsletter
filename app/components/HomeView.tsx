@@ -1,33 +1,16 @@
 import Link from "next/link";
 import { Fragment } from "react";
-import type { CSSProperties } from "react";
 import type { NewsletterContent } from "../content/types";
-import { SiteMenu } from "./SiteMenu";
 import { PageBlocks } from "./PageBlocks";
 import type { CanvasEditorState } from "./PageBlocks";
+import { SiteHero } from "./SiteHero";
 
 export function HomeView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
-  const { shared, home } = content;
-  const heroStyle: CSSProperties | undefined = home.heroImage
-    ? ({ "--hero-image": `url("${home.heroImage}")` } as CSSProperties)
-    : undefined;
+  const { home } = content;
 
   return (
     <div className="site-shell">
-      <header className="home-hero" style={heroStyle}>
-        <div className="hero-topline">
-          <Link className="brand-lockup brand-lockup--light" href="/">
-            <span>{shared.brandName}</span>
-            <small>{shared.brandTagline}</small>
-          </Link>
-          <SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted />
-        </div>
-
-        <div className="hero-copy">
-          <p className="hero-kicker">{home.hero.kicker}</p>
-          <h1>{home.hero.headline}</h1>
-        </div>
-      </header>
+      <SiteHero page="home" content={content} title={home.hero.headline} kicker={home.hero.kicker} editor={editor} />
 
       <main id="main-content">
         <PageBlocks content={content} page="home" native={{
