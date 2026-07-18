@@ -1151,6 +1151,62 @@ h3 {
   }
 }
 
+@media (max-width: 639px) {
+  .home-hero {
+    min-height: auto;
+    padding: 12px 20px 18px;
+  }
+
+  .hero-copy {
+    margin-top: 16px;
+  }
+
+  .hero-kicker {
+    margin-bottom: 4px;
+  }
+
+  .section--overview {
+    padding-top: 14px;
+    padding-bottom: 32px;
+  }
+
+  .section--overview .eyebrow {
+    margin-bottom: 4px;
+  }
+
+  .section--overview h2 {
+    margin-bottom: 6px;
+  }
+
+  .section--overview .section-intro {
+    margin-bottom: 14px;
+  }
+
+  .priority-stack {
+    gap: 10px;
+  }
+
+  .priority-card--action {
+    padding: 14px 16px;
+  }
+
+  .priority-card--action .urgent-label {
+    margin-bottom: 3px;
+  }
+
+  .priority-card--action h3 {
+    margin-bottom: 3px;
+  }
+
+  .priority-card--action .card-body p {
+    margin-bottom: 2px;
+  }
+
+  .priority-card--action .text-link {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 380px) {
   body {
     font-size: 16px;
