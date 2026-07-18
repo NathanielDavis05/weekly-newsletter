@@ -371,6 +371,15 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
     return data as { draft?: NewsletterContent; published?: NewsletterContent };
   }, []);
 
+  const useSavedDraft = useCallback((draft: NewsletterContent, snapshot?: NewsletterContent) => {
+    const persisted = { ...draft, visual: visualDocument(draft) };
+    setSavedDraft(persisted);
+    // Do not replace a newer local edit that happened while a prior autosave
+    // was in flight. When there is no newer edit, use the server-confirmed
+    // document so the status bar can never claim a save that was not retained.
+    setContent((current) => !snapshot || JSON.stringify(current) === JSON.stringify(snapshot) ? persisted : current);
+  }, []);
+
   useEffect(() => {
     if (!isDirty || busy || autoSaving || autoSaveBlocked) return;
     const snapshot = structuredClone(content);
@@ -378,15 +387,15 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
       const task = (async () => {
         setAutoSaving(true); setStatus("Saving draft…");
         try {
-          await request("/api/content", { method: "PUT", body: JSON.stringify(snapshot) });
-          setSavedDraft(snapshot); setStatus("Draft autosaved.");
+          const data = await request("/api/content", { method: "PUT", body: JSON.stringify(snapshot) });
+          useSavedDraft(data.draft ?? snapshot, snapshot); setStatus("Draft autosaved.");
         } catch (error) { setAutoSaveBlocked(true); setStatus(error instanceof Error ? error.message : "Autosave failed. Try Save draft."); }
         finally { setAutoSaving(false); autoSavePromise.current = null; }
       })();
       autoSavePromise.current = task;
     }, 900);
     return () => globalThis.clearTimeout(timer);
-  }, [autoSaveBlocked, autoSaving, busy, content, isDirty, request]);
+  }, [autoSaveBlocked, autoSaving, busy, content, isDirty, request, useSavedDraft]);
 
   useEffect(() => {
     const saveOnLeave = () => { if (isDirty) void fetch("/api/content", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(content), keepalive: true }); };
@@ -398,8 +407,8 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
     setBusy(true); setStatus("");
     task().then(() => setStatus(message)).catch((error) => setStatus(error instanceof Error ? error.message : "Something went wrong.")).finally(() => setBusy(false));
   };
-  const save = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); setAutoSaveBlocked(false); setSavedDraft(content); }, "Draft saved.");
-  const publish = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); await request("/api/content/publish", { method: "POST" }); setAutoSaveBlocked(false); setSavedDraft(content); setPublished(content); }, "Published — the live site is updated.");
+  const save = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); const data = await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); setAutoSaveBlocked(false); useSavedDraft(data.draft ?? content); }, "Draft saved.");
+  const publish = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); const data = await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); const persisted = data.draft ?? content; await request("/api/content/publish", { method: "POST" }); setAutoSaveBlocked(false); useSavedDraft(persisted); setPublished({ ...persisted, visual: visualDocument(persisted) }); }, "Published — the live site is updated.");
   const reset = () => run(async () => { const data = await request("/api/content/reset", { method: "POST", body: JSON.stringify({ target: "published" }) }); if (data.draft) { const next = { ...data.draft, visual: visualDocument(data.draft) }; setContent(next); setSavedDraft(next); } }, "Reverted to the published version.");
 
   const uploadImageForBlock = async (blockId: string, file: File) => {
