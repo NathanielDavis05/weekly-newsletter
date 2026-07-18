@@ -8,6 +8,10 @@ import type { CanvasEditorState } from "./PageBlocks";
 
 const targetSelector = "h1,h2,h3,p,a,button,article,aside,li,img,figure,table,span,strong,small,time,em,.card-body,.card-icon,.action-block,.priority-stack,.score-teaser,.score-teaser__result,.score-teaser__focus,.recognition-feature,.recognition-grid,.mini-card,.event-list,.event-row,.grow-card,.status-list,.status-row,.deadline-alert,.goal-summary,.metric-list,.metric-card,.focus-callout,.metrics-table-wrap,.momentum-note,.leader-help,.page-block--free,.site-footer,.site-hero__topline,.site-hero__brand,.site-hero__back,.site-menu,.site-hero__copy";
 type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+type CanvasAlignment = "left" | "center-x" | "right" | "top" | "center-y" | "bottom";
+const SNAP_DISTANCE = 6;
+const RESIZE_MIN = 1;
+const RESIZE_MAX = 12000;
 
 function elementPath(element: Element, root: Element) {
   const parts: number[] = [];
@@ -132,17 +136,88 @@ export function FreeformSurface({ page, content, editor, children }: { page: Vis
     const move = (next: globalThis.PointerEvent) => {
       const dx = next.clientX - startX; const dy = next.clientY - startY;
       const west = direction.includes("w"); const east = direction.includes("e"); const north = direction.includes("n"); const south = direction.includes("s");
-      const widthPx = west || east ? Math.max(20, Math.min(2400, Math.round(rect.width + (east ? dx : -dx)))) : layout.widthPx;
-      const height = north || south ? Math.max(20, Math.min(2400, Math.round(rect.height + (south ? dy : -dy)))) : layout.height;
+      let snappedDx = dx; let snappedDy = dy; let guideX: number | undefined; let guideY: number | undefined;
+      if (!next.altKey) {
+        const others = Array.from(rootRef.current!.querySelectorAll<HTMLElement>("[data-freeform-id]")).filter((element) => element !== target && !element.contains(target) && !target.contains(element) && !element.classList.contains("freeform-hidden"));
+        const rootRect = rootRef.current!.getBoundingClientRect();
+        const xTargets = [rootRect.left, rootRect.left + rootRect.width / 2, rootRect.right];
+        const yTargets = [rootRect.top, rootRect.top + rootRect.height / 2, rootRect.bottom];
+        const widths = [rootRect.width]; const heights = [rootRect.height];
+        for (const element of others) {
+          const other = element.getBoundingClientRect();
+          xTargets.push(other.left, other.left + other.width / 2, other.right);
+          yTargets.push(other.top, other.top + other.height / 2, other.bottom);
+          widths.push(other.width); heights.push(other.height);
+        }
+        if (west || east) {
+          const activeEdge = east ? rect.right + snappedDx : rect.left + snappedDx;
+          let edgeDelta = SNAP_DISTANCE + 1; let edgeTarget: number | undefined;
+          for (const candidate of xTargets) {
+            const difference = candidate - activeEdge;
+            if (Math.abs(difference) < Math.abs(edgeDelta)) { edgeDelta = difference; edgeTarget = candidate; }
+          }
+          if (Math.abs(edgeDelta) <= SNAP_DISTANCE) { snappedDx += edgeDelta; guideX = edgeTarget! - rootRect.left; }
+          const currentWidth = rect.width + (east ? snappedDx : -snappedDx);
+          let sizeDelta = SNAP_DISTANCE + 1; let matchingWidth: number | undefined;
+          for (const width of widths) {
+            const difference = width - currentWidth;
+            if (Math.abs(difference) < Math.abs(sizeDelta)) { sizeDelta = difference; matchingWidth = width; }
+          }
+          if (Math.abs(sizeDelta) <= SNAP_DISTANCE) {
+            snappedDx += east ? sizeDelta : -sizeDelta;
+            const matchingEdge = east ? rect.right + snappedDx : rect.left + snappedDx;
+            guideX = matchingEdge - rootRect.left;
+            void matchingWidth;
+          }
+        }
+        if (north || south) {
+          const activeEdge = south ? rect.bottom + snappedDy : rect.top + snappedDy;
+          let edgeDelta = SNAP_DISTANCE + 1; let edgeTarget: number | undefined;
+          for (const candidate of yTargets) {
+            const difference = candidate - activeEdge;
+            if (Math.abs(difference) < Math.abs(edgeDelta)) { edgeDelta = difference; edgeTarget = candidate; }
+          }
+          if (Math.abs(edgeDelta) <= SNAP_DISTANCE) { snappedDy += edgeDelta; guideY = edgeTarget! - rootRect.top; }
+          const currentHeight = rect.height + (south ? snappedDy : -snappedDy);
+          let sizeDelta = SNAP_DISTANCE + 1; let matchingHeight: number | undefined;
+          for (const height of heights) {
+            const difference = height - currentHeight;
+            if (Math.abs(difference) < Math.abs(sizeDelta)) { sizeDelta = difference; matchingHeight = height; }
+          }
+          if (Math.abs(sizeDelta) <= SNAP_DISTANCE) {
+            snappedDy += south ? sizeDelta : -sizeDelta;
+            const matchingEdge = south ? rect.bottom + snappedDy : rect.top + snappedDy;
+            guideY = matchingEdge - rootRect.top;
+            void matchingHeight;
+          }
+        }
+      }
+      setGuides({ x: guideX, y: guideY });
+      const widthPx = west || east ? Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, Math.round(rect.width + (east ? snappedDx : -snappedDx)))) : layout.widthPx;
+      const height = north || south ? Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, Math.round(rect.height + (south ? snappedDy : -snappedDy)))) : layout.height;
       editor.onFreeformChange?.(selectedKey, device, {
         ...(west || east ? { width: undefined, widthPx } : {}),
         ...(north || south ? { height, minHeight: undefined } : {}),
-        ...(west ? { x: Math.round(layout.x + dx) } : {}),
-        ...(north ? { y: Math.round(layout.y + dy) } : {}),
+        ...(west ? { x: Math.round(layout.x + snappedDx) } : {}),
+        ...(north ? { y: Math.round(layout.y + snappedDy) } : {}),
       });
     };
-    const end = () => { globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
+    const end = () => { setGuides({}); globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
     globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
+  };
+
+  const alignSelected = (alignment: CanvasAlignment) => {
+    if (!editor || !selectedKey || !rootRef.current) return;
+    const target = rootRef.current.querySelector<HTMLElement>(`[data-freeform-id="${CSS.escape(selectedKey)}"]`); if (!target) return;
+    const item = styles[selectedKey] ?? defaultItem(); if (item.locked) return;
+    const rootRect = rootRef.current.getBoundingClientRect(); const targetRect = target.getBoundingClientRect();
+    const device = editor.device ?? "phone"; const layout = item[device];
+    if (alignment === "left") editor.onFreeformChange?.(selectedKey, device, { x: Math.round(layout.x + rootRect.left - targetRect.left) });
+    if (alignment === "center-x") editor.onFreeformChange?.(selectedKey, device, { x: Math.round(layout.x + (rootRect.left + rootRect.width / 2) - (targetRect.left + targetRect.width / 2)) });
+    if (alignment === "right") editor.onFreeformChange?.(selectedKey, device, { x: Math.round(layout.x + rootRect.right - targetRect.right) });
+    if (alignment === "top") editor.onFreeformChange?.(selectedKey, device, { y: Math.round(layout.y + rootRect.top - targetRect.top) });
+    if (alignment === "center-y") editor.onFreeformChange?.(selectedKey, device, { y: Math.round(layout.y + (rootRect.top + rootRect.height / 2) - (targetRect.top + targetRect.height / 2)) });
+    if (alignment === "bottom") editor.onFreeformChange?.(selectedKey, device, { y: Math.round(layout.y + rootRect.bottom - targetRect.bottom) });
   };
 
   const keyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -163,6 +238,14 @@ export function FreeformSurface({ page, content, editor, children }: { page: Vis
     {guides.x != null ? <span className="freeform-smart-guide freeform-smart-guide--vertical" style={{ left: guides.x }} aria-hidden="true" /> : null}
     {guides.y != null ? <span className="freeform-smart-guide freeform-smart-guide--horizontal" style={{ top: guides.y }} aria-hidden="true" /> : null}
     {editor && overlay ? <div className="freeform-controls" style={overlay}>
+      <div className="freeform-align-toolbar" role="group" aria-label="Align on canvas">
+        <button type="button" aria-label="Align left" onClick={() => alignSelected("left")}>⇤</button>
+        <button type="button" aria-label="Align horizontal middle" onClick={() => alignSelected("center-x")}>↔</button>
+        <button type="button" aria-label="Align right" onClick={() => alignSelected("right")}>⇥</button>
+        <button type="button" aria-label="Align top" onClick={() => alignSelected("top")}>⇡</button>
+        <button type="button" aria-label="Align vertical middle" onClick={() => alignSelected("center-y")}>↕</button>
+        <button type="button" aria-label="Align bottom" onClick={() => alignSelected("bottom")}>⇣</button>
+      </div>
       {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeDirection[]).map((direction) => <button key={direction} type="button" className={`freeform-resize freeform-resize--${direction}`} aria-label={`Resize selected item ${direction}`} onPointerDown={(event) => resize(event, direction)} />)}
     </div> : null}
   </div>;

@@ -36,6 +36,9 @@
 .freeform-smart-guide--vertical { top: 0; bottom: 0; width: 1px; }
 .freeform-smart-guide--horizontal { right: 0; left: 0; height: 1px; }
 .freeform-controls { position: absolute; z-index: 9999; border: 1px solid var(--red); pointer-events: none; }
+.freeform-align-toolbar { position: absolute; top: -39px; left: 50%; display: grid; grid-template-columns: repeat(6, 28px); gap: 2px; padding: 3px; border: 1px solid #d8d0c4; border-radius: 8px; background: #fffdf8; box-shadow: 0 3px 12px rgba(13,34,56,.18); pointer-events: auto; transform: translateX(-50%); }
+.freeform-align-toolbar button { display: grid; place-items: center; width: 28px; min-width: 28px; min-height: 26px; padding: 0; border: 0; border-radius: 5px; color: var(--navy); background: transparent; font-size: 1rem; line-height: 1; }
+.freeform-align-toolbar button:hover, .freeform-align-toolbar button:focus-visible { color: #fff; background: var(--red); outline: none; }
 .freeform-controls .freeform-resize { position: absolute; display: block; width: 14px; height: 14px; min-width: 14px; min-height: 14px; padding: 0; border: 2px solid #fff; border-radius: 4px; background: var(--red); box-shadow: 0 1px 5px rgba(13,34,56,.28); pointer-events: auto; touch-action: none; }
 .freeform-resize--n { top: -8px; left: 50%; width: 24px !important; transform: translateX(-50%); cursor: ns-resize !important; }
 .freeform-resize--s { bottom: -8px; left: 50%; width: 24px !important; transform: translateX(-50%); cursor: ns-resize !important; }

@@ -38,7 +38,7 @@ const nativeBlocks: Record<VisualPageId, Array<[string, string]>> = {
 
 export function defaultVisualDocument(): VisualDocument {
   return {
-    version: 4,
+    version: 5,
     pages: {
       home: { blocks: nativeBlocks.home.map(nativeBlock) },
       training: { blocks: nativeBlocks.training.map(nativeBlock) },
@@ -119,7 +119,7 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
   if (!candidate || !candidate.pages) return fallback;
 
   return {
-    version: 4,
+    version: 5,
     pages: {
       home: normalisePage(candidate.pages.home?.blocks, fallback.pages.home.blocks),
       training: normalisePage(candidate.pages.training?.blocks, fallback.pages.training.blocks),
@@ -173,11 +173,11 @@ function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | und
 
 function normaliseFreeformLayout(value: Partial<import("./types").FreeformLayout> | undefined) {
   return {
-    x: numberIn(value?.x, 0, -4000, 4000),
-    y: numberIn(value?.y, 0, -4000, 4000),
+    x: numberIn(value?.x, 0, -12000, 12000),
+    y: numberIn(value?.y, 0, -12000, 12000),
     width: typeof value?.width === "number" ? numberIn(value.width, 100, 5, 200) : undefined,
-    widthPx: typeof value?.widthPx === "number" ? numberIn(value.widthPx, 320, 20, 2400) : undefined,
-    height: typeof value?.height === "number" ? numberIn(value.height, 44, 20, 2400) : undefined,
+    widthPx: typeof value?.widthPx === "number" ? numberIn(value.widthPx, 320, 1, 12000) : undefined,
+    height: typeof value?.height === "number" ? numberIn(value.height, 44, 1, 12000) : undefined,
     minHeight: typeof value?.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 2000) : undefined,
     rotation: typeof value?.rotation === "number" ? numberIn(value.rotation, 0, -180, 180) : undefined,
   };

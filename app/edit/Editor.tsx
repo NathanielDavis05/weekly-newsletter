@@ -46,10 +46,44 @@ function makeBlock(template: BlockTemplate): VisualBlock {
   return { id: id(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined };
 }
 
+function DeferredNumberInput({ value, onChange, min, max, step }: {
+  value?: number; onChange: (value: number | undefined) => void; min?: number; max?: number; step?: number;
+}) {
+  const displayedValue = value == null ? "" : String(value);
+  const [draftValue, setDraftValue] = useState(displayedValue);
+  const editing = useRef(false);
+
+  useEffect(() => {
+    if (!editing.current) setDraftValue(displayedValue);
+  }, [displayedValue]);
+
+  const commit = () => {
+    editing.current = false;
+    const trimmed = draftValue.trim();
+    if (!trimmed) { onChange(undefined); return; }
+    const parsed = Number(trimmed);
+    if (Number.isFinite(parsed)) onChange(parsed);
+    else setDraftValue(displayedValue);
+  };
+
+  return <input
+    type="number"
+    inputMode="decimal"
+    min={min}
+    max={max}
+    step={step}
+    value={draftValue}
+    onFocus={() => { editing.current = true; }}
+    onChange={(event) => setDraftValue(event.target.value)}
+    onBlur={commit}
+    onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraftValue(displayedValue); event.currentTarget.blur(); } }}
+  />;
+}
+
 function StyleNumber({ label, value, onChange, min = 0, max = 160 }: {
   label: string; value?: number; onChange: (value: number | undefined) => void; min?: number; max?: number;
 }) {
-  return <label className="visual-control"><span>{label}</span><input type="number" min={min} max={max} value={value ?? ""} onChange={(event) => onChange(event.target.value === "" ? undefined : Number(event.target.value))} /></label>;
+  return <label className="visual-control"><span>{label}</span><DeferredNumberInput value={value} onChange={onChange} min={min} max={max} /></label>;
 }
 
 function StyleColor({ label, value, onChange }: { label: string; value?: string; onChange: (value: string | undefined) => void }) {
@@ -79,10 +113,10 @@ function FreeformInspector({ item, layer, block, device, onLayout, onStyle, onBl
     {block ? <details className="inspector-section" open><summary>Block content</summary>{block.kind === "text" || block.kind === "container" || block.kind === "button" ? <label className="visual-control"><span>{block.kind === "button" ? "Button text" : "Heading"}</span><input value={block.title ?? ""} onChange={(event) => onBlockChange?.({ title: event.target.value })} /></label> : null}{block.kind === "text" || block.kind === "container" ? <label className="visual-control"><span>Body text</span><textarea value={block.body ?? ""} onChange={(event) => onBlockChange?.({ body: event.target.value })} /></label> : null}{block.kind === "button" ? <label className="visual-control"><span>Button link</span><input value={block.href ?? ""} onChange={(event) => onBlockChange?.({ href: event.target.value })} /></label> : null}{block.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={block.imageUrl ?? ""} onChange={(event) => onBlockChange?.({ imageUrl: event.target.value })} /></label><label className="visual-control"><span>Alt text</span><input value={block.alt ?? ""} onChange={(event) => onBlockChange?.({ alt: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUploadImage?.(file); }} /></label></> : null}<button type="button" className="inspector-delete" onClick={onDelete}>Delete block</button></details> : null}
     {isButtonLike ? <details className="inspector-section" open><summary>Button sizing</summary><p className="visual-native-note">These presets keep buttons easy to tap while letting cards expand sideways.</p><div className="size-actions"><button type="button" onClick={() => onLayout({ width: undefined, widthPx: undefined, height: undefined, minHeight: undefined })}>Fit content</button><button type="button" onClick={() => onLayout({ width: 100, widthPx: undefined })}>Full width</button><button type="button" onClick={() => { onLayout({ height: 44, minHeight: undefined }); onStyle({ padding: 10, borderRadius: 12, overflow: "hidden" }); }}>Compact</button><button type="button" onClick={() => { onLayout({ height: 64, minHeight: undefined }); onStyle({ padding: 14, borderRadius: 16, overflow: "hidden" }); }}>Comfortable</button></div></details> : null}
     <details className="inspector-section" open><summary>Position & size</summary><label className="visual-switch"><input type="checkbox" checked={item.linked} onChange={(event) => onStyle({ linked: event.target.checked, desktop: event.target.checked ? { ...item.phone } : item.desktop })} /> Link phone & desktop</label><div className="inspector-grid">
-      <StyleNumber label="X position" value={layout.x} onChange={(v) => onLayout({ x: v ?? 0 })} min={-4000} max={4000} />
-      <StyleNumber label="Y position" value={layout.y} onChange={(v) => onLayout({ y: v ?? 0 })} min={-4000} max={4000} />
-      <StyleNumber label="Width (px)" value={layout.widthPx} onChange={(v) => onLayout({ widthPx: v, width: v == null ? layout.width : undefined })} min={20} max={2400} />
-      <StyleNumber label="Height (px)" value={layout.height} onChange={(v) => onLayout({ height: v, minHeight: v == null ? layout.minHeight : undefined })} min={20} max={2400} />
+      <StyleNumber label="X position" value={layout.x} onChange={(v) => onLayout({ x: v ?? 0 })} min={-12000} max={12000} />
+      <StyleNumber label="Y position" value={layout.y} onChange={(v) => onLayout({ y: v ?? 0 })} min={-12000} max={12000} />
+      <StyleNumber label="Width (px)" value={layout.widthPx} onChange={(v) => onLayout({ widthPx: v, width: v == null ? layout.width : undefined })} min={1} max={12000} />
+      <StyleNumber label="Height (px)" value={layout.height} onChange={(v) => onLayout({ height: v, minHeight: v == null ? layout.minHeight : undefined })} min={1} max={12000} />
       <StyleNumber label="Width %" value={layout.width} onChange={(v) => onLayout({ width: v, widthPx: v == null ? layout.widthPx : undefined })} min={5} max={200} />
       <StyleNumber label="Rotation" value={layout.rotation} onChange={(v) => onLayout({ rotation: v })} min={-180} max={180} />
     </div><div className="size-actions"><button type="button" onClick={() => onLayout({ width: undefined, widthPx: undefined, height: undefined, minHeight: undefined })}>Fit content</button><button type="button" onClick={() => onLayout({ width: 100, widthPx: undefined })}>Full width</button><button type="button" onClick={() => onLayout({ x: 0, y: 0, width: undefined, widthPx: undefined, height: undefined, minHeight: undefined, rotation: 0 })}>Reset size & position</button></div></details>
@@ -431,7 +465,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
       </aside>
 
       <main className="visual-editor__main">
-        <div className="visual-canvas-toolbar"><span>Live canvas</span><label className="canvas-height-control">Page height <input type="number" min="500" max="12000" step="100" value={document.canvas[page][device]} onChange={(event) => patchCanvasHeight(device, Number(event.target.value) || 500)} /></label><div><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div></div>
+        <div className="visual-canvas-toolbar"><span>Live canvas</span><label className="canvas-height-control">Page height <DeferredNumberInput value={document.canvas[page][device]} onChange={(value) => patchCanvasHeight(device, value ?? 500)} min={500} max={12000} step={100} /></label><div><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div></div>
         <div className={`visual-canvas visual-canvas--${device}`} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDrop={dropTemplate}>
           {page === "home" ? <HomeView content={content} editor={editor} /> : null}
           {page === "training" ? <TrainingView content={content} editor={editor} /> : null}

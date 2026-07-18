@@ -271,7 +271,7 @@ export interface VisualPageDocument {
 }
 
 export interface VisualDocument {
-  version: 4;
+  version: 5;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
   freeform: Record<VisualPageId, Record<string, FreeformItemStyle>>;
