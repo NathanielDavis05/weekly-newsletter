@@ -66,9 +66,8 @@ function SortableCanvasBlock({ block, children }: { block: VisualBlock; children
       ref={setNodeRef}
       className={`canvas-sortable${isDragging ? " canvas-sortable--dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...attributes}
     >
-      <button type="button" className="canvas-sortable__handle" aria-label={`Move ${block.label}`} {...listeners}>⠿</button>
+      <button type="button" className="canvas-sortable__handle" aria-label={`Move ${block.label}`} {...attributes} {...listeners}>⠿</button>
       {children}
     </div>
   );
