@@ -1,6 +1,15 @@
 import Link from "next/link";
+import type { LinkContent } from "../content/types";
 
-export function SiteMenu({ inverted = false }: { inverted?: boolean }) {
+export function SiteMenu({
+  heading,
+  links,
+  inverted = false,
+}: {
+  heading: string;
+  links: LinkContent[];
+  inverted?: boolean;
+}) {
   return (
     <details className={`site-menu${inverted ? " site-menu--inverted" : ""}`}>
       <summary aria-label="Open site menu">
@@ -9,13 +18,12 @@ export function SiteMenu({ inverted = false }: { inverted?: boolean }) {
         <span aria-hidden="true" />
       </summary>
       <nav aria-label="Newsletter navigation">
-        <p>Explore this week</p>
-        <Link href="/">Home</Link>
-        <Link href="/training">Action required</Link>
-        <Link href="/results">Results</Link>
-        <Link href="/#events">Events</Link>
-        <Link href="/#recognition">Recognition</Link>
-        <Link href="/#grow">Grow with us</Link>
+        <p>{heading}</p>
+        {links.map((link) => (
+          <Link key={`${link.href}-${link.label}`} href={link.href}>
+            {link.label}
+          </Link>
+        ))}
       </nav>
     </details>
   );
