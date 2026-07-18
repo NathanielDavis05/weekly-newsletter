@@ -1,20 +1,23 @@
 import type { NewsletterContent } from "../content/types";
 import { DetailHeader } from "./DetailHeader";
+import { PageBlocks } from "./PageBlocks";
+import type { CanvasEditorState } from "./PageBlocks";
 
-export function ResultsView({ content }: { content: NewsletterContent }) {
+export function ResultsView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
   const { shared, results } = content;
 
   return (
     <div className="site-shell site-shell--detail">
       <DetailHeader shared={shared} />
       <main className="detail-main" id="main-content">
-        <section className="detail-intro detail-intro--center" aria-labelledby="results-title">
+        <PageBlocks content={content} page="results" native={{
+          "results-intro": <section className="detail-intro detail-intro--center" aria-labelledby="results-title">
           <p className="eyebrow eyebrow--red-pill">{results.eyebrow}</p>
           <h1 id="results-title">{results.heading}</h1>
           <p className="detail-lead">{results.lead}</p>
-        </section>
+          </section>,
 
-        <section className="goal-summary" aria-label={results.summaryAria}>
+          "results-summary": <section className="goal-summary" aria-label={results.summaryAria}>
           <span className="goal-summary__mark" aria-hidden="true">★</span>
           <div>
             <strong>
@@ -22,9 +25,9 @@ export function ResultsView({ content }: { content: NewsletterContent }) {
             </strong>
             <p>{results.summaryLabel}</p>
           </div>
-        </section>
+          </section>,
 
-        <section className="metric-list" aria-label="Headline June metrics">
+          "results-metrics": <section className="metric-list" aria-label="Headline June metrics">
           {results.headlineMetrics.map((metric) => (
             <article className="metric-card" key={metric.label}>
               <div>
@@ -39,15 +42,15 @@ export function ResultsView({ content }: { content: NewsletterContent }) {
               </div>
             </article>
           ))}
-        </section>
+          </section>,
 
-        <aside className="focus-callout">
+          "results-focus": <aside className="focus-callout">
           <p className="urgent-label">{results.focus.label}</p>
           <h2>{results.focus.heading}</h2>
           <p>{results.focus.body}</p>
-        </aside>
+          </aside>,
 
-        <section className="detail-section" aria-labelledby="all-results-title">
+          "results-scorecard": <section className="detail-section" aria-labelledby="all-results-title">
           <p className="eyebrow">{results.scorecard.eyebrow}</p>
           <h2 id="all-results-title">{results.scorecard.heading}</h2>
           <div className="metrics-table-wrap">
@@ -74,15 +77,16 @@ export function ResultsView({ content }: { content: NewsletterContent }) {
               </tbody>
             </table>
           </div>
-        </section>
+          </section>,
 
-        <section className="momentum-note">
+          "results-momentum": <section className="momentum-note">
           <span aria-hidden="true">★</span>
           <div>
             <h2>{results.momentum.heading}</h2>
             <p>{results.momentum.body}</p>
           </div>
-        </section>
+          </section>,
+        }} editable={Boolean(editor)} selectedId={editor?.selectedId} onSelect={editor?.onSelect} renderBlock={editor?.renderBlock} />
       </main>
     </div>
   );

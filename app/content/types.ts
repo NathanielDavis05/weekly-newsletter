@@ -200,4 +200,61 @@ export interface NewsletterContent {
   home: HomeContent;
   training: TrainingContent;
   results: ResultsContent;
+  /**
+   * Editor-owned layout data. The copy above remains the source of truth for
+   * the native newsletter sections, while this document controls their order,
+   * presentation, and any freeform blocks added in the visual editor.
+   */
+  visual?: VisualDocument;
+}
+
+export type VisualPageId = "home" | "training" | "results";
+
+export type VisualBlockKind =
+  | "native"
+  | "text"
+  | "image"
+  | "button"
+  | "divider"
+  | "container";
+
+export interface BlockStyle {
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  background?: string;
+  color?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  fontSize?: number;
+  fontWeight?: number;
+  textAlign?: "left" | "center" | "right";
+  maxWidth?: number;
+  hidden?: boolean;
+}
+
+export interface VisualBlock {
+  id: string;
+  kind: VisualBlockKind;
+  label: string;
+  style?: BlockStyle;
+  nativeId?: string;
+  title?: string;
+  body?: string;
+  href?: string;
+  imageUrl?: string;
+  alt?: string;
+}
+
+export interface VisualPageDocument {
+  blocks: VisualBlock[];
+}
+
+export interface VisualDocument {
+  version: 1;
+  pages: Record<VisualPageId, VisualPageDocument>;
 }

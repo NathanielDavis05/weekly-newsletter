@@ -3,8 +3,10 @@ import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import type { NewsletterContent } from "../content/types";
 import { SiteMenu } from "./SiteMenu";
+import { PageBlocks } from "./PageBlocks";
+import type { CanvasEditorState } from "./PageBlocks";
 
-export function HomeView({ content }: { content: NewsletterContent }) {
+export function HomeView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
   const { shared, home } = content;
   const heroStyle: CSSProperties | undefined = home.heroImage
     ? ({ "--hero-image": `url("${home.heroImage}")` } as CSSProperties)
@@ -28,7 +30,8 @@ export function HomeView({ content }: { content: NewsletterContent }) {
       </header>
 
       <main id="main-content">
-        <section className="section section--overview" aria-labelledby="overview-title">
+        <PageBlocks content={content} page="home" native={{
+          "home-overview": <section className="section section--overview" aria-labelledby="overview-title">
           <p className="eyebrow">{home.overview.eyebrow}</p>
           <h2 id="overview-title">{home.overview.heading}</h2>
           <p className="section-intro">{home.overview.intro}</p>
@@ -79,9 +82,9 @@ export function HomeView({ content }: { content: NewsletterContent }) {
               <span className="card-arrow" aria-hidden="true">→</span>
             </Link>
           </div>
-        </section>
+          </section>,
 
-        <section className="section" aria-labelledby="results-teaser-title">
+          "home-scorecard": <section className="section" aria-labelledby="results-teaser-title">
           <div className="score-teaser">
             <div>
               <p className="eyebrow eyebrow--green">{home.scorecard.eyebrow}</p>
@@ -102,9 +105,9 @@ export function HomeView({ content }: { content: NewsletterContent }) {
               {home.scorecard.buttonLabel}
             </Link>
           </div>
-        </section>
+          </section>,
 
-        <section
+          "home-recognition": <section
           className="section section--recognition"
           id="recognition"
           aria-labelledby="recognition-title"
@@ -137,9 +140,9 @@ export function HomeView({ content }: { content: NewsletterContent }) {
               ))}
             </article>
           </div>
-        </section>
+          </section>,
 
-        <section className="section" id="events" aria-labelledby="events-title">
+          "home-events": <section className="section" id="events" aria-labelledby="events-title">
           <p className="eyebrow">{home.events.eyebrow}</p>
           <h2 id="events-title">{home.events.heading}</h2>
           <p className="section-intro">{home.events.intro}</p>
@@ -155,9 +158,9 @@ export function HomeView({ content }: { content: NewsletterContent }) {
               </div>
             ))}
           </div>
-        </section>
+          </section>,
 
-        <section className="section section--grow" id="grow" aria-labelledby="grow-title">
+          "home-grow": <section className="section section--grow" id="grow" aria-labelledby="grow-title">
           <div className="grow-card">
             <p className="eyebrow eyebrow--light">{home.grow.eyebrow}</p>
             <h2 id="grow-title">{home.grow.heading}</h2>
@@ -174,7 +177,8 @@ export function HomeView({ content }: { content: NewsletterContent }) {
           <p className="referral-note">
             <strong>{home.grow.referralStrong}</strong> {home.grow.referralRest}
           </p>
-        </section>
+          </section>,
+        }} editable={Boolean(editor)} selectedId={editor?.selectedId} onSelect={editor?.onSelect} renderBlock={editor?.renderBlock} />
       </main>
 
       <footer className="site-footer">

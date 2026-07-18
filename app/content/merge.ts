@@ -1,5 +1,6 @@
 import { defaultContent } from "./defaults";
 import type { NewsletterContent } from "./types";
+import { withVisualDocument } from "./visual";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
@@ -27,7 +28,7 @@ function mergeValue(base: unknown, override: unknown): unknown {
 
 /** Merge parsed, possibly-partial stored content onto the canonical defaults. */
 export function mergeContent(stored: unknown): NewsletterContent {
-  return mergeValue(defaultContent, stored) as NewsletterContent;
+  return withVisualDocument(mergeValue(defaultContent, stored) as NewsletterContent);
 }
 
 /** Safely parse a JSON content string, falling back to defaults on any error. */
