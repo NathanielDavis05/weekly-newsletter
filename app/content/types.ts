@@ -271,10 +271,11 @@ export interface VisualPageDocument {
 }
 
 export interface VisualDocument {
-  version: 3;
+  version: 4;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
   freeform: Record<VisualPageId, Record<string, FreeformItemStyle>>;
+  canvas: Record<VisualPageId, { phone: number; desktop: number }>;
 }
 
 export interface FreeformLayout {
@@ -305,6 +306,7 @@ export interface FreeformItemStyle {
   borderRadius?: number;
   padding?: number;
   overflow?: "visible" | "hidden" | "auto";
+  position?: "flow" | "absolute";
 }
 
 export type HeroShape =

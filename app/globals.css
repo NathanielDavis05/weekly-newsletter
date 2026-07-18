@@ -1365,7 +1365,8 @@ h3 {
 
 /* Persisted freeform layout. Elements remain responsive but may be positioned,
    overlapped, resized, and rotated independently by the visual editor. */
-.freeform-surface { position: relative; overflow: visible; }
+.freeform-surface { position: relative; width: min(100%, 820px); min-height: var(--canvas-phone-height, 500px); margin-inline: auto; overflow: visible; }
+.freeform-surface > .site-shell { min-height: inherit; overflow: visible; }
 .freeform-item {
   position: relative;
   box-sizing: border-box;
@@ -1379,11 +1380,14 @@ h3 {
   transform-origin: center;
 }
 .freeform-hidden { display: none !important; }
+.freeform-item.freeform-absolute { position: absolute !important; top: var(--ff-phone-y, 0); left: var(--ff-phone-x, 0); margin: 0; transform: rotate(var(--ff-phone-rotation, 0deg)); }
 @media (min-width: 640px) {
+  .freeform-surface { min-height: var(--canvas-desktop-height, 500px); }
   .freeform-item {
     width: var(--ff-desktop-width, auto);
     height: var(--ff-desktop-height, auto);
     min-height: var(--ff-desktop-min-height, 0);
     transform: translate(var(--ff-desktop-x, 0), var(--ff-desktop-y, 0)) rotate(var(--ff-desktop-rotation, 0deg));
   }
+  .freeform-item.freeform-absolute { top: var(--ff-desktop-y, 0); left: var(--ff-desktop-x, 0); transform: rotate(var(--ff-desktop-rotation, 0deg)); }
 }

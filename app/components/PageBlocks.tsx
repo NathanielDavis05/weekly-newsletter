@@ -10,6 +10,7 @@ export interface CanvasEditorState {
   onFreeformChange?: (id: string, device: "phone" | "desktop", patch: Partial<FreeformLayout>) => void;
   onFreeformStyleChange?: (id: string, patch: Partial<FreeformItemStyle>) => void;
   onFreeformDiscover?: (items: Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>) => void;
+  onCanvasHeightChange?: (device: "phone" | "desktop", height: number) => void;
 }
 
 export function PageBlocks({
@@ -38,7 +39,7 @@ export function PageBlocks({
           <div
             key={block.id}
             data-block-id={block.id}
-            className={`page-block${editable ? " page-block--editable" : ""}${selectedId === block.id ? " page-block--selected" : ""}`}
+            className={`page-block${block.kind === "native" ? "" : " page-block--free"}${editable ? " page-block--editable" : ""}${selectedId === block.id ? " page-block--selected" : ""}`}
             style={styleForBlock(block.style)}
             onClick={editable ? (event) => { event.stopPropagation(); onSelect?.(block.id); } : undefined}
           >

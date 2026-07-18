@@ -38,7 +38,7 @@ const nativeBlocks: Record<VisualPageId, Array<[string, string]>> = {
 
 export function defaultVisualDocument(): VisualDocument {
   return {
-    version: 3,
+    version: 4,
     pages: {
       home: { blocks: nativeBlocks.home.map(nativeBlock) },
       training: { blocks: nativeBlocks.training.map(nativeBlock) },
@@ -50,6 +50,11 @@ export function defaultVisualDocument(): VisualDocument {
       results: defaultHeader("results"),
     },
     freeform: { home: {}, training: {}, results: {} },
+    canvas: {
+      home: { phone: 2200, desktop: 1900 },
+      training: { phone: 1500, desktop: 1300 },
+      results: { phone: 1700, desktop: 1450 },
+    },
   };
 }
 
@@ -114,7 +119,7 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
   if (!candidate || !candidate.pages) return fallback;
 
   return {
-    version: 3,
+    version: 4,
     pages: {
       home: normalisePage(candidate.pages.home?.blocks, fallback.pages.home.blocks),
       training: normalisePage(candidate.pages.training?.blocks, fallback.pages.training.blocks),
@@ -130,7 +135,16 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
       training: normaliseFreeform(candidate.freeform?.training),
       results: normaliseFreeform(candidate.freeform?.results),
     },
+    canvas: {
+      home: normaliseCanvas(candidate.canvas?.home, fallback.canvas.home),
+      training: normaliseCanvas(candidate.canvas?.training, fallback.canvas.training),
+      results: normaliseCanvas(candidate.canvas?.results, fallback.canvas.results),
+    },
   };
+}
+
+function normaliseCanvas(value: { phone?: number; desktop?: number } | undefined, fallback: { phone: number; desktop: number }) {
+  return { phone: numberIn(value?.phone, fallback.phone, 500, 12000), desktop: numberIn(value?.desktop, fallback.desktop, 500, 12000) };
 }
 
 function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | undefined) {
@@ -153,6 +167,7 @@ function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | und
     borderRadius: typeof item.borderRadius === "number" ? numberIn(item.borderRadius, 0, 0, 300) : undefined,
     padding: typeof item.padding === "number" ? numberIn(item.padding, 0, 0, 300) : undefined,
     overflow: item.overflow === "hidden" || item.overflow === "auto" || item.overflow === "visible" ? item.overflow : undefined,
+    position: item.position === "absolute" ? "absolute" : "flow",
   }]));
 }
 
