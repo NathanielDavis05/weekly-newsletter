@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import type { NewsletterContent, VisualPageId } from "../content/types";
 import { visualDocument } from "../content/visual";
 import { SiteMenu } from "./SiteMenu";
-import type { CanvasEditorState } from "./PageBlocks";
+import type { CanvasEditorState } from "./ItemCanvas";
 
 type HeroVars = CSSProperties & Record<`--${string}`, string | number>;
 

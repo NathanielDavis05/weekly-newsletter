@@ -1,62 +1,60 @@
+import type { CSSProperties } from "react";
 import type {
   BlockStyle,
-  NewsletterContent,
-  VisualBlock,
-  VisualDocument,
-  VisualPageId,
   HeaderDeviceStyle,
   HeaderStyle,
+  NewsletterContent,
+  ResponsiveLayout,
+  VisualBlock,
+  VisualDocument,
+  VisualPageDocument,
+  VisualPageId,
+  VisualRow,
 } from "./types";
-import type { CSSProperties } from "react";
 
-const nativeBlocks: Record<VisualPageId, Array<[string, string]>> = {
-  home: [
-    ["home-overview", "This week at a glance"],
-    ["home-scorecard", "June scorecard"],
-    ["home-recognition", "Recognition"],
-    ["home-events", "Nearby events"],
-    ["home-grow", "Grow with us"],
-  ],
-  training: [
-    ["training-intro", "Training overview"],
-    ["training-status", "Training deadlines"],
-    ["training-action", "Training action"],
-    ["training-alert", "Scheduling alert"],
-    ["training-covers", "What training covers"],
-    ["training-why", "Why it matters"],
-    ["training-help", "Need a hand?"],
-  ],
-  results: [
-    ["results-intro", "Results overview"],
-    ["results-summary", "Goals met"],
-    ["results-metrics", "Headline metrics"],
-    ["results-focus", "This month’s focus"],
-    ["results-scorecard", "Three-month scorecard"],
-    ["results-momentum", "Momentum note"],
-  ],
+type SeedItem = [id: string, label: string];
+
+const pageSeeds: Record<VisualPageId, { items: SeedItem[]; rows: string[][] }> = {
+  home: {
+    items: [
+      ["home-overview-intro", "This week at a glance"],
+      ["home-action", "CommercePoint training"],
+      ["home-event", "Cow Appreciation Day"],
+      ["home-recognition-link", "Celebrate Catye & Richie"],
+      ["home-scorecard", "June scorecard"],
+      ["home-recognition-heading", "Recognition heading"],
+      ["home-recognition-feature", "Team shout-out"],
+      ["home-birthday", "Birthday"],
+      ["home-anniversaries", "Anniversaries"],
+      ["home-events", "Nearby events"],
+      ["home-grow", "Grow with us"],
+      ["home-footer", "Footer"],
+    ],
+    rows: [
+      ["home-overview-intro"], ["home-action"], ["home-event", "home-recognition-link"],
+      ["home-scorecard"], ["home-recognition-heading"], ["home-recognition-feature"],
+      ["home-birthday", "home-anniversaries"], ["home-events"], ["home-grow"], ["home-footer"],
+    ],
+  },
+  training: {
+    items: [
+      ["training-intro", "Training overview"], ["training-status", "Training deadlines"],
+      ["training-action", "Complete training"], ["training-alert", "Scheduling alert"],
+      ["training-covers", "What training covers"], ["training-why", "Why it matters"],
+      ["training-help", "Need a hand?"],
+    ],
+    rows: [["training-intro"], ["training-status"], ["training-action"], ["training-alert"], ["training-covers"], ["training-why"], ["training-help"]],
+  },
+  results: {
+    items: [
+      ["results-intro", "Results overview"], ["results-summary", "Goals met"],
+      ["results-metric-0", "Overall satisfaction"], ["results-metric-1", "Taste of food"],
+      ["results-metric-2", "Speed of service"], ["results-focus", "This month’s focus"],
+      ["results-scorecard", "Three-month scorecard"], ["results-momentum", "Momentum note"],
+    ],
+    rows: [["results-intro"], ["results-summary"], ["results-metric-0", "results-metric-1"], ["results-metric-2"], ["results-focus"], ["results-scorecard"], ["results-momentum"]],
+  },
 };
-
-export function defaultVisualDocument(): VisualDocument {
-  return {
-    version: 5,
-    pages: {
-      home: { blocks: nativeBlocks.home.map(nativeBlock) },
-      training: { blocks: nativeBlocks.training.map(nativeBlock) },
-      results: { blocks: nativeBlocks.results.map(nativeBlock) },
-    },
-    headers: {
-      home: defaultHeader("home"),
-      training: defaultHeader("training"),
-      results: defaultHeader("results"),
-    },
-    freeform: { home: {}, training: {}, results: {} },
-    canvas: {
-      home: { phone: 2200, desktop: 1900 },
-      training: { phone: 1500, desktop: 1300 },
-      results: { phone: 1700, desktop: 1450 },
-    },
-  };
-}
 
 const compactPhone: HeaderDeviceStyle = {
   minHeight: 156, paddingTop: 12, paddingRight: 18, paddingBottom: 24, paddingLeft: 18,
@@ -72,131 +70,50 @@ const compactDesktop: HeaderDeviceStyle = {
 
 export function defaultHeader(page: VisualPageId): HeaderStyle {
   return {
-    linked: true,
-    phone: { ...compactPhone },
-    desktop: { ...compactDesktop },
-    shape: page === "home" ? "curve" : "angled",
-    shapeDepth: page === "home" ? 18 : 10,
-    shapeOffset: 0,
-    shapePosition: 0,
-    transitionColor: "#fbf7ef",
+    linked: true, phone: { ...compactPhone }, desktop: { ...compactDesktop },
+    shape: page === "home" ? "curve" : "angled", shapeDepth: page === "home" ? 18 : 10,
+    shapeOffset: 0, shapePosition: 0, transitionColor: "#fbf7ef",
     backgroundColor: page === "home" ? "#d80d37" : "#0d2238",
-    gradientStart: page === "home" ? "#d80d37" : "#102a47",
-    gradientEnd: page === "home" ? "#ad0527" : "#0d2238",
-    gradientOpacity: 82,
-    imageUrl: page === "home" ? "/images/food-pattern-red.png" : "",
-    imagePosition: "center 45%",
-    imageScale: 100,
-    imageOpacity: page === "home" ? 68 : 0,
-    imageBlend: "multiply",
-    overlayColor: "#5d0019",
-    overlayOpacity: page === "home" ? 28 : 18,
-    textColor: "#ffffff",
-    kickerColor: "#fff7e8",
-    brandColor: "#ffffff",
-    menuColor: "#ffffff",
-    menuBackground: "rgba(255,255,255,.08)",
-    menuBorderColor: "rgba(255,255,255,.6)",
-    titleWeight: 700,
-    titleLetterSpacing: -1.3,
-    kickerLetterSpacing: 2,
-    showBrand: true,
-    showKicker: true,
-    showTitle: page === "home",
-    showMenu: true,
-    advancedCss: "",
-    topOrder: ["back", "brand", "menu"],
-    copyOrder: ["kicker", "title"],
+    gradientStart: page === "home" ? "#d80d37" : "#102a47", gradientEnd: page === "home" ? "#ad0527" : "#0d2238",
+    gradientOpacity: 82, imageUrl: page === "home" ? "/images/food-pattern-red.png" : "",
+    imagePosition: "center 45%", imageScale: 100, imageOpacity: page === "home" ? 68 : 0,
+    imageBlend: "multiply", overlayColor: "#5d0019", overlayOpacity: page === "home" ? 28 : 18,
+    textColor: "#ffffff", kickerColor: "#fff7e8", brandColor: "#ffffff", menuColor: "#ffffff",
+    menuBackground: "rgba(255,255,255,.08)", menuBorderColor: "rgba(255,255,255,.6)",
+    titleWeight: 700, titleLetterSpacing: -1.3, kickerLetterSpacing: 2,
+    showBrand: true, showKicker: true, showTitle: page === "home", showMenu: true,
+    advancedCss: "", topOrder: ["back", "brand", "menu"], copyOrder: ["kicker", "title"],
   };
 }
 
-function nativeBlock([nativeId, label]: [string, string]): VisualBlock {
-  return { id: nativeId, kind: "native", nativeId, label };
-}
-
-export function visualDocument(content: NewsletterContent): VisualDocument {
-  const fallback = defaultVisualDocument();
-  const candidate = content.visual;
-  if (!candidate || !candidate.pages) return fallback;
-
+function defaultPage(page: VisualPageId): VisualPageDocument {
+  const seed = pageSeeds[page];
   return {
-    version: 5,
-    pages: {
-      home: normalisePage(candidate.pages.home?.blocks, fallback.pages.home.blocks),
-      training: normalisePage(candidate.pages.training?.blocks, fallback.pages.training.blocks),
-      results: normalisePage(candidate.pages.results?.blocks, fallback.pages.results.blocks),
-    },
-    headers: {
-      home: normaliseHeader(candidate.headers?.home, fallback.headers.home),
-      training: normaliseHeader(candidate.headers?.training, fallback.headers.training),
-      results: normaliseHeader(candidate.headers?.results, fallback.headers.results),
-    },
-    freeform: {
-      home: normaliseFreeform(candidate.freeform?.home),
-      training: normaliseFreeform(candidate.freeform?.training),
-      results: normaliseFreeform(candidate.freeform?.results),
-    },
-    canvas: {
-      home: normaliseCanvas(candidate.canvas?.home, fallback.canvas.home),
-      training: normaliseCanvas(candidate.canvas?.training, fallback.canvas.training),
-      results: normaliseCanvas(candidate.canvas?.results, fallback.canvas.results),
-    },
+    items: seed.items.map(([id, label]) => ({ id, kind: "native", nativeId: id, label })),
+    rows: seed.rows.map((itemIds, index) => ({ id: `${page}-row-${index + 1}`, itemIds, gap: 16, align: "stretch", keepColumnsOnPhone: false })),
+    background: "#fbf7ef", contentWidth: page === "home" ? 760 : 720, minHeight: 0,
+    paddingTop: 30, paddingRight: 22, paddingBottom: 46, paddingLeft: 22, rowGap: 22,
   };
 }
 
-function normaliseCanvas(value: { phone?: number; desktop?: number } | undefined, fallback: { phone: number; desktop: number }) {
-  return { phone: numberIn(value?.phone, fallback.phone, 500, 12000), desktop: numberIn(value?.desktop, fallback.desktop, 500, 12000) };
-}
-
-function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | undefined) {
-  if (!value || typeof value !== "object") return {};
-  return Object.fromEntries(Object.entries(value).filter(([, item]) => item && typeof item === "object").map(([id, item]) => [id, {
-    linked: typeof item.linked === "boolean" ? item.linked : true,
-    phone: normaliseFreeformLayout(item.phone),
-    desktop: normaliseFreeformLayout(item.desktop),
-    zIndex: numberIn(item.zIndex, 1, 0, 999),
-    opacity: numberIn(item.opacity, 100, 0, 100),
-    locked: Boolean(item.locked),
-    hidden: Boolean(item.hidden),
-    text: typeof item.text === "string" ? item.text.slice(0, 4000) : undefined,
-    href: typeof item.href === "string" ? item.href.slice(0, 2000) : undefined,
-    fontSize: typeof item.fontSize === "number" ? numberIn(item.fontSize, 16, 8, 240) : undefined,
-    fontWeight: typeof item.fontWeight === "number" ? numberIn(item.fontWeight, 400, 100, 900) : undefined,
-    textAlign: item.textAlign === "left" || item.textAlign === "center" || item.textAlign === "right" ? item.textAlign : undefined,
-    color: typeof item.color === "string" ? item.color.slice(0, 64) : undefined,
-    background: typeof item.background === "string" ? item.background.slice(0, 128) : undefined,
-    borderRadius: typeof item.borderRadius === "number" ? numberIn(item.borderRadius, 0, 0, 300) : undefined,
-    padding: typeof item.padding === "number" ? numberIn(item.padding, 0, 0, 300) : undefined,
-    overflow: item.overflow === "hidden" || item.overflow === "auto" || item.overflow === "visible" ? item.overflow : undefined,
-    position: item.position === "absolute" ? "absolute" : "flow",
-  }]));
-}
-
-function normaliseFreeformLayout(value: Partial<import("./types").FreeformLayout> | undefined) {
+export function defaultVisualDocument(): VisualDocument {
   return {
-    x: numberIn(value?.x, 0, -12000, 12000),
-    y: numberIn(value?.y, 0, -12000, 12000),
-    width: typeof value?.width === "number" ? numberIn(value.width, 100, 5, 200) : undefined,
-    widthPx: typeof value?.widthPx === "number" ? numberIn(value.widthPx, 320, 1, 12000) : undefined,
-    height: typeof value?.height === "number" ? numberIn(value.height, 44, 1, 12000) : undefined,
-    minHeight: typeof value?.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 2000) : undefined,
-    rotation: typeof value?.rotation === "number" ? numberIn(value.rotation, 0, -180, 180) : undefined,
+    version: 6,
+    pages: { home: defaultPage("home"), training: defaultPage("training"), results: defaultPage("results") },
+    headers: { home: defaultHeader("home"), training: defaultHeader("training"), results: defaultHeader("results") },
   };
 }
 
+const numberIn = (value: unknown, fallback: number, min: number, max: number) => typeof value === "number" && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+const shortText = (value: unknown, fallback: string) => typeof value === "string" ? value.trim().slice(0, 360) || fallback : fallback;
 const shapes = new Set<HeaderStyle["shape"]>(["straight", "curve", "inverted-curve", "wave", "angled", "double-angle", "zigzag", "scallop", "rounded", "asymmetric"]);
 const blends = new Set<HeaderStyle["imageBlend"]>(["normal", "multiply", "overlay", "soft-light", "screen"]);
 const safeAdvancedProperties = new Set(["box-shadow", "text-shadow", "filter", "backdrop-filter", "opacity", "transform", "background-repeat"]);
 
-const numberIn = (value: unknown, fallback: number, min: number, max: number) => typeof value === "number" && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
-const shortText = (value: unknown, fallback: string) => typeof value === "string" ? value.trim().slice(0, 360) || fallback : fallback;
-
 function cleanAdvancedCss(value: unknown) {
   if (typeof value !== "string") return "";
   return value.split(";").map((declaration) => {
-    const [rawKey, ...rawValue] = declaration.split(":");
-    const key = rawKey?.trim().toLowerCase();
-    const next = rawValue.join(":").trim();
+    const [rawKey, ...rawValue] = declaration.split(":"); const key = rawKey?.trim().toLowerCase(); const next = rawValue.join(":").trim();
     if (!key || !next || !safeAdvancedProperties.has(key) || /url\(|expression/i.test(next)) return "";
     return `${key}: ${next.slice(0, 320)}`;
   }).filter(Boolean).join("; ");
@@ -205,137 +122,126 @@ function cleanAdvancedCss(value: unknown) {
 function normaliseDevice(value: Partial<HeaderDeviceStyle> | undefined, fallback: HeaderDeviceStyle): HeaderDeviceStyle {
   const source = value ?? {};
   return {
-    minHeight: numberIn(source.minHeight, fallback.minHeight, 0, 900),
-    paddingTop: numberIn(source.paddingTop, fallback.paddingTop, 0, 300),
-    paddingRight: numberIn(source.paddingRight, fallback.paddingRight, 0, 300),
-    paddingBottom: numberIn(source.paddingBottom, fallback.paddingBottom, 0, 300),
-    paddingLeft: numberIn(source.paddingLeft, fallback.paddingLeft, 0, 300),
-    contentGap: numberIn(source.contentGap, fallback.contentGap, 0, 240),
+    minHeight: numberIn(source.minHeight, fallback.minHeight, 0, 900), paddingTop: numberIn(source.paddingTop, fallback.paddingTop, 0, 300),
+    paddingRight: numberIn(source.paddingRight, fallback.paddingRight, 0, 300), paddingBottom: numberIn(source.paddingBottom, fallback.paddingBottom, 0, 300),
+    paddingLeft: numberIn(source.paddingLeft, fallback.paddingLeft, 0, 300), contentGap: numberIn(source.contentGap, fallback.contentGap, 0, 240),
     contentWidth: numberIn(source.contentWidth, fallback.contentWidth, 120, 1100),
     verticalAlign: source.verticalAlign === "top" || source.verticalAlign === "bottom" || source.verticalAlign === "center" ? source.verticalAlign : fallback.verticalAlign,
     textAlign: source.textAlign === "left" || source.textAlign === "right" || source.textAlign === "center" ? source.textAlign : fallback.textAlign,
-    brandSize: numberIn(source.brandSize, fallback.brandSize, 0, 80),
-    titleSize: numberIn(source.titleSize, fallback.titleSize, 12, 160),
-    kickerSize: numberIn(source.kickerSize, fallback.kickerSize, 8, 60),
-    menuSize: numberIn(source.menuSize, fallback.menuSize, 32, 100),
+    brandSize: numberIn(source.brandSize, fallback.brandSize, 0, 80), titleSize: numberIn(source.titleSize, fallback.titleSize, 12, 160),
+    kickerSize: numberIn(source.kickerSize, fallback.kickerSize, 8, 60), menuSize: numberIn(source.menuSize, fallback.menuSize, 32, 100),
   };
 }
 
 function normaliseHeader(value: HeaderStyle | undefined, fallback: HeaderStyle): HeaderStyle {
   if (!value || typeof value !== "object") return fallback;
   return {
-    ...fallback,
-    ...value,
-    linked: typeof value.linked === "boolean" ? value.linked : fallback.linked,
-    phone: normaliseDevice(value.phone, fallback.phone),
-    desktop: normaliseDevice(value.desktop, fallback.desktop),
-    shape: shapes.has(value.shape) ? value.shape : fallback.shape,
-    shapeDepth: numberIn(value.shapeDepth, fallback.shapeDepth, 0, 180),
-    shapeOffset: numberIn(value.shapeOffset, fallback.shapeOffset, -240, 240),
-    shapePosition: numberIn(value.shapePosition, fallback.shapePosition, -180, 180),
-    transitionColor: shortText(value.transitionColor, fallback.transitionColor),
-    backgroundColor: shortText(value.backgroundColor, fallback.backgroundColor),
-    gradientStart: shortText(value.gradientStart, fallback.gradientStart),
-    gradientEnd: shortText(value.gradientEnd, fallback.gradientEnd),
-    gradientOpacity: numberIn(value.gradientOpacity, fallback.gradientOpacity, 0, 100),
-    imageUrl: shortText(value.imageUrl, ""),
-    imagePosition: shortText(value.imagePosition, fallback.imagePosition),
-    imageScale: numberIn(value.imageScale, fallback.imageScale, 10, 300),
-    imageOpacity: numberIn(value.imageOpacity, fallback.imageOpacity, 0, 100),
-    imageBlend: blends.has(value.imageBlend) ? value.imageBlend : fallback.imageBlend,
-    overlayColor: shortText(value.overlayColor, fallback.overlayColor),
-    overlayOpacity: numberIn(value.overlayOpacity, fallback.overlayOpacity, 0, 100),
-    textColor: shortText(value.textColor, fallback.textColor),
-    kickerColor: shortText(value.kickerColor, fallback.kickerColor),
-    brandColor: shortText(value.brandColor, fallback.brandColor),
-    menuColor: shortText(value.menuColor, fallback.menuColor),
-    menuBackground: shortText(value.menuBackground, fallback.menuBackground),
-    menuBorderColor: shortText(value.menuBorderColor, fallback.menuBorderColor),
-    titleWeight: numberIn(value.titleWeight, fallback.titleWeight, 100, 900),
-    titleLetterSpacing: numberIn(value.titleLetterSpacing, fallback.titleLetterSpacing, -10, 20),
+    ...fallback, ...value, linked: typeof value.linked === "boolean" ? value.linked : fallback.linked,
+    phone: normaliseDevice(value.phone, fallback.phone), desktop: normaliseDevice(value.desktop, fallback.desktop),
+    shape: shapes.has(value.shape) ? value.shape : fallback.shape, shapeDepth: numberIn(value.shapeDepth, fallback.shapeDepth, 0, 180),
+    shapeOffset: numberIn(value.shapeOffset, fallback.shapeOffset, -240, 240), shapePosition: numberIn(value.shapePosition, fallback.shapePosition, -180, 180),
+    transitionColor: shortText(value.transitionColor, fallback.transitionColor), backgroundColor: shortText(value.backgroundColor, fallback.backgroundColor),
+    gradientStart: shortText(value.gradientStart, fallback.gradientStart), gradientEnd: shortText(value.gradientEnd, fallback.gradientEnd),
+    gradientOpacity: numberIn(value.gradientOpacity, fallback.gradientOpacity, 0, 100), imageUrl: shortText(value.imageUrl, ""),
+    imagePosition: shortText(value.imagePosition, fallback.imagePosition), imageScale: numberIn(value.imageScale, fallback.imageScale, 10, 300),
+    imageOpacity: numberIn(value.imageOpacity, fallback.imageOpacity, 0, 100), imageBlend: blends.has(value.imageBlend) ? value.imageBlend : fallback.imageBlend,
+    overlayColor: shortText(value.overlayColor, fallback.overlayColor), overlayOpacity: numberIn(value.overlayOpacity, fallback.overlayOpacity, 0, 100),
+    textColor: shortText(value.textColor, fallback.textColor), kickerColor: shortText(value.kickerColor, fallback.kickerColor),
+    brandColor: shortText(value.brandColor, fallback.brandColor), menuColor: shortText(value.menuColor, fallback.menuColor),
+    menuBackground: shortText(value.menuBackground, fallback.menuBackground), menuBorderColor: shortText(value.menuBorderColor, fallback.menuBorderColor),
+    titleWeight: numberIn(value.titleWeight, fallback.titleWeight, 100, 900), titleLetterSpacing: numberIn(value.titleLetterSpacing, fallback.titleLetterSpacing, -10, 20),
     kickerLetterSpacing: numberIn(value.kickerLetterSpacing, fallback.kickerLetterSpacing, -2, 20),
-    showBrand: typeof value.showBrand === "boolean" ? value.showBrand : fallback.showBrand,
-    showKicker: typeof value.showKicker === "boolean" ? value.showKicker : fallback.showKicker,
-    showTitle: typeof value.showTitle === "boolean" ? value.showTitle : fallback.showTitle,
-    showMenu: typeof value.showMenu === "boolean" ? value.showMenu : fallback.showMenu,
+    showBrand: typeof value.showBrand === "boolean" ? value.showBrand : fallback.showBrand, showKicker: typeof value.showKicker === "boolean" ? value.showKicker : fallback.showKicker,
+    showTitle: typeof value.showTitle === "boolean" ? value.showTitle : fallback.showTitle, showMenu: typeof value.showMenu === "boolean" ? value.showMenu : fallback.showMenu,
     advancedCss: cleanAdvancedCss(value.advancedCss),
     topOrder: Array.isArray(value.topOrder) ? value.topOrder.filter((item): item is "back" | "brand" | "menu" => item === "back" || item === "brand" || item === "menu") : fallback.topOrder,
     copyOrder: Array.isArray(value.copyOrder) ? value.copyOrder.filter((item): item is "kicker" | "title" => item === "kicker" || item === "title") : fallback.copyOrder,
   };
 }
 
-function normalisePage(
-  incoming: VisualBlock[] | undefined,
-  fallback: VisualBlock[],
-): { blocks: VisualBlock[] } {
-  const blocks = Array.isArray(incoming) ? incoming.filter(isVisualBlock) : [];
-  const seen = new Set(blocks.filter((block) => block.kind === "native").map((block) => block.nativeId));
+function isBlock(value: unknown): value is VisualBlock {
+  return Boolean(value && typeof value === "object" && "id" in value && "kind" in value && "label" in value);
+}
+
+function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout | undefined {
+  if (!value) return undefined;
   return {
-    blocks: [
-      ...blocks,
-      ...fallback.filter((block) => !seen.has(block.nativeId)),
-    ],
+    width: typeof value.width === "number" ? numberIn(value.width, 100, 10, 100) : undefined,
+    minHeight: typeof value.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 1600) : undefined,
+    paddingTop: typeof value.paddingTop === "number" ? numberIn(value.paddingTop, 0, 0, 240) : undefined,
+    paddingRight: typeof value.paddingRight === "number" ? numberIn(value.paddingRight, 0, 0, 240) : undefined,
+    paddingBottom: typeof value.paddingBottom === "number" ? numberIn(value.paddingBottom, 0, 0, 240) : undefined,
+    paddingLeft: typeof value.paddingLeft === "number" ? numberIn(value.paddingLeft, 0, 0, 240) : undefined,
+    marginTop: typeof value.marginTop === "number" ? numberIn(value.marginTop, 0, -80, 240) : undefined,
+    marginBottom: typeof value.marginBottom === "number" ? numberIn(value.marginBottom, 0, -80, 240) : undefined,
+    align: value.align === "left" || value.align === "center" || value.align === "right" || value.align === "stretch" ? value.align : undefined,
+    nudgeX: typeof value.nudgeX === "number" ? numberIn(value.nudgeX, 0, -48, 48) : undefined,
+    nudgeY: typeof value.nudgeY === "number" ? numberIn(value.nudgeY, 0, -48, 48) : undefined,
   };
 }
 
-function isVisualBlock(value: unknown): value is VisualBlock {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      "id" in value &&
-      "kind" in value &&
-      "label" in value,
-  );
+function normaliseBlock(block: VisualBlock): VisualBlock {
+  const style = block.style ? { ...block.style, phone: normaliseLayout(block.style.phone), desktop: normaliseLayout(block.style.desktop) } : undefined;
+  return { ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style };
+}
+
+function normaliseRow(value: VisualRow, validIds: Set<string>, fallbackId: string): VisualRow | null {
+  const itemIds = Array.isArray(value.itemIds) ? value.itemIds.filter((id) => validIds.has(id)).slice(0, 2) : [];
+  if (!itemIds.length) return null;
+  return { id: shortText(value.id, fallbackId), itemIds, gap: numberIn(value.gap, 16, 0, 96), align: value.align === "start" || value.align === "center" || value.align === "end" || value.align === "stretch" ? value.align : "stretch", keepColumnsOnPhone: Boolean(value.keepColumnsOnPhone) };
+}
+
+function migratePage(page: VisualPageId, incoming: unknown, fallback: VisualPageDocument): VisualPageDocument {
+  const source = incoming && typeof incoming === "object" ? incoming as Record<string, unknown> : {};
+  const rawItems = Array.isArray(source.items) ? source.items.filter(isBlock) : Array.isArray(source.blocks) ? source.blocks.filter(isBlock) : [];
+  const currentNative = new Map(rawItems.filter((item) => item.kind === "native").map((item) => [item.nativeId ?? item.id, item]));
+  const items = fallback.items.map((seed) => normaliseBlock({ ...seed, ...(currentNative.get(seed.nativeId ?? seed.id)?.style ? { style: currentNative.get(seed.nativeId ?? seed.id)?.style } : {}) }));
+  for (const block of rawItems.filter((item) => item.kind !== "native")) items.push(normaliseBlock(block));
+  const validIds = new Set(items.map((item) => item.id));
+  const rawRows = Array.isArray(source.rows) ? source.rows as VisualRow[] : [];
+  let rows = rawRows.map((row, index) => normaliseRow(row, validIds, `${page}-row-${index + 1}`)).filter((row): row is VisualRow => Boolean(row));
+  if (!rows.length) rows = fallback.rows.map((row) => ({ ...row, itemIds: [...row.itemIds] }));
+  const placed = new Set(rows.flatMap((row) => row.itemIds));
+  for (const item of items) if (!placed.has(item.id)) rows.push({ id: `${page}-row-${rows.length + 1}-${item.id}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false });
+  return {
+    items, rows, background: shortText(source.background, fallback.background),
+    contentWidth: numberIn(source.contentWidth, fallback.contentWidth, 320, 1400), minHeight: numberIn(source.minHeight, fallback.minHeight, 0, 12000),
+    paddingTop: numberIn(source.paddingTop, fallback.paddingTop, 0, 240), paddingRight: numberIn(source.paddingRight, fallback.paddingRight, 0, 240),
+    paddingBottom: numberIn(source.paddingBottom, fallback.paddingBottom, 0, 240), paddingLeft: numberIn(source.paddingLeft, fallback.paddingLeft, 0, 240),
+    rowGap: numberIn(source.rowGap, fallback.rowGap, 0, 160),
+  };
+}
+
+export function visualDocument(content: NewsletterContent): VisualDocument {
+  const fallback = defaultVisualDocument(); const candidate = content.visual as unknown as Record<string, unknown> | undefined;
+  if (!candidate || !candidate.pages) return fallback;
+  const pages = candidate.pages as Partial<Record<VisualPageId, unknown>>;
+  const headers = candidate.headers as Partial<Record<VisualPageId, HeaderStyle>> | undefined;
+  return {
+    version: 6,
+    pages: { home: migratePage("home", pages.home, fallback.pages.home), training: migratePage("training", pages.training, fallback.pages.training), results: migratePage("results", pages.results, fallback.pages.results) },
+    headers: { home: normaliseHeader(headers?.home, fallback.headers.home), training: normaliseHeader(headers?.training, fallback.headers.training), results: normaliseHeader(headers?.results, fallback.headers.results) },
+  };
 }
 
 export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
-  if (!style) return undefined;
-  const px = (value: number | undefined) => (typeof value === "number" ? `${value}px` : undefined);
+  if (!style) return undefined; const px = (value: number | undefined) => typeof value === "number" ? `${value}px` : undefined;
   return {
-    paddingTop: px(style.paddingTop),
-    paddingRight: px(style.paddingRight),
-    paddingBottom: px(style.paddingBottom),
-    paddingLeft: px(style.paddingLeft),
-    marginTop: px(style.marginTop),
-    marginBottom: px(style.marginBottom),
-    "--block-padding-top": px(style.paddingTop),
-    "--block-padding-right": px(style.paddingRight),
-    "--block-padding-bottom": px(style.paddingBottom),
-    "--block-padding-left": px(style.paddingLeft),
-    "--block-margin-top": px(style.marginTop),
-    "--block-margin-bottom": px(style.marginBottom),
-    backgroundColor: style.background || undefined,
-    color: style.color || undefined,
-    borderColor: style.borderColor || undefined,
-    borderWidth: px(style.borderWidth),
-    borderStyle: style.borderWidth ? "solid" : undefined,
-    borderRadius: px(style.borderRadius),
-    fontSize: px(style.fontSize),
-    fontWeight: style.fontWeight,
-    textAlign: style.textAlign,
-    maxWidth: px(style.maxWidth),
-    "--block-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
-    "--block-phone-min-height": px(style.phone?.minHeight),
-    "--block-phone-padding-top": px(style.phone?.paddingTop),
-    "--block-phone-padding-right": px(style.phone?.paddingRight),
-    "--block-phone-padding-bottom": px(style.phone?.paddingBottom),
-    "--block-phone-padding-left": px(style.phone?.paddingLeft),
-    "--block-phone-margin-top": px(style.phone?.marginTop),
-    "--block-phone-margin-bottom": px(style.phone?.marginBottom),
-    "--block-phone-align": style.phone?.align,
-    "--block-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
-    "--block-desktop-min-height": px(style.desktop?.minHeight),
-    "--block-desktop-padding-top": px(style.desktop?.paddingTop),
-    "--block-desktop-padding-right": px(style.desktop?.paddingRight),
-    "--block-desktop-padding-bottom": px(style.desktop?.paddingBottom),
-    "--block-desktop-padding-left": px(style.desktop?.paddingLeft),
-    "--block-desktop-margin-top": px(style.desktop?.marginTop),
-    "--block-desktop-margin-bottom": px(style.desktop?.marginBottom),
-    "--block-desktop-align": style.desktop?.align,
-    display: style.hidden ? "none" : undefined,
+    backgroundColor: style.background || undefined, color: style.color || undefined, borderColor: style.borderColor || undefined,
+    borderWidth: px(style.borderWidth), borderStyle: style.borderWidth ? "solid" : undefined, borderRadius: px(style.borderRadius),
+    fontSize: px(style.fontSize), fontWeight: style.fontWeight, textAlign: style.textAlign, maxWidth: px(style.maxWidth), display: style.hidden ? "none" : undefined,
+    "--item-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
+    "--item-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
+    "--item-phone-min-height": px(style.phone?.minHeight), "--item-desktop-min-height": px(style.desktop?.minHeight),
+    "--item-phone-padding-top": px(style.phone?.paddingTop ?? style.paddingTop), "--item-phone-padding-right": px(style.phone?.paddingRight ?? style.paddingRight),
+    "--item-phone-padding-bottom": px(style.phone?.paddingBottom ?? style.paddingBottom), "--item-phone-padding-left": px(style.phone?.paddingLeft ?? style.paddingLeft),
+    "--item-desktop-padding-top": px(style.desktop?.paddingTop ?? style.paddingTop), "--item-desktop-padding-right": px(style.desktop?.paddingRight ?? style.paddingRight),
+    "--item-desktop-padding-bottom": px(style.desktop?.paddingBottom ?? style.paddingBottom), "--item-desktop-padding-left": px(style.desktop?.paddingLeft ?? style.paddingLeft),
+    "--item-phone-margin-top": px(style.phone?.marginTop ?? style.marginTop), "--item-phone-margin-bottom": px(style.phone?.marginBottom ?? style.marginBottom),
+    "--item-desktop-margin-top": px(style.desktop?.marginTop ?? style.marginTop), "--item-desktop-margin-bottom": px(style.desktop?.marginBottom ?? style.marginBottom),
+    "--item-phone-nudge-x": px(style.phone?.nudgeX), "--item-phone-nudge-y": px(style.phone?.nudgeY),
+    "--item-desktop-nudge-x": px(style.desktop?.nudgeX), "--item-desktop-nudge-y": px(style.desktop?.nudgeY),
   } as CSSProperties;
 }
 
-export function withVisualDocument(content: NewsletterContent): NewsletterContent {
-  return { ...content, visual: visualDocument(content) };
-}
+export function withVisualDocument(content: NewsletterContent): NewsletterContent { return { ...content, visual: visualDocument(content) }; }

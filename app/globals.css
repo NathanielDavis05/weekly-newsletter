@@ -57,6 +57,57 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Version 6 uses the same responsive item/row renderer in public pages and in
+   the editor. Editor controls are absolutely-positioned overlays, so they can
+   never change the published geometry. */
+.item-page {
+  min-height: var(--page-min-height, 0px);
+  background: var(--page-background, #fbf7ef);
+  padding: var(--page-padding-top, 30px) var(--page-padding-right, 22px) var(--page-padding-bottom, 46px) var(--page-padding-left, 22px);
+}
+
+.item-page__content {
+  width: min(100%, var(--page-content-width, 760px));
+  margin-inline: auto;
+  display: grid;
+  gap: var(--page-row-gap, 22px);
+}
+
+.item-row-shell { position: relative; }
+.item-row { display: flex; justify-content: center; width: 100%; position: relative; }
+.newsletter-item {
+  position: relative;
+  flex: 0 1 var(--item-phone-width, 100%);
+  width: var(--item-phone-width, 100%);
+  min-width: 0;
+  min-height: var(--item-phone-min-height, 0);
+  padding: var(--item-phone-padding-top, 0) var(--item-phone-padding-right, 0) var(--item-phone-padding-bottom, 0) var(--item-phone-padding-left, 0);
+  margin-top: var(--item-phone-margin-top, 0);
+  margin-bottom: var(--item-phone-margin-bottom, 0);
+  translate: var(--item-phone-nudge-x, 0) var(--item-phone-nudge-y, 0);
+}
+.newsletter-item > :first-child { width: 100%; }
+.newsletter-item .section { padding: 0; }
+.newsletter-item .detail-section { margin: 0; }
+.newsletter-item .site-footer { margin: 0; }
+
+@media (max-width: 639px) {
+  .item-row:not(.item-row--phone-columns) { flex-direction: column; }
+  .item-row:not(.item-row--phone-columns) > .newsletter-item { width: 100%; flex-basis: 100%; }
+}
+
+@media (min-width: 640px) {
+  .newsletter-item {
+    flex-basis: var(--item-desktop-width, var(--item-phone-width, 100%));
+    width: var(--item-desktop-width, var(--item-phone-width, 100%));
+    min-height: var(--item-desktop-min-height, var(--item-phone-min-height, 0));
+    padding: var(--item-desktop-padding-top, var(--item-phone-padding-top, 0)) var(--item-desktop-padding-right, var(--item-phone-padding-right, 0)) var(--item-desktop-padding-bottom, var(--item-phone-padding-bottom, 0)) var(--item-desktop-padding-left, var(--item-phone-padding-left, 0));
+    margin-top: var(--item-desktop-margin-top, var(--item-phone-margin-top, 0));
+    margin-bottom: var(--item-desktop-margin-bottom, var(--item-phone-margin-bottom, 0));
+    translate: var(--item-desktop-nudge-x, 0) var(--item-desktop-nudge-y, 0);
+  }
+}
+
 a {
   color: inherit;
 }

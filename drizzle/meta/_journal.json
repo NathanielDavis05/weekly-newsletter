@@ -15,6 +15,13 @@
       "when": 1784350000000,
       "tag": "0001_media_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784397600000,
+      "tag": "0002_item_document_revisions",
+      "breakpoints": true
     }
   ]
 }

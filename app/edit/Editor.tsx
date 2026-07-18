@@ -1,502 +1,142 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { DragEvent as ReactDragEvent } from "react";
 import { HomeView } from "../components/HomeView";
+import type { CanvasEditorState } from "../components/ItemCanvas";
 import { ResultsView } from "../components/ResultsView";
 import { TrainingView } from "../components/TrainingView";
-import type { CanvasEditorState } from "../components/PageBlocks";
-import type {
-  BlockStyle,
-  HeaderDeviceStyle,
-  HeaderStyle,
-  FreeformItemStyle,
-  FreeformLayout,
-  NewsletterContent,
-  ResponsiveLayout,
-  VisualBlock,
-  VisualBlockKind,
-  VisualPageId,
-} from "../content/types";
-import { visualDocument } from "../content/visual";
+import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, NewsletterContent, ResponsiveLayout, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
+import { defaultHeader, visualDocument } from "../content/visual";
 
-const pages: Array<{ id: VisualPageId; label: string }> = [
-  { id: "home", label: "Home" },
-  { id: "training", label: "Training" },
-  { id: "results", label: "Results" },
+const pages: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
+type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; imageUrl?: string; style?: BlockStyle };
+const templates: Template[] = [
+  { id: "heading", kind: "text", label: "Heading", icon: "T", title: "New heading", style: { fontSize: 34, fontWeight: 700, phone: { width: 100 }, desktop: { width: 80 } } },
+  { id: "paragraph", kind: "text", label: "Paragraph", icon: "¶", body: "Add your message here.", style: { fontSize: 16, phone: { width: 100 }, desktop: { width: 80 } } },
+  { id: "button", kind: "button", label: "Primary button", icon: "↗", title: "Learn more", href: "https://", style: { phone: { width: 100 }, desktop: { width: 42 } } },
+  { id: "card", kind: "container", label: "Info card", icon: "▣", title: "Important update", body: "Add supporting details here.", style: { background: "#fffdf8", borderColor: "#ddd3c4", borderWidth: 1, borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 70 } } },
+  { id: "recognition", kind: "container", label: "Recognition", icon: "★", title: "Team shout-out", body: "Celebrate a team member here.", style: { background: "#fff4d9", borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 60 } } },
+  { id: "stat", kind: "container", label: "Stat card", icon: "5", title: "5 of 6", body: "goals met", style: { background: "#edf8f0", color: "#08733d", borderRadius: 18, textAlign: "center", paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 48 } } },
+  { id: "image", kind: "image", label: "Image", icon: "▧", style: { phone: { width: 100 }, desktop: { width: 70 } } },
+  { id: "divider", kind: "divider", label: "Divider", icon: "—", style: { phone: { width: 100 }, desktop: { width: 100 } } },
 ];
 
-type BlockTemplate = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; style?: BlockStyle; width: number; height?: number };
-const blockTemplates: BlockTemplate[] = [
-  { id: "heading", kind: "text", label: "Heading", icon: "T", title: "New heading", width: 300, style: { background: "transparent", paddingTop: 6, paddingRight: 6, paddingBottom: 6, paddingLeft: 6, fontSize: 34, fontWeight: 700 } },
-  { id: "paragraph", kind: "text", label: "Text", icon: "¶", body: "Add your message here.", width: 300, style: { background: "transparent", paddingTop: 8, paddingRight: 8, paddingBottom: 8, paddingLeft: 8, fontSize: 16 } },
-  { id: "primary-button", kind: "button", label: "Red button", icon: "↗", title: "Learn more", href: "https://", width: 210, height: 48 },
-  { id: "info-card", kind: "container", label: "Info card", icon: "▣", title: "Important update", body: "Add supporting details here.", width: 320, style: { background: "#fffdf8", borderColor: "#ddd3c4", borderWidth: 1, borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20 } },
-  { id: "recognition", kind: "container", label: "Recognition", icon: "★", title: "Team shout-out", body: "Celebrate a team member here.", width: 320, style: { background: "#fff4d9", color: "#0d2238", borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20 } },
-  { id: "stat", kind: "container", label: "Stat card", icon: "5", title: "5 of 6", body: "goals met", width: 240, style: { background: "#edf8f0", color: "#08733d", borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, textAlign: "center" } },
-  { id: "image", kind: "image", label: "Image", icon: "▧", width: 320 },
-  { id: "divider", kind: "divider", label: "Divider", icon: "—", width: 320, height: 24 },
-];
+const uid = () => globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const makeItem = (template: Template): VisualBlock => ({ id: uid(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, imageUrl: template.imageUrl, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined });
 
-function id() {
-  return globalThis.crypto?.randomUUID?.() ?? `block-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function DeferredNumber({ value, onCommit, min, max }: { value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) {
+  const shown = value == null ? "" : String(value); const [draft, setDraft] = useState(shown); const editing = useRef(false);
+  useEffect(() => { if (!editing.current) setDraft(shown); }, [shown]);
+  const commit = () => { editing.current = false; if (!draft.trim()) return onCommit(undefined); const parsed = Number(draft); if (!Number.isFinite(parsed)) return setDraft(shown); onCommit(Math.max(min ?? -Infinity, Math.min(max ?? Infinity, parsed))); };
+  return <input type="number" value={draft} min={min} max={max} onFocus={() => { editing.current = true; }} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(shown); event.currentTarget.blur(); } }} />;
+}
+function NumberField(props: { label: string; value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) { return <label className="visual-control"><span>{props.label}</span><DeferredNumber {...props} /></label>; }
+function ColorField({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) { return <label className="visual-control"><span>{label}</span><span className="visual-color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(value ?? "") ? value : "#ffffff"} onChange={(event) => onChange(event.target.value)} /><input value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></span></label>; }
+
+function NativeEditor({ id, content, change }: { id: string; content: NewsletterContent; change: (mutator: (draft: NewsletterContent) => void) => void }) {
+  const field = (label: string, value: string, update: (draft: NewsletterContent, value: string) => void, area = false) => <label className="visual-control" key={label}><span>{label}</span>{area ? <textarea value={value} onChange={(event) => change((draft) => update(draft, event.target.value))} /> : <input value={value} onChange={(event) => change((draft) => update(draft, event.target.value))} />}</label>;
+  const h = content.home; const t = content.training; const r = content.results;
+  if (id === "home-overview-intro") return <>{field("Eyebrow", h.overview.eyebrow, (d,v) => { d.home.overview.eyebrow=v; })}{field("Heading", h.overview.heading, (d,v) => { d.home.overview.heading=v; })}{field("Introduction", h.overview.intro, (d,v) => { d.home.overview.intro=v; }, true)}</>;
+  if (id === "home-action") return <>{field("Label", h.overview.actionCard.label, (d,v) => { d.home.overview.actionCard.label=v; })}{field("Heading", h.overview.actionCard.heading, (d,v) => { d.home.overview.actionCard.heading=v; })}{field("Details", `${h.overview.actionCard.bodyPrefix}${h.overview.actionCard.bodyEmphasis}`, (d,v) => { d.home.overview.actionCard.bodyPrefix=v; d.home.overview.actionCard.bodyEmphasis=""; }, true)}{field("Link text", h.overview.actionCard.linkLabel, (d,v) => { d.home.overview.actionCard.linkLabel=v; })}{field("Link", h.overview.actionCard.linkHref, (d,v) => { d.home.overview.actionCard.linkHref=v; })}</>;
+  if (id === "home-event" || id === "home-recognition-link") { const key = id === "home-event" ? "eventCard" : "recognitionCard"; const card = h.overview[key]; return <>{field("Kicker", card.kicker, (d,v) => { d.home.overview[key].kicker=v; })}{field("Title", card.title, (d,v) => { d.home.overview[key].title=v; })}{field("Detail", card.detail, (d,v) => { d.home.overview[key].detail=v; })}{field("Link", card.href, (d,v) => { d.home.overview[key].href=v; })}</>; }
+  if (id === "home-scorecard") return <>{field("Heading", h.scorecard.heading, (d,v) => { d.home.scorecard.heading=v; })}{field("Summary", h.scorecard.intro, (d,v) => { d.home.scorecard.intro=v; }, true)}{field("Result", h.scorecard.resultValue, (d,v) => { d.home.scorecard.resultValue=v; })}{field("Focus", h.scorecard.focusValue, (d,v) => { d.home.scorecard.focusValue=v; })}</>;
+  if (id === "home-recognition-heading") return <>{field("Eyebrow", h.recognition.eyebrow, (d,v) => { d.home.recognition.eyebrow=v; })}{field("Heading", h.recognition.heading, (d,v) => { d.home.recognition.heading=v; })}</>;
+  if (id === "home-recognition-feature") return <>{field("Heading", h.recognition.feature.heading, (d,v) => { d.home.recognition.feature.heading=v; })}{field("Message", h.recognition.feature.body, (d,v) => { d.home.recognition.feature.body=v; }, true)}</>;
+  if (id === "home-birthday") return <>{field("Name", h.recognition.birthday.name, (d,v) => { d.home.recognition.birthday.name=v; })}{field("Date", h.recognition.birthday.date, (d,v) => { d.home.recognition.birthday.date=v; })}</>;
+  if (id === "home-events") return <>{field("Heading", h.events.heading, (d,v) => { d.home.events.heading=v; })}{field("Introduction", h.events.intro, (d,v) => { d.home.events.intro=v; }, true)}</>;
+  if (id === "home-grow") return <>{field("Heading", h.grow.heading, (d,v) => { d.home.grow.heading=v; })}{field("Message", h.grow.body, (d,v) => { d.home.grow.body=v; }, true)}{field("Button text", h.grow.buttonLabel, (d,v) => { d.home.grow.buttonLabel=v; })}{field("Button link", h.grow.buttonHref, (d,v) => { d.home.grow.buttonHref=v; })}</>;
+  if (id === "home-footer") return <>{field("Brand", h.footer.brand, (d,v) => { d.home.footer.brand=v; })}{field("Footer line", h.footer.line, (d,v) => { d.home.footer.line=v; })}</>;
+  if (id === "training-intro") return <>{field("Badge", t.badge, (d,v) => { d.training.badge=v; })}{field("Heading", t.heading, (d,v) => { d.training.heading=v; })}{field("Introduction", t.lead, (d,v) => { d.training.lead=v; }, true)}</>;
+  if (id === "training-action") return <>{field("Button text", t.primaryButton.label, (d,v) => { d.training.primaryButton.label=v; })}{field("Button link", t.primaryButton.href, (d,v) => { d.training.primaryButton.href=v; })}{field("Help text", t.helpLink.label, (d,v) => { d.training.helpLink.label=v; })}</>;
+  if (id === "training-alert") return <>{field("Label", t.alert.kicker, (d,v) => { d.training.alert.kicker=v; })}{field("Message", t.alert.body, (d,v) => { d.training.alert.body=v; }, true)}</>;
+  if (id === "training-covers") return <>{field("Heading", t.covers.heading, (d,v) => { d.training.covers.heading=v; })}{field("Items (one per line)", t.covers.items.join("\n"), (d,v) => { d.training.covers.items=v.split("\n").filter(Boolean); }, true)}</>;
+  if (id === "training-why") return <>{field("Heading", t.why.heading, (d,v) => { d.training.why.heading=v; })}{field("Paragraphs", t.why.paragraphs.join("\n\n"), (d,v) => { d.training.why.paragraphs=v.split(/\n\s*\n/).filter(Boolean); }, true)}</>;
+  if (id === "training-help") return <>{field("Heading", t.help.heading, (d,v) => { d.training.help.heading=v; })}{field("Message", t.help.body, (d,v) => { d.training.help.body=v; }, true)}</>;
+  if (id === "results-intro") return <>{field("Eyebrow", r.eyebrow, (d,v) => { d.results.eyebrow=v; })}{field("Heading", r.heading, (d,v) => { d.results.heading=v; })}{field("Introduction", r.lead, (d,v) => { d.results.lead=v; }, true)}</>;
+  if (id === "results-summary") return <>{field("Value", r.summaryValue, (d,v) => { d.results.summaryValue=v; })}{field("Unit", r.summaryUnit, (d,v) => { d.results.summaryUnit=v; })}{field("Label", r.summaryLabel, (d,v) => { d.results.summaryLabel=v; })}</>;
+  if (id.startsWith("results-metric-")) { const index=Number(id.at(-1)); const metric=r.headlineMetrics[index]; return metric ? <>{field("Label", metric.label, (d,v) => { d.results.headlineMetrics[index].label=v; })}{field("Value", metric.value, (d,v) => { d.results.headlineMetrics[index].value=v; })}{field("Goal", metric.goal, (d,v) => { d.results.headlineMetrics[index].goal=v; })}{field("Status", metric.status, (d,v) => { d.results.headlineMetrics[index].status=v; })}</> : null; }
+  if (id === "results-focus") return <>{field("Heading", r.focus.heading, (d,v) => { d.results.focus.heading=v; })}{field("Message", r.focus.body, (d,v) => { d.results.focus.body=v; }, true)}</>;
+  if (id === "results-scorecard") return <>{field("Heading", r.scorecard.heading, (d,v) => { d.results.scorecard.heading=v; })}<p className="inspector-note">Scorecard cells remain structured so the table stays accessible and responsive.</p></>;
+  if (id === "results-momentum") return <>{field("Heading", r.momentum.heading, (d,v) => { d.results.momentum.heading=v; })}{field("Message", r.momentum.body, (d,v) => { d.results.momentum.body=v; }, true)}</>;
+  return <p className="inspector-note">Edit this item’s layout and appearance below.</p>;
 }
 
-function makeBlock(template: BlockTemplate): VisualBlock {
-  return { id: id(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined };
+function HeroInspector({ page, header, patch, patchDevice, upload }: { page: VisualPageId; header: HeaderStyle; patch: (next: Partial<HeaderStyle>) => void; patchDevice: (device: "phone" | "desktop", next: Partial<HeaderDeviceStyle>) => void; upload: (file: File) => void }) {
+  return <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Hero</p><h2>{pages.find((item) => item.id === page)?.label} header</h2></div>
+    <div className="inspector-actions"><button type="button" onClick={() => patch(defaultHeader(page))}>Reset Hero</button></div>
+    <label className="visual-control"><span>Lower edge</span><select value={header.shape} onChange={(event) => patch({ shape: event.target.value as HeaderStyle["shape"] })}>{["straight", "curve", "inverted-curve", "wave", "angled", "double-angle", "zigzag", "scallop", "rounded", "asymmetric"].map((shape) => <option value={shape} key={shape}>{shape.replaceAll("-", " ")}</option>)}</select></label>
+    <div className="inspector-grid"><NumberField label="Edge depth" value={header.shapeDepth} min={0} max={180} onCommit={(value) => patch({ shapeDepth: value ?? 0 })} /><NumberField label="Edge position" value={header.shapePosition} min={-180} max={180} onCommit={(value) => patch({ shapePosition: value ?? 0 })} /></div>
+    <ColorField label="Background" value={header.backgroundColor} onChange={(value) => patch({ backgroundColor: value })} /><ColorField label="Transition color" value={header.transitionColor} onChange={(value) => patch({ transitionColor: value })} />
+    <label className="visual-control"><span>Pattern or image URL</span><input value={header.imageUrl} onChange={(event) => patch({ imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload background</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file); }} /></label>
+    <div className="inspector-grid"><NumberField label="Image opacity" value={header.imageOpacity} min={0} max={100} onCommit={(value) => patch({ imageOpacity: value ?? 0 })} /><NumberField label="Image scale" value={header.imageScale} min={10} max={300} onCommit={(value) => patch({ imageScale: value ?? 100 })} /></div>
+    <details className="inspector-section" open><summary>Phone layout</summary><div className="inspector-grid"><NumberField label="Min height" value={header.phone.minHeight} min={0} max={900} onCommit={(value) => patchDevice("phone", { minHeight: value ?? 0 })} /><NumberField label="Title size" value={header.phone.titleSize} min={12} max={160} onCommit={(value) => patchDevice("phone", { titleSize: value ?? 40 })} /><NumberField label="Top padding" value={header.phone.paddingTop} min={0} max={300} onCommit={(value) => patchDevice("phone", { paddingTop: value ?? 0 })} /><NumberField label="Bottom padding" value={header.phone.paddingBottom} min={0} max={300} onCommit={(value) => patchDevice("phone", { paddingBottom: value ?? 0 })} /></div></details>
+    <details className="inspector-section"><summary>Desktop layout</summary><div className="inspector-grid"><NumberField label="Min height" value={header.desktop.minHeight} min={0} max={900} onCommit={(value) => patchDevice("desktop", { minHeight: value ?? 0 })} /><NumberField label="Title size" value={header.desktop.titleSize} min={12} max={160} onCommit={(value) => patchDevice("desktop", { titleSize: value ?? 54 })} /><NumberField label="Top padding" value={header.desktop.paddingTop} min={0} max={300} onCommit={(value) => patchDevice("desktop", { paddingTop: value ?? 0 })} /><NumberField label="Bottom padding" value={header.desktop.paddingBottom} min={0} max={300} onCommit={(value) => patchDevice("desktop", { paddingBottom: value ?? 0 })} /></div></details>
+  </div>;
 }
 
-function DeferredNumberInput({ value, onChange, min, max, step }: {
-  value?: number; onChange: (value: number | undefined) => void; min?: number; max?: number; step?: number;
-}) {
-  const displayedValue = value == null ? "" : String(value);
-  const [draftValue, setDraftValue] = useState(displayedValue);
-  const editing = useRef(false);
+export function Editor({ initialDraft, initialPublished, initialRevision, userEmail }: { initialDraft: NewsletterContent; initialPublished: NewsletterContent; initialRevision: number; userEmail: string }) {
+  const normalized = (value: NewsletterContent) => ({ ...value, visual: visualDocument(value) });
+  const [content, setContent] = useState(() => normalized(initialDraft)); const [saved, setSaved] = useState(() => normalized(initialDraft)); const [published, setPublished] = useState(() => normalized(initialPublished));
+  const [revision, setRevision] = useState(initialRevision); const revisionRef = useRef(initialRevision);
+  const [page, setPage] = useState<VisualPageId>("home"); const [device, setDevice] = useState<"phone" | "desktop">("phone"); const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [history, setHistory] = useState<NewsletterContent[]>([]); const [future, setFuture] = useState<NewsletterContent[]>([]); const [drawer, setDrawer] = useState<"add" | "layers" | null>(null); const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [query, setQuery] = useState(""); const [busy, setBusy] = useState(false); const [saving, setSaving] = useState(false); const [status, setStatus] = useState("All changes saved"); const [conflict, setConflict] = useState(false);
+  const autosaveRef = useRef<Promise<void> | null>(null); const clipboard = useRef<VisualBlock | null>(null);
+  const document = useMemo(() => visualDocument(content), [content]); const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
+  const dirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(saved), [content, saved]);
 
-  useEffect(() => {
-    if (!editing.current) setDraftValue(displayedValue);
-  }, [displayedValue]);
+  const edit = useCallback((mutator: (draft: NewsletterContent) => void) => { setConflict(false); setContent((previous) => { const next = structuredClone(previous); mutator(next); next.visual = visualDocument(next); setHistory((items) => [...items, previous].slice(-75)); setFuture([]); return next; }); }, []);
+  const updateVisual = useCallback((mutator: (doc: ReturnType<typeof visualDocument>) => void) => edit((draft) => { const next = visualDocument(draft); mutator(next); draft.visual = next; }), [edit]);
+  const patchItem = useCallback((id: string, patch: Partial<VisualBlock>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (item) Object.assign(item, patch); }), [page, updateVisual]);
+  const patchLayout = useCallback((id: string, patch: Partial<ResponsiveLayout>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (!item) return; const style = item.style ?? {}; const target = device; item.style = { ...style, [target]: { ...style[target], ...patch } }; if (style.linkedDevices) item.style[target === "phone" ? "desktop" : "phone"] = { ...style[target === "phone" ? "desktop" : "phone"], ...patch }; }), [device, page, updateVisual]);
+  const patchPage = (patch: Partial<typeof pageDocument>) => updateVisual((doc) => Object.assign(doc.pages[page], patch));
 
-  const commit = () => {
-    editing.current = false;
-    const trimmed = draftValue.trim();
-    if (!trimmed) { onChange(undefined); return; }
-    const parsed = Number(trimmed);
-    if (Number.isFinite(parsed)) onChange(parsed);
-    else setDraftValue(displayedValue);
-  };
+  const moveItem = useCallback((itemId: string, targetRowId: string, zone: "above" | "below" | "left" | "right") => updateVisual((doc) => { const targetPage = doc.pages[page]; const targetIndex = targetPage.rows.findIndex((row) => row.id === targetRowId); if (targetIndex < 0) return; for (const row of targetPage.rows) row.itemIds = row.itemIds.filter((id) => id !== itemId); targetPage.rows = targetPage.rows.filter((row) => row.itemIds.length); const freshTargetIndex = targetPage.rows.findIndex((row) => row.id === targetRowId); const target = targetPage.rows[freshTargetIndex]; if (!target) return; if ((zone === "left" || zone === "right") && target.itemIds.length < 2) target.itemIds.splice(zone === "left" ? 0 : target.itemIds.length, 0, itemId); else { const index = freshTargetIndex + (zone === "below" || zone === "right" ? 1 : 0); targetPage.rows.splice(index, 0, { id: `${page}-row-${uid()}`, itemIds: [itemId], gap: 16, align: "stretch", keepColumnsOnPhone: false }); } }), [page, updateVisual]);
+  const nudge = useCallback((id: string, dx: number, dy: number) => { const item = pageDocument.items.find((candidate) => candidate.id === id); const layout = item?.style?.[device]; patchLayout(id, { nudgeX: Math.max(-48, Math.min(48, (layout?.nudgeX ?? 0) + dx)), nudgeY: Math.max(-48, Math.min(48, (layout?.nudgeY ?? 0) + dy)) }); }, [device, pageDocument.items, patchLayout]);
 
-  return <input
-    type="number"
-    inputMode="decimal"
-    min={min}
-    max={max}
-    step={step}
-    value={draftValue}
-    onFocus={() => { editing.current = true; }}
-    onChange={(event) => setDraftValue(event.target.value)}
-    onBlur={commit}
-    onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraftValue(displayedValue); event.currentTarget.blur(); } }}
-  />;
-}
+  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedId(item.id); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
+  const duplicate = useCallback((id: string) => updateVisual((doc) => { const targetPage = doc.pages[page]; const source = targetPage.items.find((item) => item.id === id); const rowIndex = targetPage.rows.findIndex((row) => row.itemIds.includes(id)); if (!source || rowIndex < 0) return; const copy = structuredClone(source); copy.id = uid(); copy.label = `${copy.label} copy`; targetPage.items.push(copy); targetPage.rows.splice(rowIndex + 1, 0, { id: `${page}-row-${uid()}`, itemIds: [copy.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); setSelectedId(copy.id); }), [page, updateVisual]);
+  const remove = useCallback((id: string) => updateVisual((doc) => { const target = doc.pages[page]; target.items = target.items.filter((item) => item.id !== id || item.kind === "native"); target.rows.forEach((row) => { row.itemIds = row.itemIds.filter((itemId) => itemId !== id); }); target.rows = target.rows.filter((row) => row.itemIds.length); setSelectedId(null); }), [page, updateVisual]);
 
-function StyleNumber({ label, value, onChange, min = 0, max = 160 }: {
-  label: string; value?: number; onChange: (value: number | undefined) => void; min?: number; max?: number;
-}) {
-  return <label className="visual-control"><span>{label}</span><DeferredNumberInput value={value} onChange={onChange} min={min} max={max} /></label>;
-}
+  const undo = () => setHistory((entries) => { const previous = entries.at(-1); if (!previous) return entries; setContent((current) => { setFuture((items) => [current, ...items]); return previous; }); return entries.slice(0, -1); });
+  const redo = () => setFuture((entries) => { const next = entries[0]; if (!next) return entries; setContent((current) => { setHistory((items) => [...items, current]); return next; }); return entries.slice(1); });
 
-function StyleColor({ label, value, onChange }: { label: string; value?: string; onChange: (value: string | undefined) => void }) {
-  return <label className="visual-control"><span>{label}</span><span className="visual-color"><input type="color" value={value || "#ffffff"} onChange={(event) => onChange(event.target.value)} /><input value={value ?? ""} placeholder="Default" onChange={(event) => onChange(event.target.value || undefined)} /></span></label>;
-}
+  type ApiData = { draft?: NewsletterContent; published?: NewsletterContent; revision?: number; error?: string };
+  const api = useCallback(async (url: string, init: RequestInit) => { const response = await fetch(url, { headers: { "content-type": "application/json" }, ...init }); const data = await response.json().catch(() => ({})) as ApiData; if (!response.ok) { const error = new Error(data.error || "Could not save changes.") as Error & { status?: number; revision?: number }; error.status = response.status; error.revision = data.revision; throw error; } return data; }, []);
+  const acceptSaved = useCallback((data: ApiData, snapshot: NewsletterContent) => { const next = normalized(data.draft ?? snapshot); const nextRevision = data.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setSaved(next); setContent((current) => JSON.stringify(current) === JSON.stringify(snapshot) ? next : current); }, []);
+  const persist = useCallback(async (snapshot: NewsletterContent) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); }, [acceptSaved, api]);
 
-const blankFreeform = (): FreeformItemStyle => ({ linked: true, phone: { x: 0, y: 0 }, desktop: { x: 0, y: 0 }, zIndex: 1, opacity: 100, locked: false, hidden: false });
+  useEffect(() => { if (!dirty || busy || saving || conflict) return; const snapshot = structuredClone(content); const timer = globalThis.setTimeout(() => { const task = (async () => { setSaving(true); setStatus("Saving draft…"); try { await persist(snapshot); setStatus("Draft autosaved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setSaving(false); autosaveRef.current = null; } })(); autosaveRef.current = task; }, 1000); return () => globalThis.clearTimeout(timer); }, [busy, conflict, content, dirty, persist, saving]);
 
-function FreeformInspector({ item, layer, block, device, onLayout, onStyle, onBlockChange, onDelete, onUploadImage, onReset }: {
-  item: FreeformItemStyle;
-  layer?: { id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string };
-  block?: VisualBlock | null;
-  device: "phone" | "desktop";
-  onLayout: (patch: Partial<FreeformLayout>) => void;
-  onStyle: (patch: Partial<FreeformItemStyle>) => void;
-  onBlockChange?: (patch: Partial<VisualBlock>) => void;
-  onDelete?: () => void;
-  onUploadImage?: (file: File) => void;
-  onReset: () => void;
-}) {
-  const layout = item[device];
-  const isButtonLike = layer?.tag === "a" || layer?.tag === "button";
-  return <>
-    <div className="inspector-heading"><p className="visual-kicker">Freeform item</p><h2>{layer?.label || "Selected item"}</h2><p className="visual-native-note">Drag to move. Use any side to change one dimension or a corner to change width and height together. Click text inside a card to edit that exact line.</p></div>
-    {layer?.textEditable ? <label className="visual-control"><span>Text</span><textarea value={item.text ?? layer.text ?? layer.label} onChange={(event) => onStyle({ text: event.target.value })} /></label> : null}
-    {layer?.tag === "a" ? <label className="visual-control"><span>Link</span><input value={item.href ?? layer.href ?? ""} onChange={(event) => onStyle({ href: event.target.value })} /></label> : null}
-    {block ? <details className="inspector-section" open><summary>Block content</summary>{block.kind === "text" || block.kind === "container" || block.kind === "button" ? <label className="visual-control"><span>{block.kind === "button" ? "Button text" : "Heading"}</span><input value={block.title ?? ""} onChange={(event) => onBlockChange?.({ title: event.target.value })} /></label> : null}{block.kind === "text" || block.kind === "container" ? <label className="visual-control"><span>Body text</span><textarea value={block.body ?? ""} onChange={(event) => onBlockChange?.({ body: event.target.value })} /></label> : null}{block.kind === "button" ? <label className="visual-control"><span>Button link</span><input value={block.href ?? ""} onChange={(event) => onBlockChange?.({ href: event.target.value })} /></label> : null}{block.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={block.imageUrl ?? ""} onChange={(event) => onBlockChange?.({ imageUrl: event.target.value })} /></label><label className="visual-control"><span>Alt text</span><input value={block.alt ?? ""} onChange={(event) => onBlockChange?.({ alt: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUploadImage?.(file); }} /></label></> : null}<button type="button" className="inspector-delete" onClick={onDelete}>Delete block</button></details> : null}
-    {isButtonLike ? <details className="inspector-section" open><summary>Button sizing</summary><p className="visual-native-note">These presets keep buttons easy to tap while letting cards expand sideways.</p><div className="size-actions"><button type="button" onClick={() => onLayout({ width: undefined, widthPx: undefined, height: undefined, minHeight: undefined })}>Fit content</button><button type="button" onClick={() => onLayout({ width: 100, widthPx: undefined })}>Full width</button><button type="button" onClick={() => { onLayout({ height: 44, minHeight: undefined }); onStyle({ padding: 10, borderRadius: 12, overflow: "hidden" }); }}>Compact</button><button type="button" onClick={() => { onLayout({ height: 64, minHeight: undefined }); onStyle({ padding: 14, borderRadius: 16, overflow: "hidden" }); }}>Comfortable</button></div></details> : null}
-    <details className="inspector-section" open><summary>Position & size</summary><label className="visual-switch"><input type="checkbox" checked={item.linked} onChange={(event) => onStyle({ linked: event.target.checked, desktop: event.target.checked ? { ...item.phone } : item.desktop })} /> Link phone & desktop</label><div className="inspector-grid">
-      <StyleNumber label="X position" value={layout.x} onChange={(v) => onLayout({ x: v ?? 0 })} min={-12000} max={12000} />
-      <StyleNumber label="Y position" value={layout.y} onChange={(v) => onLayout({ y: v ?? 0 })} min={-12000} max={12000} />
-      <StyleNumber label="Width (px)" value={layout.widthPx} onChange={(v) => onLayout({ widthPx: v, width: v == null ? layout.width : undefined })} min={1} max={12000} />
-      <StyleNumber label="Height (px)" value={layout.height} onChange={(v) => onLayout({ height: v, minHeight: v == null ? layout.minHeight : undefined })} min={1} max={12000} />
-      <StyleNumber label="Width %" value={layout.width} onChange={(v) => onLayout({ width: v, widthPx: v == null ? layout.widthPx : undefined })} min={5} max={200} />
-      <StyleNumber label="Rotation" value={layout.rotation} onChange={(v) => onLayout({ rotation: v })} min={-180} max={180} />
-    </div><div className="size-actions"><button type="button" onClick={() => onLayout({ width: undefined, widthPx: undefined, height: undefined, minHeight: undefined })}>Fit content</button><button type="button" onClick={() => onLayout({ width: 100, widthPx: undefined })}>Full width</button><button type="button" onClick={() => onLayout({ x: 0, y: 0, width: undefined, widthPx: undefined, height: undefined, minHeight: undefined, rotation: 0 })}>Reset size & position</button></div></details>
-    <details className="inspector-section" open><summary>Layers & visibility</summary><div className="inspector-grid"><StyleNumber label="Layer order" value={item.zIndex} onChange={(v) => onStyle({ zIndex: v ?? 1 })} max={999} /><StyleNumber label="Opacity %" value={item.opacity} onChange={(v) => onStyle({ opacity: v ?? 100 })} max={100} /></div><div className="spacing-presets"><button type="button" onClick={() => onStyle({ zIndex: Math.min(999, item.zIndex + 1) })}>Bring forward</button><button type="button" onClick={() => onStyle({ zIndex: Math.max(0, item.zIndex - 1) })}>Send backward</button></div><label className="visual-switch"><input type="checkbox" checked={item.locked} onChange={(event) => onStyle({ locked: event.target.checked })} /> Lock item</label><label className="visual-switch"><input type="checkbox" checked={item.hidden} onChange={(event) => onStyle({ hidden: event.target.checked })} /> Hide item</label></details>
-    <details className="inspector-section"><summary>Appearance</summary><div className="inspector-grid"><StyleNumber label="Font size" value={item.fontSize} onChange={(v) => onStyle({ fontSize: v })} min={8} max={240} /><StyleNumber label="Font weight" value={item.fontWeight} onChange={(v) => onStyle({ fontWeight: v })} min={100} max={900} /><StyleNumber label="Padding" value={item.padding} onChange={(v) => onStyle({ padding: v })} max={300} /><StyleNumber label="Corner radius" value={item.borderRadius} onChange={(v) => onStyle({ borderRadius: v })} max={300} /><StyleColor label="Text color" value={item.color} onChange={(v) => onStyle({ color: v })} /><StyleColor label="Background" value={item.background} onChange={(v) => onStyle({ background: v })} /></div><div className="visual-control"><span>Text alignment</span><div className="alignment-buttons" role="group" aria-label="Text alignment">{(["left", "center", "right"] as const).map((alignment) => <button key={alignment} type="button" className={(item.textAlign ?? "left") === alignment ? "is-active" : ""} aria-label={`Align text ${alignment}`} onClick={() => onStyle({ textAlign: alignment })}>{alignment === "left" ? "☰" : alignment === "center" ? "≡" : "☷"}<small>{alignment === "center" ? "Middle" : alignment[0].toUpperCase() + alignment.slice(1)}</small></button>)}</div></div><label className="visual-control"><span>When content is larger than height</span><select value={item.overflow ?? "visible"} onChange={(event) => onStyle({ overflow: event.target.value as FreeformItemStyle["overflow"] })}><option value="visible">Show it</option><option value="hidden">Clip it</option><option value="auto">Scroll inside</option></select></label></details>
-    <button type="button" className="inspector-reset" onClick={onReset}>Reset this item</button>
-  </>;
-}
+  const saveNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(content); await persist(snapshot); setConflict(false); setStatus("Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
+  const publishNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); let snapshot = structuredClone(content); if (JSON.stringify(snapshot) !== JSON.stringify(saved)) { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); snapshot = normalized(data.draft ?? snapshot); } const result = await api("/api/content/publish", { method: "POST", body: JSON.stringify({ expectedRevision: revisionRef.current }) }); const nextRevision = result.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setPublished(normalized(result.published ?? snapshot)); setSaved(snapshot); setContent(snapshot); setStatus("Published — live site updated"); setConflict(false); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
 
-function NativeCopyFields({ blockId, content, edit }: { blockId: string; content: NewsletterContent; edit: (mutator: (draft: NewsletterContent) => void) => void }) {
-  const field = (label: string, value: string, change: (draft: NewsletterContent, next: string) => void) => <label className="visual-control" key={label}><span>{label}</span><input value={value} onChange={(event) => edit((draft) => change(draft, event.target.value))} /></label>;
-  if (blockId === "home-overview") return <div className="native-copy-fields">{field("Section heading", content.home.overview.heading, (d, v) => { d.home.overview.heading = v; })}{field("Intro", content.home.overview.intro, (d, v) => { d.home.overview.intro = v; })}{field("Action card", content.home.overview.actionCard.heading, (d, v) => { d.home.overview.actionCard.heading = v; })}</div>;
-  if (blockId === "home-scorecard") return <div className="native-copy-fields">{field("Section heading", content.home.scorecard.heading, (d, v) => { d.home.scorecard.heading = v; })}{field("Score result", content.home.scorecard.resultValue, (d, v) => { d.home.scorecard.resultValue = v; })}{field("Focus", content.home.scorecard.focusValue, (d, v) => { d.home.scorecard.focusValue = v; })}</div>;
-  if (blockId === "home-recognition") return <div className="native-copy-fields">{field("Section heading", content.home.recognition.heading, (d, v) => { d.home.recognition.heading = v; })}{field("Shout-out heading", content.home.recognition.feature.heading, (d, v) => { d.home.recognition.feature.heading = v; })}{field("Shout-out message", content.home.recognition.feature.body, (d, v) => { d.home.recognition.feature.body = v; })}</div>;
-  if (blockId === "home-events") return <div className="native-copy-fields">{field("Section heading", content.home.events.heading, (d, v) => { d.home.events.heading = v; })}{field("Intro", content.home.events.intro, (d, v) => { d.home.events.intro = v; })}</div>;
-  if (blockId === "home-grow") return <div className="native-copy-fields">{field("Section heading", content.home.grow.heading, (d, v) => { d.home.grow.heading = v; })}{field("Message", content.home.grow.body, (d, v) => { d.home.grow.body = v; })}{field("Button label", content.home.grow.buttonLabel, (d, v) => { d.home.grow.buttonLabel = v; })}</div>;
-  if (blockId === "training-intro") return <div className="native-copy-fields">{field("Badge", content.training.badge, (d, v) => { d.training.badge = v; })}{field("Heading", content.training.heading, (d, v) => { d.training.heading = v; })}{field("Lead", content.training.lead, (d, v) => { d.training.lead = v; })}</div>;
-  if (blockId === "training-action") return <div className="native-copy-fields">{field("Button label", content.training.primaryButton.label, (d, v) => { d.training.primaryButton.label = v; })}{field("Button link", content.training.primaryButton.href, (d, v) => { d.training.primaryButton.href = v; })}{field("Help label", content.training.helpLink.label, (d, v) => { d.training.helpLink.label = v; })}</div>;
-  if (blockId === "training-alert") return <div className="native-copy-fields">{field("Alert heading", content.training.alert.kicker, (d, v) => { d.training.alert.kicker = v; })}{field("Alert message", content.training.alert.body, (d, v) => { d.training.alert.body = v; })}</div>;
-  if (blockId === "results-intro") return <div className="native-copy-fields">{field("Eyebrow", content.results.eyebrow, (d, v) => { d.results.eyebrow = v; })}{field("Heading", content.results.heading, (d, v) => { d.results.heading = v; })}{field("Lead", content.results.lead, (d, v) => { d.results.lead = v; })}</div>;
-  if (blockId === "results-focus") return <div className="native-copy-fields">{field("Label", content.results.focus.label, (d, v) => { d.results.focus.label = v; })}{field("Heading", content.results.focus.heading, (d, v) => { d.results.focus.heading = v; })}{field("Message", content.results.focus.body, (d, v) => { d.results.focus.body = v; })}</div>;
-  if (blockId === "results-momentum") return <div className="native-copy-fields">{field("Heading", content.results.momentum.heading, (d, v) => { d.results.momentum.heading = v; })}{field("Message", content.results.momentum.body, (d, v) => { d.results.momentum.body = v; })}</div>;
-  return <p className="visual-native-note">This section keeps its detailed cards and rows intact. Drag it, style it, or select another block to edit its primary copy.</p>;
-}
+  const upload = async (file: File, hero = false) => { setBusy(true); try { const form = new FormData(); form.append("file", file); const response = await fetch("/api/media", { method: "POST", body: form }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Upload failed"); if (hero) patchHeader({ imageUrl: data.url }); else if (selected) patchItem(selected.id, { imageUrl: data.url, alt: selected.alt || file.name }); setStatus("Image uploaded"); } catch (error) { setStatus(error instanceof Error ? error.message : "Upload failed"); } finally { setBusy(false); } };
+  const patchHeader = (patch: Partial<HeaderStyle>) => updateVisual((doc) => { doc.headers[page] = { ...doc.headers[page], ...patch }; });
+  const patchHeaderDevice = (target: "phone" | "desktop", patch: Partial<HeaderDeviceStyle>) => updateVisual((doc) => { const header = doc.headers[page]; header[target] = { ...header[target], ...patch }; if (header.linked) header[target === "phone" ? "desktop" : "phone"] = { ...header[target === "phone" ? "desktop" : "phone"], ...patch }; });
 
-function HeroInspector({
-  page,
-  header,
-  onChange,
-  onDeviceChange,
-  onLinkChange,
-  onReset,
-  onUpload,
-}: {
-  page: VisualPageId;
-  header: HeaderStyle;
-  onChange: (patch: Partial<HeaderStyle>) => void;
-  onDeviceChange: (device: "phone" | "desktop", key: keyof HeaderDeviceStyle, value: number | HeaderDeviceStyle["verticalAlign"] | HeaderDeviceStyle["textAlign"]) => void;
-  onLinkChange: (linked: boolean) => void;
-  onReset: () => void;
-  onUpload: (file: File) => void;
-}) {
-  const deviceFields = (device: "phone" | "desktop", label: string) => {
-    const value = header[device];
-    return <details className="inspector-section" open={device === "phone"}><summary>{label} layout</summary><div className="inspector-grid">
-      <StyleNumber label="Min height" value={value.minHeight} onChange={(v) => onDeviceChange(device, "minHeight", v ?? 0)} max={900} />
-      <StyleNumber label="Content width" value={value.contentWidth} onChange={(v) => onDeviceChange(device, "contentWidth", v ?? 0)} max={1100} />
-      <StyleNumber label="Top padding" value={value.paddingTop} onChange={(v) => onDeviceChange(device, "paddingTop", v ?? 0)} max={300} />
-      <StyleNumber label="Right padding" value={value.paddingRight} onChange={(v) => onDeviceChange(device, "paddingRight", v ?? 0)} max={300} />
-      <StyleNumber label="Bottom padding" value={value.paddingBottom} onChange={(v) => onDeviceChange(device, "paddingBottom", v ?? 0)} max={300} />
-      <StyleNumber label="Left padding" value={value.paddingLeft} onChange={(v) => onDeviceChange(device, "paddingLeft", v ?? 0)} max={300} />
-      <StyleNumber label="Copy gap" value={value.contentGap} onChange={(v) => onDeviceChange(device, "contentGap", v ?? 0)} max={240} />
-      <StyleNumber label="Brand size" value={value.brandSize} onChange={(v) => onDeviceChange(device, "brandSize", v ?? 0)} max={80} />
-      <StyleNumber label="Heading size" value={value.titleSize} onChange={(v) => onDeviceChange(device, "titleSize", v ?? 0)} max={160} />
-      <StyleNumber label="Kicker size" value={value.kickerSize} onChange={(v) => onDeviceChange(device, "kickerSize", v ?? 0)} max={60} />
-      <StyleNumber label="Menu size" value={value.menuSize} onChange={(v) => onDeviceChange(device, "menuSize", v ?? 0)} max={100} />
-    </div><label className="visual-control"><span>Vertical position</span><select value={value.verticalAlign} onChange={(event) => onDeviceChange(device, "verticalAlign", event.target.value as HeaderDeviceStyle["verticalAlign"])}><option value="top">Top</option><option value="center">Center</option><option value="bottom">Bottom</option></select></label><label className="visual-control"><span>Text alignment</span><select value={value.textAlign} onChange={(event) => onDeviceChange(device, "textAlign", event.target.value as HeaderDeviceStyle["textAlign"])}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label></details>;
-  };
-  const setVisible = (key: "showBrand" | "showKicker" | "showTitle" | "showMenu") => <label className="visual-switch" key={key}><input type="checkbox" checked={header[key]} onChange={(event) => onChange({ [key]: event.target.checked } as Partial<HeaderStyle>)} /> {key.replace("show", "Show ")}</label>;
-  return <>
-    <div className="inspector-heading"><p className="visual-kicker">Header design</p><h2>{page[0].toUpperCase() + page.slice(1)} Hero</h2><p className="visual-native-note">Click the header any time to return here. Every change is saved with this page.</p></div>
-    <details className="inspector-section" open><summary>Quick presets</summary><div className="spacing-presets"><button type="button" onClick={() => onChange({ linked: true, phone: { ...header.phone, minHeight: 128, paddingTop: 10, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, contentGap: 8 }, desktop: { ...header.desktop, minHeight: 168, paddingTop: 16, paddingRight: 28, paddingBottom: 20, paddingLeft: 28, contentGap: 14 } })}>Very compact</button><button type="button" onClick={() => onChange({ linked: true, phone: { ...header.phone, minHeight: 212, paddingTop: 22, paddingRight: 22, paddingBottom: 32, paddingLeft: 22, contentGap: 28 }, desktop: { ...header.desktop, minHeight: 292, paddingTop: 34, paddingRight: 46, paddingBottom: 48, paddingLeft: 46, contentGap: 50 } })}>Spacious</button></div><button type="button" className="inspector-reset" onClick={onReset}>Reset header</button></details>
-    <details className="inspector-section" open><summary>Edge shape</summary><label className="visual-control"><span>Lower edge</span><select value={header.shape} onChange={(event) => onChange({ shape: event.target.value as HeaderStyle["shape"] })}><option value="straight">Straight</option><option value="curve">Curve</option><option value="inverted-curve">Inverted curve</option><option value="wave">Wave</option><option value="angled">Angled</option><option value="double-angle">Double angle</option><option value="zigzag">Zig-zag</option><option value="scallop">Scallop</option><option value="rounded">Rounded</option><option value="asymmetric">Asymmetric</option></select></label><div className="inspector-grid"><StyleNumber label="Shape depth" value={header.shapeDepth} onChange={(v) => onChange({ shapeDepth: v ?? 0 })} max={180} /><StyleNumber label="Side offset" value={header.shapeOffset} onChange={(v) => onChange({ shapeOffset: v ?? 0 })} min={-240} max={240} /><StyleNumber label="Edge vertical position" value={header.shapePosition} onChange={(v) => onChange({ shapePosition: v ?? 0 })} min={-180} max={180} /><StyleColor label="Transition color" value={header.transitionColor} onChange={(v) => onChange({ transitionColor: v || "#fbf7ef" })} /></div><p className="visual-native-note">Use Edge vertical position to move where the red hero finishes without moving its text.</p></details>
-    <details className="inspector-section"><summary>Background & image</summary><div className="inspector-grid"><StyleColor label="Base color" value={header.backgroundColor} onChange={(v) => onChange({ backgroundColor: v || "#d80d37" })} /><StyleColor label="Gradient start" value={header.gradientStart} onChange={(v) => onChange({ gradientStart: v || "#d80d37" })} /><StyleColor label="Gradient end" value={header.gradientEnd} onChange={(v) => onChange({ gradientEnd: v || "#ad0527" })} /><StyleNumber label="Gradient opacity" value={header.gradientOpacity} onChange={(v) => onChange({ gradientOpacity: v ?? 100 })} max={100} /><StyleColor label="Overlay color" value={header.overlayColor} onChange={(v) => onChange({ overlayColor: v || "#5d0019" })} /><StyleNumber label="Overlay opacity" value={header.overlayOpacity} onChange={(v) => onChange({ overlayOpacity: v ?? 0 })} max={100} /><StyleNumber label="Image opacity" value={header.imageOpacity} onChange={(v) => onChange({ imageOpacity: v ?? 0 })} max={100} /><StyleNumber label="Image scale" value={header.imageScale} onChange={(v) => onChange({ imageScale: v ?? 100 })} min={10} max={300} /></div><label className="visual-control"><span>Image URL</span><input value={header.imageUrl} placeholder="Upload or paste a URL" onChange={(event) => onChange({ imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload hero image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); }} /></label><label className="visual-control"><span>Image position</span><input value={header.imagePosition} placeholder="center 45%" onChange={(event) => onChange({ imagePosition: event.target.value })} /></label><label className="visual-control"><span>Image blend</span><select value={header.imageBlend} onChange={(event) => onChange({ imageBlend: event.target.value as HeaderStyle["imageBlend"] })}><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="overlay">Overlay</option><option value="soft-light">Soft light</option><option value="screen">Screen</option></select></label></details>
-    <details className="inspector-section"><summary>Text, brand & menu</summary><div className="visual-switches">{setVisible("showBrand")}{setVisible("showKicker")}{setVisible("showTitle")}{setVisible("showMenu")}</div><div className="inspector-grid"><StyleColor label="Title color" value={header.textColor} onChange={(v) => onChange({ textColor: v || "#ffffff" })} /><StyleColor label="Kicker color" value={header.kickerColor} onChange={(v) => onChange({ kickerColor: v || "#fff7e8" })} /><StyleColor label="Brand color" value={header.brandColor} onChange={(v) => onChange({ brandColor: v || "#ffffff" })} /><StyleColor label="Menu lines" value={header.menuColor} onChange={(v) => onChange({ menuColor: v || "#ffffff" })} /><StyleNumber label="Heading weight" value={header.titleWeight} onChange={(v) => onChange({ titleWeight: v ?? 700 })} min={100} max={900} /><StyleNumber label="Title tracking" value={header.titleLetterSpacing} onChange={(v) => onChange({ titleLetterSpacing: v ?? 0 })} min={-10} max={20} /><StyleNumber label="Kicker tracking" value={header.kickerLetterSpacing} onChange={(v) => onChange({ kickerLetterSpacing: v ?? 0 })} min={-2} max={20} /></div><label className="visual-control"><span>Menu background</span><input value={header.menuBackground} onChange={(event) => onChange({ menuBackground: event.target.value })} /></label><label className="visual-control"><span>Menu border</span><input value={header.menuBorderColor} onChange={(event) => onChange({ menuBorderColor: event.target.value })} /></label></details>
-    <label className="visual-switch"><input type="checkbox" checked={header.linked} onChange={(event) => onLinkChange(event.target.checked)} /> Link phone & desktop settings <span className="visual-switch__hint">(copies phone settings when enabled)</span></label>
-    {deviceFields("phone", "Phone")}{deviceFields("desktop", "Desktop")}
-    <details className="inspector-section"><summary>Advanced header CSS</summary><p className="visual-native-note">Safe properties: box-shadow, text-shadow, filter, backdrop-filter, opacity, transform, and background-repeat.</p><textarea className="advanced-css" value={header.advancedCss} placeholder="box-shadow: 0 12px 30px rgba(0,0,0,.2);" onChange={(event) => onChange({ advancedCss: event.target.value })} /></details>
-  </>;
-}
+  useEffect(() => { const keys = (event: globalThis.KeyboardEvent) => { const target = event.target as HTMLElement; if (/INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable) return; if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); } if (selected && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicate(selected.id); } if (selected && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") { clipboard.current = structuredClone(selected); } if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v" && clipboard.current) { event.preventDefault(); const copy = structuredClone(clipboard.current); copy.id = uid(); updateVisual((doc) => { doc.pages[page].items.push(copy); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [copy.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedId(copy.id); } if (selected && (event.key === "Backspace" || event.key === "Delete") && selected.kind !== "native") remove(selected.id); }; globalThis.addEventListener("keydown", keys); return () => globalThis.removeEventListener("keydown", keys); }, [duplicate, page, remove, selected, updateVisual]);
 
-export function Editor({ initialDraft, initialPublished, userEmail }: {
-  initialDraft: NewsletterContent; initialPublished: NewsletterContent; userEmail: string;
-}) {
-  const [content, setContent] = useState<NewsletterContent>(() => ({ ...initialDraft, visual: visualDocument(initialDraft) }));
-  const [savedDraft, setSavedDraft] = useState<NewsletterContent>(() => ({ ...initialDraft, visual: visualDocument(initialDraft) }));
-  const [published, setPublished] = useState<NewsletterContent>(() => ({ ...initialPublished, visual: visualDocument(initialPublished) }));
-  const [page, setPage] = useState<VisualPageId>("home");
-  const [device, setDevice] = useState<"phone" | "desktop">("phone");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [layers, setLayers] = useState<Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>>([]);
-  const [history, setHistory] = useState<NewsletterContent[]>([]);
-  const [future, setFuture] = useState<NewsletterContent[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [autoSaving, setAutoSaving] = useState(false);
-  const [autoSaveBlocked, setAutoSaveBlocked] = useState(false);
-  const [status, setStatus] = useState("");
-  const autoSavePromise = useRef<Promise<void> | null>(null);
+  const editor: CanvasEditorState = { selectedId, device, onSelect: (id) => { setSelectedId(id); setInspectorOpen(true); }, onMoveItem: moveItem, onResizeItem: (id, patch) => patchLayout(id, patch), onNudgeItem: nudge, onFreeTextChange: patchItem };
+  const filteredTemplates = templates.filter((item) => `${item.label} ${item.kind}`.toLowerCase().includes(query.toLowerCase()));
+  const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => { const id = event.dataTransfer.getData("application/x-newsletter-template"); if (id) { event.preventDefault(); addTemplate(id); } };
+  const selectedStyle = selected?.style ?? {}; const currentLayout = selectedStyle[device] ?? {}; const heroSelected = selectedId === `hero-${page}`;
+  const previewHref = page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
 
-  const document = useMemo(() => visualDocument(content), [content]);
-  const blocks = document.pages[page].blocks;
-  const selected = blocks.find((block) => block.id === selectedId) ?? null;
-  const selectedFreeformId = selectedId?.startsWith("freeform:") ? selectedId.slice("freeform:".length) : null;
-  const selectedFreeform = selectedFreeformId ? document.freeform[page][selectedFreeformId] ?? blankFreeform() : null;
-  const selectedLayer = selectedFreeformId ? layers.find((item) => item.id === selectedFreeformId) : undefined;
-  const selectedFreeBlock = selectedFreeformId?.startsWith("block:") ? blocks.find((block) => block.id === selectedFreeformId.slice("block:".length)) ?? null : null;
-  const header = document.headers[page];
-  const heroSelected = selectedId === `hero-${page}` || selectedId?.startsWith(`hero:${page}:`);
-  const isDirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(savedDraft), [content, savedDraft]);
-
-  const edit = useCallback((mutator: (draft: NewsletterContent) => void) => {
-    setAutoSaveBlocked(false);
-    setContent((previous) => {
-      const next = structuredClone(previous); mutator(next); next.visual = visualDocument(next);
-      setHistory((entries) => [...entries, previous].slice(-50)); setFuture([]);
-      return next;
-    });
-  }, []);
-
-  const undoLocal = () => setHistory((entries) => {
-    const previous = entries.at(-1); if (!previous) return entries;
-    setContent((current) => { setFuture((next) => [current, ...next].slice(0, 50)); return previous; });
-    return entries.slice(0, -1);
-  });
-  const redoLocal = () => setFuture((entries) => {
-    const next = entries[0]; if (!next) return entries;
-    setContent((current) => { setHistory((previous) => [...previous, current].slice(-50)); return next; });
-    return entries.slice(1);
-  });
-
-  const patchBlock = useCallback((blockId: string, patch: Partial<VisualBlock>) => {
-    edit((draft) => {
-      const next = visualDocument(draft); const block = next.pages[page].blocks.find((candidate) => candidate.id === blockId);
-      if (block) Object.assign(block, patch);
-      draft.visual = next;
-    });
-  }, [edit, page]);
-
-  const patchStyle = useCallback((key: keyof BlockStyle, value: BlockStyle[keyof BlockStyle]) => {
-    if (!selected) return;
-    patchBlock(selected.id, { style: { ...selected.style, [key]: value } });
-  }, [patchBlock, selected]);
-
-  const patchResponsiveLayout = useCallback((blockId: string, device: "phone" | "desktop", patch: Partial<ResponsiveLayout>) => {
-    const block = blocks.find((candidate) => candidate.id === blockId);
-    if (!block) return;
-    const style = block.style ?? {};
-    const next = { ...style, [device]: { ...style[device], ...patch } } as BlockStyle;
-    if (style.linkedDevices) next[device === "phone" ? "desktop" : "phone"] = { ...style[device === "phone" ? "desktop" : "phone"], ...patch };
-    patchBlock(blockId, { style: next });
-  }, [blocks, patchBlock]);
-
-  const patchFreeform = useCallback((itemId: string, target: "phone" | "desktop", patch: Partial<FreeformLayout>) => {
-    edit((draft) => {
-      const next = visualDocument(draft); const current = next.freeform[page][itemId] ?? blankFreeform();
-      const updated = { ...current, phone: { ...current.phone }, desktop: { ...current.desktop } };
-      updated[target] = { ...updated[target], ...patch };
-      if (updated.linked) updated[target === "phone" ? "desktop" : "phone"] = { ...updated[target === "phone" ? "desktop" : "phone"], ...patch };
-      next.freeform[page][itemId] = updated; draft.visual = next;
-    });
-  }, [edit, page]);
-
-  const patchFreeformStyle = useCallback((itemId: string, patch: Partial<FreeformItemStyle>) => {
-    edit((draft) => {
-      const next = visualDocument(draft); const current = next.freeform[page][itemId] ?? blankFreeform();
-      next.freeform[page][itemId] = { ...current, ...patch, phone: patch.phone ? { ...patch.phone } : { ...current.phone }, desktop: patch.desktop ? { ...patch.desktop } : { ...current.desktop } };
-      draft.visual = next;
-    });
-  }, [edit, page]);
-
-  const resetFreeform = useCallback((itemId: string) => {
-    edit((draft) => { const next = visualDocument(draft); delete next.freeform[page][itemId]; draft.visual = next; });
-  }, [edit, page]);
-
-  const deleteFreeBlock = useCallback((blockId: string) => {
-    edit((draft) => { const next = visualDocument(draft); next.pages[page].blocks = next.pages[page].blocks.filter((block) => block.id !== blockId); delete next.freeform[page][`block:${blockId}`]; draft.visual = next; });
-    setSelectedId(null);
-  }, [edit, page]);
-
-  const patchCanvasHeight = useCallback((target: "phone" | "desktop", height: number) => {
-    edit((draft) => { const next = visualDocument(draft); next.canvas[page][target] = Math.max(500, Math.min(12000, Math.round(height))); draft.visual = next; });
-  }, [edit, page]);
-
-  const discoverFreeform = useCallback((items: Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>) => {
-    setLayers((previous) => JSON.stringify(previous) === JSON.stringify(items) ? previous : items);
-  }, []);
-
-  const patchHeader = useCallback((patch: Partial<HeaderStyle>) => {
-    edit((draft) => {
-      const current = visualDocument(draft).headers[page];
-      draft.visual = visualDocument(draft);
-      draft.visual.headers[page] = { ...current, ...patch };
-      draft.visual = visualDocument(draft);
-    });
-  }, [edit, page]);
-
-  const patchHeaderDevice = useCallback((device: "phone" | "desktop", key: keyof HeaderDeviceStyle, value: number | HeaderDeviceStyle["verticalAlign"] | HeaderDeviceStyle["textAlign"]) => {
-    edit((draft) => {
-      const current = visualDocument(draft).headers[page];
-      const next = structuredClone(current);
-      next[device][key] = value as never;
-      if (current.linked) {
-        const other = device === "phone" ? "desktop" : "phone";
-        next[other][key] = value as never;
-      }
-      draft.visual = visualDocument(draft);
-      draft.visual.headers[page] = next;
-      draft.visual = visualDocument(draft);
-    });
-  }, [edit, page]);
-
-  const setHeaderLinked = useCallback((linked: boolean) => {
-    edit((draft) => {
-      const current = visualDocument(draft).headers[page];
-      const next = { ...current, linked, desktop: linked ? { ...current.phone } : { ...current.desktop } };
-      draft.visual = visualDocument(draft);
-      draft.visual.headers[page] = next;
-      draft.visual = visualDocument(draft);
-    });
-  }, [edit, page]);
-
-  const resetHeader = useCallback(() => {
-    edit((draft) => {
-      const fallback = visualDocument({ ...draft, visual: undefined }).headers[page];
-      draft.visual = visualDocument(draft);
-      draft.visual.headers[page] = fallback;
-    });
-  }, [edit, page]);
-
-  const addBlock = (templateId: string, placement?: { x: number; y: number }) => {
-    const template = blockTemplates.find((candidate) => candidate.id === templateId); if (!template) return;
-    const block = makeBlock(template); const layerId = `block:${block.id}`;
-    const existing = blocks.filter((candidate) => candidate.kind !== "native").length;
-    const x = Math.max(0, Math.round(placement?.x ?? 28 + (existing % 4) * 18));
-    const y = Math.max(0, Math.round(placement?.y ?? 180 + existing * 34));
-    edit((draft) => {
-      const next = visualDocument(draft); next.pages[page].blocks.push(block);
-      const base = blankFreeform(); const layout = { x, y, widthPx: template.width, height: template.height };
-      next.freeform[page][layerId] = { ...base, position: "absolute", linked: true, phone: { ...layout }, desktop: { ...layout } };
-      next.canvas[page][device] = Math.max(next.canvas[page][device], y + (template.height ?? 180) + 160);
-      draft.visual = next;
-    });
-    setSelectedId(`freeform:${layerId}`);
-  };
-
-  const dragTemplate = (event: ReactDragEvent<HTMLButtonElement>, templateId: string) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", templateId); };
-  const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => {
-    const templateId = event.dataTransfer.getData("application/x-newsletter-template"); if (!templateId) return;
-    event.preventDefault(); const surface = event.currentTarget.querySelector<HTMLElement>(".freeform-surface"); const rect = surface?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect(); addBlock(templateId, { x: event.clientX - rect.left, y: event.clientY - rect.top });
-  };
-  const resizePageHeight = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault(); const start = event.clientY; const initial = document.canvas[page][device];
-    const move = (next: globalThis.PointerEvent) => patchCanvasHeight(device, initial + next.clientY - start);
-    const end = () => { globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
-    globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
-  };
-
-  const request = useCallback(async (url: string, init?: RequestInit) => {
-    const response = await fetch(url, { headers: { "content-type": "application/json" }, ...init });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Could not save your changes.");
-    return data as { draft?: NewsletterContent; published?: NewsletterContent };
-  }, []);
-
-  const useSavedDraft = useCallback((draft: NewsletterContent, snapshot?: NewsletterContent) => {
-    const persisted = { ...draft, visual: visualDocument(draft) };
-    setSavedDraft(persisted);
-    // Do not replace a newer local edit that happened while a prior autosave
-    // was in flight. When there is no newer edit, use the server-confirmed
-    // document so the status bar can never claim a save that was not retained.
-    setContent((current) => !snapshot || JSON.stringify(current) === JSON.stringify(snapshot) ? persisted : current);
-  }, []);
-
-  useEffect(() => {
-    if (!isDirty || busy || autoSaving || autoSaveBlocked) return;
-    const snapshot = structuredClone(content);
-    const timer = globalThis.setTimeout(() => {
-      const task = (async () => {
-        setAutoSaving(true); setStatus("Saving draft…");
-        try {
-          const data = await request("/api/content", { method: "PUT", body: JSON.stringify(snapshot) });
-          useSavedDraft(data.draft ?? snapshot, snapshot); setStatus("Draft autosaved.");
-        } catch (error) { setAutoSaveBlocked(true); setStatus(error instanceof Error ? error.message : "Autosave failed. Try Save draft."); }
-        finally { setAutoSaving(false); autoSavePromise.current = null; }
-      })();
-      autoSavePromise.current = task;
-    }, 900);
-    return () => globalThis.clearTimeout(timer);
-  }, [autoSaveBlocked, autoSaving, busy, content, isDirty, request, useSavedDraft]);
-
-  useEffect(() => {
-    const saveOnLeave = () => { if (isDirty) void fetch("/api/content", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(content), keepalive: true }); };
-    globalThis.addEventListener("pagehide", saveOnLeave);
-    return () => globalThis.removeEventListener("pagehide", saveOnLeave);
-  }, [content, isDirty]);
-
-  const run = (task: () => Promise<void>, message: string) => {
-    setBusy(true); setStatus("");
-    task().then(() => setStatus(message)).catch((error) => setStatus(error instanceof Error ? error.message : "Something went wrong.")).finally(() => setBusy(false));
-  };
-  const save = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); const data = await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); setAutoSaveBlocked(false); useSavedDraft(data.draft ?? content); }, "Draft saved.");
-  const publish = () => run(async () => { await autoSavePromise.current?.catch(() => undefined); const data = await request("/api/content", { method: "PUT", body: JSON.stringify(content) }); const persisted = data.draft ?? content; await request("/api/content/publish", { method: "POST" }); setAutoSaveBlocked(false); useSavedDraft(persisted); setPublished({ ...persisted, visual: visualDocument(persisted) }); }, "Published — the live site is updated.");
-  const reset = () => run(async () => { const data = await request("/api/content/reset", { method: "POST", body: JSON.stringify({ target: "published" }) }); if (data.draft) { const next = { ...data.draft, visual: visualDocument(data.draft) }; setContent(next); setSavedDraft(next); } }, "Reverted to the published version.");
-
-  const uploadImageForBlock = async (blockId: string, file: File) => {
-    setBusy(true); setStatus("");
-    try {
-      const form = new FormData(); form.append("file", file);
-      const response = await fetch("/api/media", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Image upload failed.");
-      const block = blocks.find((candidate) => candidate.id === blockId);
-      patchBlock(blockId, { imageUrl: data.url, alt: block?.alt || file.name });
-      setStatus("Image added to the block.");
-    } catch (error) { setStatus(error instanceof Error ? error.message : "Image upload failed."); } finally { setBusy(false); }
-  };
-  const uploadImage = async (file: File) => { if (selected) await uploadImageForBlock(selected.id, file); };
-
-  const uploadHeroImage = async (file: File) => {
-    setBusy(true); setStatus("");
-    try {
-      const form = new FormData(); form.append("file", file);
-      const response = await fetch("/api/media", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Hero image upload failed.");
-      patchHeader({ imageUrl: data.url });
-      setStatus("Hero image uploaded.");
-    } catch (error) { setStatus(error instanceof Error ? error.message : "Hero image upload failed."); } finally { setBusy(false); }
-  };
-
-  const editor: CanvasEditorState = {
-    selectedId,
-    onSelect: setSelectedId,
-    device,
-    onFreeformChange: patchFreeform,
-    onFreeformStyleChange: patchFreeformStyle,
-    onFreeformDiscover: discoverFreeform,
-    onCanvasHeightChange: patchCanvasHeight,
-  };
-
-  return <div className="visual-editor">
-    <header className="visual-editor__bar">
-      <div><strong>Newsletter canvas</strong><span>Signed in as {userEmail}</span></div>
-      <div className="visual-editor__bar-actions">
-        <span className={isDirty || autoSaving ? "visual-dirty" : "visual-status"}>{autoSaving ? "Saving draft…" : isDirty ? "● Autosave pending" : status || "All changes saved"}</span>
-        <button type="button" onClick={undoLocal} disabled={!history.length || busy}>Undo</button>
-        <button type="button" onClick={redoLocal} disabled={!future.length || busy}>Redo</button>
-        <button type="button" onClick={() => setContent(savedDraft)} disabled={!isDirty || busy}>Discard</button>
-        <button type="button" onClick={reset} disabled={busy}>Undo to published</button>
-        <button type="button" onClick={save} disabled={busy || !isDirty}>Save draft</button>
-        <button type="button" className="visual-button--primary" onClick={publish} disabled={busy}>Publish</button>
-      </div>
-    </header>
-
-    <div className="visual-editor__workspace">
-      <aside className="visual-editor__rail">
-        <p className="visual-kicker">Pages</p>
-        <div className="visual-pages">{pages.map((item) => <button key={item.id} type="button" className={page === item.id ? "is-active" : ""} onClick={() => { setPage(item.id); setSelectedId(null); setLayers([]); }}>{item.label}</button>)}</div>
-        <button type="button" className="visual-hero-button" onClick={() => setSelectedId(`hero-${page}`)}>✦ Hero background & shape</button>
-        <p className="visual-kicker">Template blocks</p>
-        <div className="visual-library">{blockTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => dragTemplate(event, item.id)} onClick={() => addBlock(item.id)}><span className="template-icon">{item.icon}</span><span>{item.label}</span><small>Drag onto page</small></button>)}</div>
-        <p className="visual-help"><strong>Google Slides-style:</strong> drag any item freely. Blue guides align centers and edges; hold Alt while dragging to temporarily disable snapping.</p>
-        <p className="visual-kicker">Layers</p>
-        <div className="freeform-layers">{layers.map((item) => <button key={item.id} type="button" className={selectedFreeformId === item.id ? "is-active" : ""} onClick={() => setSelectedId(`freeform:${item.id}`)}><span>{item.tag}</span>{item.label || "Untitled item"}</button>)}</div>
-      </aside>
-
-      <main className="visual-editor__main">
-        <div className="visual-canvas-toolbar"><span>Live canvas</span><label className="canvas-height-control">Page height <DeferredNumberInput value={document.canvas[page][device]} onChange={(value) => patchCanvasHeight(device, value ?? 500)} min={500} max={12000} step={100} /></label><div><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div></div>
-        <div className={`visual-canvas visual-canvas--${device}`} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDrop={dropTemplate}>
-          {page === "home" ? <HomeView content={content} editor={editor} /> : null}
-          {page === "training" ? <TrainingView content={content} editor={editor} /> : null}
-          {page === "results" ? <ResultsView content={content} editor={editor} /> : null}
-          <button type="button" className="canvas-page-resize" aria-label="Resize page height" onPointerDown={resizePageHeight}><span>Page height</span></button>
-        </div>
-      </main>
-
-      <aside className="visual-editor__inspector">
-        {selectedFreeform && selectedFreeformId ? <FreeformInspector item={selectedFreeform} layer={selectedLayer} block={selectedFreeBlock} device={device} onLayout={(patch) => patchFreeform(selectedFreeformId, device, patch)} onStyle={(patch) => patchFreeformStyle(selectedFreeformId, patch)} onBlockChange={selectedFreeBlock ? (patch) => patchBlock(selectedFreeBlock.id, patch) : undefined} onDelete={selectedFreeBlock ? () => deleteFreeBlock(selectedFreeBlock.id) : undefined} onUploadImage={selectedFreeBlock ? (file) => uploadImageForBlock(selectedFreeBlock.id, file) : undefined} onReset={() => resetFreeform(selectedFreeformId)} /> : heroSelected ? <HeroInspector page={page} header={header} onChange={patchHeader} onDeviceChange={patchHeaderDevice} onLinkChange={setHeaderLinked} onReset={resetHeader} onUpload={uploadHeroImage} /> : selected ? <>
-          <div className="inspector-heading"><p className="visual-kicker">Selected block</p><h2>{selected.label}</h2>{selected.kind !== "native" ? <button type="button" className="inspector-delete" onClick={() => deleteFreeBlock(selected.id)}>Delete block</button> : null}</div>
-          <label className="visual-control"><span>Block label</span><input value={selected.label} onChange={(event) => patchBlock(selected.id, { label: event.target.value })} /></label>
-          {selected.kind !== "native" ? <>
-            {(selected.kind === "text" || selected.kind === "container" || selected.kind === "button") ? <label className="visual-control"><span>Heading / button text</span><input value={selected.title ?? ""} onChange={(event) => patchBlock(selected.id, { title: event.target.value })} /></label> : null}
-            {(selected.kind === "text" || selected.kind === "container") ? <label className="visual-control"><span>Copy</span><textarea value={selected.body ?? ""} onChange={(event) => patchBlock(selected.id, { body: event.target.value })} /></label> : null}
-            {(selected.kind === "button") ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchBlock(selected.id, { href: event.target.value })} /></label> : null}
-            {selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} placeholder="https://…" onChange={(event) => patchBlock(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-control"><span>Alt text</span><input value={selected.alt ?? ""} onChange={(event) => patchBlock(selected.id, { alt: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadImage(file); }} /></label></> : null}
-          </> : <NativeCopyFields blockId={selected.nativeId ?? ""} content={content} edit={edit} />}
-          <details className="inspector-section" open><summary>Resize & spacing</summary><p className="visual-native-note">Drag the right or bottom handle on the selected block, or use exact values below.</p><label className="visual-switch"><input type="checkbox" checked={selected.style?.linkedDevices ?? true} onChange={(event) => patchBlock(selected.id, { style: { ...selected.style, linkedDevices: event.target.checked } })} /> Link phone & desktop layout</label><div className="inspector-grid"><StyleNumber label={`${device === "phone" ? "Phone" : "Desktop"} width %`} value={selected.style?.[device]?.width} onChange={(v) => patchResponsiveLayout(selected.id, device, { width: v })} min={20} max={100} /><StyleNumber label="Min height" value={selected.style?.[device]?.minHeight} onChange={(v) => patchResponsiveLayout(selected.id, device, { minHeight: v })} max={900} /><StyleNumber label="Top padding" value={selected.style?.[device]?.paddingTop ?? selected.style?.paddingTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingTop: v })} max={300} /><StyleNumber label="Bottom padding" value={selected.style?.[device]?.paddingBottom ?? selected.style?.paddingBottom} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingBottom: v })} max={300} /><StyleNumber label="Side padding" value={selected.style?.[device]?.paddingLeft ?? selected.style?.paddingLeft} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingLeft: v, paddingRight: v })} max={300} /><StyleNumber label="Top margin" value={selected.style?.[device]?.marginTop ?? selected.style?.marginTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { marginTop: v })} max={300} /></div><div className="spacing-presets"><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12 })}>Small</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 24, paddingRight: 20, paddingBottom: 24, paddingLeft: 20 })}>Medium</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 48, paddingRight: 32, paddingBottom: 48, paddingLeft: 32 })}>Large</button></div></details>
-          <details className="inspector-section"><summary>Appearance</summary><div className="inspector-grid"><StyleColor label="Background" value={selected.style?.background} onChange={(v) => patchStyle("background", v)} /><StyleColor label="Text color" value={selected.style?.color} onChange={(v) => patchStyle("color", v)} /><StyleColor label="Border color" value={selected.style?.borderColor} onChange={(v) => patchStyle("borderColor", v)} /><StyleNumber label="Border width" value={selected.style?.borderWidth} onChange={(v) => patchStyle("borderWidth", v)} max={12} /><StyleNumber label="Corner radius" value={selected.style?.borderRadius} onChange={(v) => patchStyle("borderRadius", v)} max={80} /><StyleNumber label="Font size" value={selected.style?.fontSize} onChange={(v) => patchStyle("fontSize", v)} min={10} max={80} /><StyleNumber label="Font weight" value={selected.style?.fontWeight} onChange={(v) => patchStyle("fontWeight", v)} min={100} max={900} /></div><label className="visual-control"><span>Text alignment</span><select value={selected.style?.textAlign ?? "left"} onChange={(event) => patchStyle("textAlign", event.target.value as BlockStyle["textAlign"])}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><button type="button" className="inspector-reset" onClick={() => patchBlock(selected.id, { style: undefined })}>Reset block styling</button></details>
-        </> : <div className="inspector-empty"><p className="visual-kicker">Inspector</p><h2>Choose any item</h2><p>Click any heading, paragraph, button, card, row, menu, or Hero item to move, resize, rotate, layer, lock, hide, and style it.</p></div>}
-      </aside>
+  return <div className="builder">
+    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><select aria-label="Page" value={page} onChange={(event) => { setPage(event.target.value as VisualPageId); setSelectedId(null); }}>{pages.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><button type="button" disabled={!history.length || busy} onClick={undo}>↶</button><button type="button" disabled={!future.length || busy} onClick={redo}>↷</button><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={publishNow} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => setInspectorOpen(!inspectorOpen)}>☰</button></header>
+    {conflict ? <div className="stale-banner"><strong>Newer changes exist in another tab.</strong><span>Your current tab has stopped autosaving to protect them.</span><button type="button" onClick={() => globalThis.location.reload()}>Reload latest draft</button></div> : null}
+    <div className={`builder-workspace${inspectorOpen ? "" : " builder-workspace--wide"}`}>
+      {drawer ? <aside className="builder-drawer">{drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedId(`hero-${page}`); setInspectorOpen(true); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <button type="button" className={`layer-item${selectedId === id ? " is-active" : ""}`} key={id} onClick={() => { setSelectedId(id); setInspectorOpen(true); }}>{item.label}</button> : null; })}</>}</aside> : null}
+      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedId(`hero-${page}`); setInspectorOpen(true); }}>Edit Hero</button></div><div className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>
+      {inspectorOpen ? <aside className="builder-inspector">{heroSelected ? <HeroInspector page={page} header={document.headers[page]} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
+        {selected.kind === "native" ? <NativeEditor id={selected.nativeId ?? selected.id} content={content} change={edit} /> : null}
+        <div className="segmented" role="group" aria-label="Width"><button type="button" onClick={() => patchLayout(selected.id, { width: 100 })}>Full</button><button type="button" onClick={() => patchLayout(selected.id, { width: 50 })}>Half</button><button type="button" onClick={() => patchLayout(selected.id, { width: undefined })}>Auto</button></div><div className="inspector-grid"><NumberField label={`${device} width %`} value={currentLayout.width} min={10} max={100} onCommit={(value) => patchLayout(selected.id, { width: value })} /><NumberField label="Minimum height" value={currentLayout.minHeight} min={0} max={1600} onCommit={(value) => patchLayout(selected.id, { minHeight: value })} /></div>
+        <div className="alignment-buttons"><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "left" } })}>Left</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "center" } })}>Middle</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "right" } })}>Right</button></div>
+        <details className="inspector-section" open><summary>Spacing</summary><div className="inspector-grid"><NumberField label="Top padding" value={currentLayout.paddingTop ?? selectedStyle.paddingTop} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingTop: value })} /><NumberField label="Bottom padding" value={currentLayout.paddingBottom ?? selectedStyle.paddingBottom} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingBottom: value })} /><NumberField label="Left padding" value={currentLayout.paddingLeft ?? selectedStyle.paddingLeft} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingLeft: value })} /><NumberField label="Right padding" value={currentLayout.paddingRight ?? selectedStyle.paddingRight} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingRight: value })} /></div></details>
+        <details className="inspector-section"><summary>Advanced</summary><label className="visual-switch"><input type="checkbox" checked={selectedStyle.linkedDevices ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, linkedDevices: event.target.checked } })} /> Link phone & desktop</label><div className="inspector-grid"><NumberField label="Fine nudge X" value={currentLayout.nudgeX} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeX: value })} /><NumberField label="Fine nudge Y" value={currentLayout.nudgeY} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeY: value })} /><NumberField label="Corner radius" value={selectedStyle.borderRadius} min={0} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderRadius: value } })} /><NumberField label="Font size" value={selectedStyle.fontSize} min={8} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, fontSize: value } })} /></div>{selectedRow && selectedRow.itemIds.length === 2 ? <label className="visual-switch"><input type="checkbox" checked={selectedRow.keepColumnsOnPhone} onChange={(event) => updateVisual((doc) => { const row = doc.pages[page].rows.find((candidate) => candidate.id === selectedRow.id); if (row) row.keepColumnsOnPhone = event.target.checked; })} /> Keep side-by-side on phone</label> : null}</details>
+        <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button>{selected.kind !== "native" ? <button type="button" className="danger" onClick={() => remove(selected.id)}>Delete</button> : null}</div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pages.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><p className="inspector-note">The page grows automatically. Select any item to resize, align, style, duplicate, or move it.</p></div>}</aside> : null}
     </div>
   </div>;
 }

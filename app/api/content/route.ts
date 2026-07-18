@@ -1,5 +1,5 @@
 import { mergeContent } from "../../content/merge";
-import { getEditorContent, saveDraft } from "../../content/store";
+import { getEditorContent, RevisionConflictError, saveDraft } from "../../content/store";
 import { getEditorUser } from "../../edit-auth";
 
 function unauthorized() {
@@ -17,8 +17,8 @@ function toErrorMessage(error: unknown) {
 export async function GET() {
   if (!(await getEditorUser())) return unauthorized();
   try {
-    const { draft, published } = await getEditorContent();
-    return Response.json({ draft, published });
+    const { draft, published, revision } = await getEditorContent();
+    return Response.json({ draft, published, revision });
   } catch (error) {
     return Response.json({ error: toErrorMessage(error) }, { status: 500 });
   }
@@ -28,10 +28,11 @@ export async function PUT(request: Request) {
   if (!(await getEditorUser())) return unauthorized();
   try {
     const payload = await request.json();
-    const draft = mergeContent(payload);
-    await saveDraft(draft);
-    return Response.json({ draft });
+    const draft = mergeContent(payload.content ?? payload);
+    const expectedRevision = Number(payload.expectedRevision ?? 0);
+    return Response.json(await saveDraft(draft, expectedRevision));
   } catch (error) {
+    if (error instanceof RevisionConflictError) return Response.json({ error: error.message, revision: error.currentRevision }, { status: 409 });
     return Response.json({ error: toErrorMessage(error) }, { status: 500 });
   }
 }

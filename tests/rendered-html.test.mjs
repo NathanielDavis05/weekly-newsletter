@@ -39,6 +39,9 @@ test("public home page renders the newsletter default content", async () => {
   assert.match(html, /CommercePoint training/);
   assert.match(html, /Cow Appreciation Day/);
   assert.match(html, /Your week, made simple\./);
+  assert.match(html, /item-page--home/);
+  assert.match(html, /data-item-id="home-action"/);
+  assert.doesNotMatch(html, /freeform-surface/);
 });
 
 test("public home page exposes no editor controls to visitors", async () => {
@@ -54,6 +57,7 @@ test("public results page renders default metrics", async () => {
   const html = await response.text();
   assert.match(html, /Three-month scorecard/);
   assert.match(html, /Win back two seconds/);
+  assert.match(html, /data-item-id="results-metric-2"/);
 });
 
 test("editor page redirects anonymous visitors to sign in", async () => {

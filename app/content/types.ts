@@ -251,6 +251,8 @@ export interface ResponsiveLayout {
   marginTop?: number;
   marginBottom?: number;
   align?: "left" | "center" | "right" | "stretch";
+  nudgeX?: number;
+  nudgeY?: number;
 }
 
 export interface VisualBlock {
@@ -267,15 +269,30 @@ export interface VisualBlock {
 }
 
 export interface VisualPageDocument {
-  blocks: VisualBlock[];
+  items: VisualBlock[];
+  rows: VisualRow[];
+  background: string;
+  contentWidth: number;
+  minHeight: number;
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+  rowGap: number;
 }
 
 export interface VisualDocument {
-  version: 5;
+  version: 6;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
-  freeform: Record<VisualPageId, Record<string, FreeformItemStyle>>;
-  canvas: Record<VisualPageId, { phone: number; desktop: number }>;
+}
+
+export interface VisualRow {
+  id: string;
+  itemIds: string[];
+  gap: number;
+  align: "start" | "center" | "end" | "stretch";
+  keepColumnsOnPhone: boolean;
 }
 
 export interface FreeformLayout {

@@ -13,11 +13,12 @@ export const metadata: Metadata = {
 
 export default async function EditPage() {
   const user = await requireEditorUser("/edit");
-  const { draft, published } = await getEditorContent();
+  const { draft, published, revision } = await getEditorContent();
   return (
     <Editor
       initialDraft={draft}
       initialPublished={published}
+      initialRevision={revision}
       userEmail={user.email}
     />
   );
