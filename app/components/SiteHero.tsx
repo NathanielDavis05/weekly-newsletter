@@ -4,7 +4,6 @@ import type { NewsletterContent, VisualPageId } from "../content/types";
 import { visualDocument } from "../content/visual";
 import { SiteMenu } from "./SiteMenu";
 import type { CanvasEditorState } from "./PageBlocks";
-import { HeroItem } from "./HeroItem";
 
 type HeroVars = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -114,13 +113,13 @@ export function SiteHero({
   };
   const editable = Boolean(editor);
   const topItems = {
-    back: detail ? <HeroItem key="back" id={`hero:${page}:back`} label="back link" editor={editor}><Link className="site-hero__back" href="/"><span aria-hidden="true">←</span> {shared.detailBackLabel}</Link></HeroItem> : null,
-    brand: header.showBrand ? <HeroItem key="brand" id={`hero:${page}:brand`} label="brand" editor={editor}><Link className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link></HeroItem> : null,
-    menu: header.showMenu ? <HeroItem key="menu" id={`hero:${page}:menu`} label="menu" editor={editor}><SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /></HeroItem> : null,
+    back: detail ? <Link key="back" className="site-hero__back" href="/"><span aria-hidden="true">←</span> {shared.detailBackLabel}</Link> : null,
+    brand: header.showBrand ? <Link key="brand" className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link> : null,
+    menu: header.showMenu ? <div key="menu"><SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /></div> : null,
   };
   const copyItems = {
-    kicker: header.showKicker ? <HeroItem key="kicker" id={`hero:${page}:kicker`} label="kicker" editor={editor}><p>{kicker}</p></HeroItem> : null,
-    title: header.showTitle ? <HeroItem key="title" id={`hero:${page}:title`} label="heading" editor={editor}><h1>{title}</h1></HeroItem> : null,
+    kicker: header.showKicker ? <p key="kicker">{kicker}</p> : null,
+    title: header.showTitle ? <h1 key="title">{title}</h1> : null,
   };
   return (
     <header

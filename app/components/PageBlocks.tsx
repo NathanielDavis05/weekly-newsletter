@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
-import type { NewsletterContent, VisualBlock, VisualPageId } from "../content/types";
+import type { NewsletterContent, VisualBlock, VisualPageId, FreeformLayout, FreeformItemStyle } from "../content/types";
 import { styleForBlock, visualDocument } from "../content/visual";
 
 export interface CanvasEditorState {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   renderBlock?: (block: VisualBlock, inner: ReactNode) => ReactNode;
+  device?: "phone" | "desktop";
+  onFreeformChange?: (id: string, device: "phone" | "desktop", patch: Partial<FreeformLayout>) => void;
+  onFreeformStyleChange?: (id: string, patch: Partial<FreeformItemStyle>) => void;
+  onFreeformDiscover?: (items: Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>) => void;
 }
 
 export function PageBlocks({

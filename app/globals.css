@@ -1362,3 +1362,24 @@ h3 {
   .section--overview { padding-top: 20px; }
   .detail-main { padding: 30px 42px 52px; }
 }
+
+/* Persisted freeform layout. Elements remain responsive but may be positioned,
+   overlapped, resized, and rotated independently by the visual editor. */
+.freeform-surface { position: relative; overflow: visible; }
+.freeform-item {
+  position: relative;
+  z-index: var(--ff-z, 1);
+  width: var(--ff-phone-width, auto);
+  min-height: var(--ff-phone-height, auto);
+  opacity: var(--ff-opacity, 1);
+  transform: translate(var(--ff-phone-x, 0), var(--ff-phone-y, 0)) rotate(var(--ff-phone-rotation, 0deg));
+  transform-origin: center;
+}
+.freeform-hidden { display: none !important; }
+@media (min-width: 640px) {
+  .freeform-item {
+    width: var(--ff-desktop-width, auto);
+    min-height: var(--ff-desktop-height, auto);
+    transform: translate(var(--ff-desktop-x, 0), var(--ff-desktop-y, 0)) rotate(var(--ff-desktop-rotation, 0deg));
+  }
+}

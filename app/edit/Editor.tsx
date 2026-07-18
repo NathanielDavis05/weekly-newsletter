@@ -27,6 +27,8 @@ import type {
   BlockStyle,
   HeaderDeviceStyle,
   HeaderStyle,
+  FreeformItemStyle,
+  FreeformLayout,
   NewsletterContent,
   ResponsiveLayout,
   VisualBlock,
@@ -102,6 +104,34 @@ function StyleColor({ label, value, onChange }: { label: string; value?: string;
   return <label className="visual-control"><span>{label}</span><span className="visual-color"><input type="color" value={value || "#ffffff"} onChange={(event) => onChange(event.target.value)} /><input value={value ?? ""} placeholder="Default" onChange={(event) => onChange(event.target.value || undefined)} /></span></label>;
 }
 
+const blankFreeform = (): FreeformItemStyle => ({ linked: true, phone: { x: 0, y: 0 }, desktop: { x: 0, y: 0 }, zIndex: 1, opacity: 100, locked: false, hidden: false });
+
+function FreeformInspector({ item, layer, device, onLayout, onStyle, onReset }: {
+  item: FreeformItemStyle;
+  layer?: { id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string };
+  device: "phone" | "desktop";
+  onLayout: (patch: Partial<FreeformLayout>) => void;
+  onStyle: (patch: Partial<FreeformItemStyle>) => void;
+  onReset: () => void;
+}) {
+  const layout = item[device];
+  return <>
+    <div className="inspector-heading"><p className="visual-kicker">Freeform item</p><h2>{layer?.label || "Selected item"}</h2><p className="visual-native-note">Drag anywhere on the item. It can overlap other content and only snaps to the canvas centerline.</p></div>
+    {layer?.textEditable ? <label className="visual-control"><span>Text</span><textarea value={item.text ?? layer.text ?? layer.label} onChange={(event) => onStyle({ text: event.target.value })} /></label> : null}
+    {layer?.tag === "a" ? <label className="visual-control"><span>Link</span><input value={item.href ?? layer.href ?? ""} onChange={(event) => onStyle({ href: event.target.value })} /></label> : null}
+    <details className="inspector-section" open><summary>Position & size</summary><label className="visual-switch"><input type="checkbox" checked={item.linked} onChange={(event) => onStyle({ linked: event.target.checked, desktop: event.target.checked ? { ...item.phone } : item.desktop })} /> Link phone & desktop</label><div className="inspector-grid">
+      <StyleNumber label="X position" value={layout.x} onChange={(v) => onLayout({ x: v ?? 0 })} min={-4000} max={4000} />
+      <StyleNumber label="Y position" value={layout.y} onChange={(v) => onLayout({ y: v ?? 0 })} min={-4000} max={4000} />
+      <StyleNumber label="Width %" value={layout.width} onChange={(v) => onLayout({ width: v })} min={5} max={200} />
+      <StyleNumber label="Min height" value={layout.minHeight} onChange={(v) => onLayout({ minHeight: v })} max={2000} />
+      <StyleNumber label="Rotation" value={layout.rotation} onChange={(v) => onLayout({ rotation: v })} min={-180} max={180} />
+    </div><div className="spacing-presets"><button type="button" onClick={() => onLayout({ x: 0, y: 0, width: undefined, minHeight: undefined, rotation: 0 })}>Reset position</button><button type="button" onClick={() => onLayout({ rotation: -5 })}>Tilt left</button><button type="button" onClick={() => onLayout({ rotation: 5 })}>Tilt right</button></div></details>
+    <details className="inspector-section" open><summary>Layers & visibility</summary><div className="inspector-grid"><StyleNumber label="Layer order" value={item.zIndex} onChange={(v) => onStyle({ zIndex: v ?? 1 })} max={999} /><StyleNumber label="Opacity %" value={item.opacity} onChange={(v) => onStyle({ opacity: v ?? 100 })} max={100} /></div><div className="spacing-presets"><button type="button" onClick={() => onStyle({ zIndex: Math.min(999, item.zIndex + 1) })}>Bring forward</button><button type="button" onClick={() => onStyle({ zIndex: Math.max(0, item.zIndex - 1) })}>Send backward</button></div><label className="visual-switch"><input type="checkbox" checked={item.locked} onChange={(event) => onStyle({ locked: event.target.checked })} /> Lock item</label><label className="visual-switch"><input type="checkbox" checked={item.hidden} onChange={(event) => onStyle({ hidden: event.target.checked })} /> Hide item</label></details>
+    <details className="inspector-section"><summary>Appearance</summary><div className="inspector-grid"><StyleNumber label="Font size" value={item.fontSize} onChange={(v) => onStyle({ fontSize: v })} min={8} max={240} /><StyleNumber label="Font weight" value={item.fontWeight} onChange={(v) => onStyle({ fontWeight: v })} min={100} max={900} /><StyleNumber label="Padding" value={item.padding} onChange={(v) => onStyle({ padding: v })} max={300} /><StyleNumber label="Corner radius" value={item.borderRadius} onChange={(v) => onStyle({ borderRadius: v })} max={300} /><StyleColor label="Text color" value={item.color} onChange={(v) => onStyle({ color: v })} /><StyleColor label="Background" value={item.background} onChange={(v) => onStyle({ background: v })} /></div><label className="visual-control"><span>Text alignment</span><select value={item.textAlign ?? "left"} onChange={(event) => onStyle({ textAlign: event.target.value as FreeformItemStyle["textAlign"] })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label></details>
+    <button type="button" className="inspector-reset" onClick={onReset}>Reset this item</button>
+  </>;
+}
+
 function NativeCopyFields({ blockId, content, edit }: { blockId: string; content: NewsletterContent; edit: (mutator: (draft: NewsletterContent) => void) => void }) {
   const field = (label: string, value: string, change: (draft: NewsletterContent, next: string) => void) => <label className="visual-control" key={label}><span>{label}</span><input value={value} onChange={(event) => edit((draft) => change(draft, event.target.value))} /></label>;
   if (blockId === "home-overview") return <div className="native-copy-fields">{field("Section heading", content.home.overview.heading, (d, v) => { d.home.overview.heading = v; })}{field("Intro", content.home.overview.intro, (d, v) => { d.home.overview.intro = v; })}{field("Action card", content.home.overview.actionCard.heading, (d, v) => { d.home.overview.actionCard.heading = v; })}</div>;
@@ -173,6 +203,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const [page, setPage] = useState<VisualPageId>("home");
   const [device, setDevice] = useState<"phone" | "desktop">("phone");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [layers, setLayers] = useState<Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>>([]);
   const [history, setHistory] = useState<NewsletterContent[]>([]);
   const [future, setFuture] = useState<NewsletterContent[]>([]);
   const [busy, setBusy] = useState(false);
@@ -185,6 +216,9 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const document = useMemo(() => visualDocument(content), [content]);
   const blocks = document.pages[page].blocks;
   const selected = blocks.find((block) => block.id === selectedId) ?? null;
+  const selectedFreeformId = selectedId?.startsWith("freeform:") ? selectedId.slice("freeform:".length) : null;
+  const selectedFreeform = selectedFreeformId ? document.freeform[page][selectedFreeformId] ?? blankFreeform() : null;
+  const selectedLayer = selectedFreeformId ? layers.find((item) => item.id === selectedFreeformId) : undefined;
   const header = document.headers[page];
   const heroSelected = selectedId === `hero-${page}` || selectedId?.startsWith(`hero:${page}:`);
   const heroSortIds = [...header.topOrder.map((item) => `hero:${page}:${item}`), ...header.copyOrder.map((item) => `hero:${page}:${item}`)];
@@ -230,6 +264,32 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
     if (style.linkedDevices) next[device === "phone" ? "desktop" : "phone"] = { ...style[device === "phone" ? "desktop" : "phone"], ...patch };
     patchBlock(blockId, { style: next });
   }, [blocks, patchBlock]);
+
+  const patchFreeform = useCallback((itemId: string, target: "phone" | "desktop", patch: Partial<FreeformLayout>) => {
+    edit((draft) => {
+      const next = visualDocument(draft); const current = next.freeform[page][itemId] ?? blankFreeform();
+      const updated = { ...current, phone: { ...current.phone }, desktop: { ...current.desktop } };
+      updated[target] = { ...updated[target], ...patch };
+      if (updated.linked) updated[target === "phone" ? "desktop" : "phone"] = { ...updated[target === "phone" ? "desktop" : "phone"], ...patch };
+      next.freeform[page][itemId] = updated; draft.visual = next;
+    });
+  }, [edit, page]);
+
+  const patchFreeformStyle = useCallback((itemId: string, patch: Partial<FreeformItemStyle>) => {
+    edit((draft) => {
+      const next = visualDocument(draft); const current = next.freeform[page][itemId] ?? blankFreeform();
+      next.freeform[page][itemId] = { ...current, ...patch, phone: patch.phone ? { ...patch.phone } : { ...current.phone }, desktop: patch.desktop ? { ...patch.desktop } : { ...current.desktop } };
+      draft.visual = next;
+    });
+  }, [edit, page]);
+
+  const resetFreeform = useCallback((itemId: string) => {
+    edit((draft) => { const next = visualDocument(draft); delete next.freeform[page][itemId]; draft.visual = next; });
+  }, [edit, page]);
+
+  const discoverFreeform = useCallback((items: Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }>) => {
+    setLayers((previous) => JSON.stringify(previous) === JSON.stringify(items) ? previous : items);
+  }, []);
 
   const patchHeader = useCallback((patch: Partial<HeaderStyle>) => {
     edit((draft) => {
@@ -350,7 +410,10 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
   const editor: CanvasEditorState = {
     selectedId,
     onSelect: setSelectedId,
-    renderBlock: (block, inner) => <SortableCanvasBlock key={block.id} block={block} selected={selectedId === block.id} onResize={(id, patch) => patchResponsiveLayout(id, device, patch)}>{inner}</SortableCanvasBlock>,
+    device,
+    onFreeformChange: patchFreeform,
+    onFreeformStyleChange: patchFreeformStyle,
+    onFreeformDiscover: discoverFreeform,
   };
 
   return <div className="visual-editor">
@@ -370,11 +433,13 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
     <div className="visual-editor__workspace">
       <aside className="visual-editor__rail">
         <p className="visual-kicker">Pages</p>
-        <div className="visual-pages">{pages.map((item) => <button key={item.id} type="button" className={page === item.id ? "is-active" : ""} onClick={() => { setPage(item.id); setSelectedId(null); }}>{item.label}</button>)}</div>
-        <button type="button" className="visual-hero-button" onClick={() => setSelectedId(`hero-${page}`)}>✦ Edit {page} hero</button>
-        <p className="visual-kicker">Add a block</p>
+        <div className="visual-pages">{pages.map((item) => <button key={item.id} type="button" className={page === item.id ? "is-active" : ""} onClick={() => { setPage(item.id); setSelectedId(null); setLayers([]); }}>{item.label}</button>)}</div>
+        <button type="button" className="visual-hero-button" onClick={() => setSelectedId(`hero-${page}`)}>✦ Hero background & shape</button>
+        <p className="visual-kicker">Add an item</p>
         <div className="visual-library">{blockKinds.map((item) => <button key={item.kind} type="button" onClick={() => addBlock(item.kind)}>+ {item.label}</button>)}</div>
-        <p className="visual-help">Drag the ⠿ handle on the canvas to reorder. Click any block to style it.</p>
+        <p className="visual-help"><strong>Freeform canvas:</strong> drag any visible item anywhere, including inside the red Hero. Items can overlap. The centerline is the only magnetic snap.</p>
+        <p className="visual-kicker">Layers</p>
+        <div className="freeform-layers">{layers.map((item) => <button key={item.id} type="button" className={selectedFreeformId === item.id ? "is-active" : ""} onClick={() => setSelectedId(`freeform:${item.id}`)}><span>{item.tag}</span>{item.label || "Untitled item"}</button>)}</div>
       </aside>
 
       <main className="visual-editor__main">
@@ -391,7 +456,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
       </main>
 
       <aside className="visual-editor__inspector">
-        {heroSelected ? <HeroInspector page={page} header={header} onChange={patchHeader} onDeviceChange={patchHeaderDevice} onLinkChange={setHeaderLinked} onReset={resetHeader} onUpload={uploadHeroImage} /> : selected ? <>
+        {selectedFreeform && selectedFreeformId ? <FreeformInspector item={selectedFreeform} layer={selectedLayer} device={device} onLayout={(patch) => patchFreeform(selectedFreeformId, device, patch)} onStyle={(patch) => patchFreeformStyle(selectedFreeformId, patch)} onReset={() => resetFreeform(selectedFreeformId)} /> : heroSelected ? <HeroInspector page={page} header={header} onChange={patchHeader} onDeviceChange={patchHeaderDevice} onLinkChange={setHeaderLinked} onReset={resetHeader} onUpload={uploadHeroImage} /> : selected ? <>
           <div className="inspector-heading"><p className="visual-kicker">Selected block</p><h2>{selected.label}</h2>{selected.kind !== "native" ? <button type="button" className="inspector-delete" onClick={() => { edit((draft) => { const pageBlocks = visualDocument(draft).pages[page].blocks; const index = pageBlocks.findIndex((block) => block.id === selected.id); if (index >= 0) pageBlocks.splice(index, 1); draft.visual = visualDocument(draft); }); setSelectedId(null); }}>Delete block</button> : null}</div>
           <label className="visual-control"><span>Block label</span><input value={selected.label} onChange={(event) => patchBlock(selected.id, { label: event.target.value })} /></label>
           {selected.kind !== "native" ? <>
@@ -402,7 +467,7 @@ export function Editor({ initialDraft, initialPublished, userEmail }: {
           </> : <NativeCopyFields blockId={selected.nativeId ?? ""} content={content} edit={edit} />}
           <details className="inspector-section" open><summary>Resize & spacing</summary><p className="visual-native-note">Drag the right or bottom handle on the selected block, or use exact values below.</p><label className="visual-switch"><input type="checkbox" checked={selected.style?.linkedDevices ?? true} onChange={(event) => patchBlock(selected.id, { style: { ...selected.style, linkedDevices: event.target.checked } })} /> Link phone & desktop layout</label><div className="inspector-grid"><StyleNumber label={`${device === "phone" ? "Phone" : "Desktop"} width %`} value={selected.style?.[device]?.width} onChange={(v) => patchResponsiveLayout(selected.id, device, { width: v })} min={20} max={100} /><StyleNumber label="Min height" value={selected.style?.[device]?.minHeight} onChange={(v) => patchResponsiveLayout(selected.id, device, { minHeight: v })} max={900} /><StyleNumber label="Top padding" value={selected.style?.[device]?.paddingTop ?? selected.style?.paddingTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingTop: v })} max={300} /><StyleNumber label="Bottom padding" value={selected.style?.[device]?.paddingBottom ?? selected.style?.paddingBottom} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingBottom: v })} max={300} /><StyleNumber label="Side padding" value={selected.style?.[device]?.paddingLeft ?? selected.style?.paddingLeft} onChange={(v) => patchResponsiveLayout(selected.id, device, { paddingLeft: v, paddingRight: v })} max={300} /><StyleNumber label="Top margin" value={selected.style?.[device]?.marginTop ?? selected.style?.marginTop} onChange={(v) => patchResponsiveLayout(selected.id, device, { marginTop: v })} max={300} /></div><div className="spacing-presets"><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12 })}>Small</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 24, paddingRight: 20, paddingBottom: 24, paddingLeft: 20 })}>Medium</button><button type="button" onClick={() => patchResponsiveLayout(selected.id, device, { paddingTop: 48, paddingRight: 32, paddingBottom: 48, paddingLeft: 32 })}>Large</button></div></details>
           <details className="inspector-section"><summary>Appearance</summary><div className="inspector-grid"><StyleColor label="Background" value={selected.style?.background} onChange={(v) => patchStyle("background", v)} /><StyleColor label="Text color" value={selected.style?.color} onChange={(v) => patchStyle("color", v)} /><StyleColor label="Border color" value={selected.style?.borderColor} onChange={(v) => patchStyle("borderColor", v)} /><StyleNumber label="Border width" value={selected.style?.borderWidth} onChange={(v) => patchStyle("borderWidth", v)} max={12} /><StyleNumber label="Corner radius" value={selected.style?.borderRadius} onChange={(v) => patchStyle("borderRadius", v)} max={80} /><StyleNumber label="Font size" value={selected.style?.fontSize} onChange={(v) => patchStyle("fontSize", v)} min={10} max={80} /><StyleNumber label="Font weight" value={selected.style?.fontWeight} onChange={(v) => patchStyle("fontWeight", v)} min={100} max={900} /></div><label className="visual-control"><span>Text alignment</span><select value={selected.style?.textAlign ?? "left"} onChange={(event) => patchStyle("textAlign", event.target.value as BlockStyle["textAlign"])}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><button type="button" className="inspector-reset" onClick={() => patchBlock(selected.id, { style: undefined })}>Reset block styling</button></details>
-        </> : <div className="inspector-empty"><p className="visual-kicker">Inspector</p><h2>Choose a block</h2><p>Click a section in the canvas to adjust its space, colors, typography, borders, and content.</p></div>}
+        </> : <div className="inspector-empty"><p className="visual-kicker">Inspector</p><h2>Choose any item</h2><p>Click any heading, paragraph, button, card, row, menu, or Hero item to move, resize, rotate, layer, lock, hide, and style it.</p></div>}
       </aside>
     </div>
   </div>;

@@ -2,12 +2,13 @@ import type { NewsletterContent } from "../content/types";
 import { DetailHeader } from "./DetailHeader";
 import { PageBlocks } from "./PageBlocks";
 import type { CanvasEditorState } from "./PageBlocks";
+import { FreeformSurface } from "./FreeformSurface";
 
 export function ResultsView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
   const { results } = content;
 
   return (
-    <div className="site-shell site-shell--detail">
+    <FreeformSurface page="results" content={content} editor={editor}><div className="site-shell site-shell--detail">
       <DetailHeader content={content} page="results" title={results.heading} kicker={results.eyebrow} editor={editor} />
       <main className="detail-main" id="main-content">
         <PageBlocks content={content} page="results" native={{
@@ -86,8 +87,8 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
             <p>{results.momentum.body}</p>
           </div>
           </section>,
-        }} editable={Boolean(editor)} selectedId={editor?.selectedId} onSelect={editor?.onSelect} renderBlock={editor?.renderBlock} />
+        }} />
       </main>
-    </div>
+    </div></FreeformSurface>
   );
 }

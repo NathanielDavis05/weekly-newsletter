@@ -38,7 +38,7 @@ const nativeBlocks: Record<VisualPageId, Array<[string, string]>> = {
 
 export function defaultVisualDocument(): VisualDocument {
   return {
-    version: 2,
+    version: 3,
     pages: {
       home: { blocks: nativeBlocks.home.map(nativeBlock) },
       training: { blocks: nativeBlocks.training.map(nativeBlock) },
@@ -49,6 +49,7 @@ export function defaultVisualDocument(): VisualDocument {
       training: defaultHeader("training"),
       results: defaultHeader("results"),
     },
+    freeform: { home: {}, training: {}, results: {} },
   };
 }
 
@@ -113,7 +114,7 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
   if (!candidate || !candidate.pages) return fallback;
 
   return {
-    version: 2,
+    version: 3,
     pages: {
       home: normalisePage(candidate.pages.home?.blocks, fallback.pages.home.blocks),
       training: normalisePage(candidate.pages.training?.blocks, fallback.pages.training.blocks),
@@ -124,6 +125,43 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
       training: normaliseHeader(candidate.headers?.training, fallback.headers.training),
       results: normaliseHeader(candidate.headers?.results, fallback.headers.results),
     },
+    freeform: {
+      home: normaliseFreeform(candidate.freeform?.home),
+      training: normaliseFreeform(candidate.freeform?.training),
+      results: normaliseFreeform(candidate.freeform?.results),
+    },
+  };
+}
+
+function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | undefined) {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item && typeof item === "object").map(([id, item]) => [id, {
+    linked: typeof item.linked === "boolean" ? item.linked : true,
+    phone: normaliseFreeformLayout(item.phone),
+    desktop: normaliseFreeformLayout(item.desktop),
+    zIndex: numberIn(item.zIndex, 1, 0, 999),
+    opacity: numberIn(item.opacity, 100, 0, 100),
+    locked: Boolean(item.locked),
+    hidden: Boolean(item.hidden),
+    text: typeof item.text === "string" ? item.text.slice(0, 4000) : undefined,
+    href: typeof item.href === "string" ? item.href.slice(0, 2000) : undefined,
+    fontSize: typeof item.fontSize === "number" ? numberIn(item.fontSize, 16, 8, 240) : undefined,
+    fontWeight: typeof item.fontWeight === "number" ? numberIn(item.fontWeight, 400, 100, 900) : undefined,
+    textAlign: item.textAlign === "left" || item.textAlign === "center" || item.textAlign === "right" ? item.textAlign : undefined,
+    color: typeof item.color === "string" ? item.color.slice(0, 64) : undefined,
+    background: typeof item.background === "string" ? item.background.slice(0, 128) : undefined,
+    borderRadius: typeof item.borderRadius === "number" ? numberIn(item.borderRadius, 0, 0, 300) : undefined,
+    padding: typeof item.padding === "number" ? numberIn(item.padding, 0, 0, 300) : undefined,
+  }]));
+}
+
+function normaliseFreeformLayout(value: Partial<import("./types").FreeformLayout> | undefined) {
+  return {
+    x: numberIn(value?.x, 0, -4000, 4000),
+    y: numberIn(value?.y, 0, -4000, 4000),
+    width: typeof value?.width === "number" ? numberIn(value.width, 100, 5, 200) : undefined,
+    minHeight: typeof value?.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 2000) : undefined,
+    rotation: typeof value?.rotation === "number" ? numberIn(value.rotation, 0, -180, 180) : undefined,
   };
 }
 

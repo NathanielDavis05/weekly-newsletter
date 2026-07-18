@@ -4,12 +4,13 @@ import type { NewsletterContent } from "../content/types";
 import { PageBlocks } from "./PageBlocks";
 import type { CanvasEditorState } from "./PageBlocks";
 import { SiteHero } from "./SiteHero";
+import { FreeformSurface } from "./FreeformSurface";
 
 export function HomeView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
   const { home } = content;
 
   return (
-    <div className="site-shell">
+    <FreeformSurface page="home" content={content} editor={editor}><div className="site-shell">
       <SiteHero page="home" content={content} title={home.hero.headline} kicker={home.hero.kicker} editor={editor} />
 
       <main id="main-content">
@@ -161,13 +162,13 @@ export function HomeView({ content, editor }: { content: NewsletterContent; edit
             <strong>{home.grow.referralStrong}</strong> {home.grow.referralRest}
           </p>
           </section>,
-        }} editable={Boolean(editor)} selectedId={editor?.selectedId} onSelect={editor?.onSelect} renderBlock={editor?.renderBlock} />
+        }} />
       </main>
 
       <footer className="site-footer">
         <strong>{home.footer.brand}</strong>
         <span>{home.footer.line}</span>
       </footer>
-    </div>
+    </div></FreeformSurface>
   );
 }

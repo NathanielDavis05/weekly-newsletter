@@ -271,9 +271,37 @@ export interface VisualPageDocument {
 }
 
 export interface VisualDocument {
-  version: 2;
+  version: 3;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
+  freeform: Record<VisualPageId, Record<string, FreeformItemStyle>>;
+}
+
+export interface FreeformLayout {
+  x: number;
+  y: number;
+  width?: number;
+  minHeight?: number;
+  rotation?: number;
+}
+
+export interface FreeformItemStyle {
+  linked: boolean;
+  phone: FreeformLayout;
+  desktop: FreeformLayout;
+  zIndex: number;
+  opacity: number;
+  locked: boolean;
+  hidden: boolean;
+  text?: string;
+  href?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  textAlign?: "left" | "center" | "right";
+  color?: string;
+  background?: string;
+  borderRadius?: number;
+  padding?: number;
 }
 
 export type HeroShape =
