@@ -6,7 +6,8 @@ import type { NewsletterContent, VisualPageId, FreeformItemStyle, FreeformLayout
 import { visualDocument } from "../content/visual";
 import type { CanvasEditorState } from "./PageBlocks";
 
-const targetSelector = "h1,h2,h3,p,a,button,article,aside,li,img,figure,table,.card-body,.card-icon,.action-block,.priority-stack,.score-teaser,.score-teaser__result,.score-teaser__focus,.recognition-feature,.recognition-grid,.mini-card,.event-list,.event-row,.grow-card,.status-list,.status-row,.deadline-alert,.goal-summary,.metric-list,.metric-card,.focus-callout,.metrics-table-wrap,.momentum-note,.leader-help,.free-block,.site-footer,.site-hero__topline,.site-hero__brand,.site-hero__back,.site-menu,.site-hero__copy";
+const targetSelector = "h1,h2,h3,p,a,button,article,aside,li,img,figure,table,span,strong,small,time,em,.card-body,.card-icon,.action-block,.priority-stack,.score-teaser,.score-teaser__result,.score-teaser__focus,.recognition-feature,.recognition-grid,.mini-card,.event-list,.event-row,.grow-card,.status-list,.status-row,.deadline-alert,.goal-summary,.metric-list,.metric-card,.focus-callout,.metrics-table-wrap,.momentum-note,.leader-help,.free-block,.site-footer,.site-hero__topline,.site-hero__brand,.site-hero__back,.site-menu,.site-hero__copy";
+type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
 function elementPath(element: Element, root: Element) {
   const parts: number[] = [];
@@ -28,8 +29,9 @@ function applyItem(element: HTMLElement, item: FreeformItemStyle) {
   const setLayout = (prefix: string, value: FreeformLayout) => {
     element.style.setProperty(`--ff-${prefix}-x`, `${value.x}px`);
     element.style.setProperty(`--ff-${prefix}-y`, `${value.y}px`);
-    element.style.setProperty(`--ff-${prefix}-width`, value.width ? `${value.width}%` : "auto");
-    element.style.setProperty(`--ff-${prefix}-height`, value.minHeight ? `${value.minHeight}px` : "auto");
+    element.style.setProperty(`--ff-${prefix}-width`, value.widthPx ? `${value.widthPx}px` : value.width ? `${value.width}%` : "auto");
+    element.style.setProperty(`--ff-${prefix}-height`, value.height ? `${value.height}px` : "auto");
+    element.style.setProperty(`--ff-${prefix}-min-height`, value.minHeight ? `${value.minHeight}px` : "0px");
     element.style.setProperty(`--ff-${prefix}-rotation`, `${value.rotation ?? 0}deg`);
   };
   setLayout("phone", item.phone); setLayout("desktop", item.desktop);
@@ -43,6 +45,7 @@ function applyItem(element: HTMLElement, item: FreeformItemStyle) {
   optional("background", item.background);
   optional("border-radius", item.borderRadius != null ? `${item.borderRadius}px` : undefined);
   optional("padding", item.padding != null ? `${item.padding}px` : undefined);
+  element.style.setProperty("--ff-overflow", item.overflow ?? (item.phone.height || item.desktop.height ? "hidden" : "visible"));
   element.classList.toggle("freeform-hidden", item.hidden);
   element.classList.toggle("freeform-locked", item.locked);
 }
@@ -56,13 +59,17 @@ export function FreeformSurface({ page, content, editor, children }: { page: Vis
 
   useLayoutEffect(() => {
     const root = rootRef.current; if (!root) return;
-    const elements = Array.from(root.querySelectorAll<HTMLElement>(targetSelector)).filter((element) => !element.closest(".freeform-controls") && !element.classList.contains("canvas-sortable__handle") && !element.classList.contains("hero-item__handle"));
+    const elements = Array.from(root.querySelectorAll<HTMLElement>(targetSelector)).filter((element) => {
+      if (element.closest(".freeform-controls") || element.classList.contains("canvas-sortable__handle") || element.classList.contains("hero-item__handle")) return false;
+      if (/^(SPAN|STRONG|SMALL|TIME|EM)$/.test(element.tagName) && !(element.textContent || "").trim() && !element.getAttribute("aria-label")) return false;
+      return true;
+    });
     const discovered: Array<{ id: string; label: string; tag: string; textEditable: boolean; text?: string; href?: string }> = [];
     for (const element of elements) {
       const id = `${page}:${elementPath(element, root)}`;
       element.dataset.freeformId = id;
       element.dataset.freeformLabel = (element.getAttribute("aria-label") || element.textContent || element.tagName).trim().replace(/\s+/g, " ").slice(0, 54);
-      const textEditable = !element.children.length && /^(H1|H2|H3|P|A|BUTTON|SMALL|STRONG|SPAN)$/.test(element.tagName);
+      const textEditable = !element.children.length && /^(H1|H2|H3|P|A|BUTTON|SMALL|STRONG|SPAN|TIME|EM)$/.test(element.tagName);
       if (textEditable && element.dataset.freeformOriginalText == null) element.dataset.freeformOriginalText = element.textContent ?? "";
       if (element instanceof HTMLAnchorElement && element.dataset.freeformOriginalHref == null) element.dataset.freeformOriginalHref = element.getAttribute("href") ?? "";
       element.classList.add("freeform-item");
@@ -101,16 +108,24 @@ export function FreeformSurface({ page, content, editor, children }: { page: Vis
     globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
   };
 
-  const resize = (event: ReactPointerEvent<HTMLButtonElement>, axis: "width" | "height") => {
+  const resize = (event: ReactPointerEvent<HTMLButtonElement>, direction: ResizeDirection) => {
     event.preventDefault(); event.stopPropagation();
     if (!editor || !selectedKey || !rootRef.current) return;
     const target = rootRef.current.querySelector<HTMLElement>(`[data-freeform-id="${CSS.escape(selectedKey)}"]`); if (!target) return;
     const item = styles[selectedKey] ?? defaultItem(); if (item.locked) return;
-    const rect = target.getBoundingClientRect(); const rootRect = rootRef.current.getBoundingClientRect(); const start = axis === "width" ? event.clientX : event.clientY;
+    const rect = target.getBoundingClientRect(); const startX = event.clientX; const startY = event.clientY;
+    const device = editor.device ?? "phone"; const layout = item[device];
     const move = (next: globalThis.PointerEvent) => {
-      const delta = (axis === "width" ? next.clientX : next.clientY) - start;
-      if (axis === "width") editor.onFreeformChange?.(selectedKey, editor.device ?? "phone", { width: Math.max(5, Math.min(200, Math.round(((rect.width + delta) / rootRect.width) * 100))) });
-      else editor.onFreeformChange?.(selectedKey, editor.device ?? "phone", { minHeight: Math.max(0, Math.min(2000, Math.round(rect.height + delta))) });
+      const dx = next.clientX - startX; const dy = next.clientY - startY;
+      const west = direction.includes("w"); const east = direction.includes("e"); const north = direction.includes("n"); const south = direction.includes("s");
+      const widthPx = west || east ? Math.max(20, Math.min(2400, Math.round(rect.width + (east ? dx : -dx)))) : layout.widthPx;
+      const height = north || south ? Math.max(20, Math.min(2400, Math.round(rect.height + (south ? dy : -dy)))) : layout.height;
+      editor.onFreeformChange?.(selectedKey, device, {
+        ...(west || east ? { width: undefined, widthPx } : {}),
+        ...(north || south ? { height, minHeight: undefined } : {}),
+        ...(west ? { x: Math.round(layout.x + dx) } : {}),
+        ...(north ? { y: Math.round(layout.y + dy) } : {}),
+      });
     };
     const end = () => { globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
     globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
@@ -130,6 +145,8 @@ export function FreeformSurface({ page, content, editor, children }: { page: Vis
   return <div ref={rootRef} className={`freeform-surface${editor ? " freeform-surface--editing" : ""}`} onPointerDown={pointerDown} onKeyDown={keyDown}>
     {children}
     {guide ? <span className="freeform-center-guide" aria-hidden="true" /> : null}
-    {editor && overlay ? <div className="freeform-controls" style={overlay}><button type="button" className="freeform-resize freeform-resize--width" aria-label="Resize selected item width" onPointerDown={(event) => resize(event, "width")} /><button type="button" className="freeform-resize freeform-resize--height" aria-label="Resize selected item height" onPointerDown={(event) => resize(event, "height")} /></div> : null}
+    {editor && overlay ? <div className="freeform-controls" style={overlay}>
+      {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeDirection[]).map((direction) => <button key={direction} type="button" className={`freeform-resize freeform-resize--${direction}`} aria-label={`Resize selected item ${direction}`} onPointerDown={(event) => resize(event, direction)} />)}
+    </div> : null}
   </div>;
 }

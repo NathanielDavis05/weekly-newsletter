@@ -1368,9 +1368,12 @@ h3 {
 .freeform-surface { position: relative; overflow: visible; }
 .freeform-item {
   position: relative;
+  box-sizing: border-box;
   z-index: var(--ff-z, 1);
   width: var(--ff-phone-width, auto);
-  min-height: var(--ff-phone-height, auto);
+  height: var(--ff-phone-height, auto);
+  min-height: var(--ff-phone-min-height, 0);
+  overflow: var(--ff-overflow, visible);
   opacity: var(--ff-opacity, 1);
   transform: translate(var(--ff-phone-x, 0), var(--ff-phone-y, 0)) rotate(var(--ff-phone-rotation, 0deg));
   transform-origin: center;
@@ -1379,7 +1382,8 @@ h3 {
 @media (min-width: 640px) {
   .freeform-item {
     width: var(--ff-desktop-width, auto);
-    min-height: var(--ff-desktop-height, auto);
+    height: var(--ff-desktop-height, auto);
+    min-height: var(--ff-desktop-min-height, 0);
     transform: translate(var(--ff-desktop-x, 0), var(--ff-desktop-y, 0)) rotate(var(--ff-desktop-rotation, 0deg));
   }
 }

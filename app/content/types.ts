@@ -281,6 +281,8 @@ export interface FreeformLayout {
   x: number;
   y: number;
   width?: number;
+  widthPx?: number;
+  height?: number;
   minHeight?: number;
   rotation?: number;
 }
@@ -302,6 +304,7 @@ export interface FreeformItemStyle {
   background?: string;
   borderRadius?: number;
   padding?: number;
+  overflow?: "visible" | "hidden" | "auto";
 }
 
 export type HeroShape =

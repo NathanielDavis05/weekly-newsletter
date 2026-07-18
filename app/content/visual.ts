@@ -152,6 +152,7 @@ function normaliseFreeform(value: VisualDocument["freeform"][VisualPageId] | und
     background: typeof item.background === "string" ? item.background.slice(0, 128) : undefined,
     borderRadius: typeof item.borderRadius === "number" ? numberIn(item.borderRadius, 0, 0, 300) : undefined,
     padding: typeof item.padding === "number" ? numberIn(item.padding, 0, 0, 300) : undefined,
+    overflow: item.overflow === "hidden" || item.overflow === "auto" || item.overflow === "visible" ? item.overflow : undefined,
   }]));
 }
 
@@ -160,6 +161,8 @@ function normaliseFreeformLayout(value: Partial<import("./types").FreeformLayout
     x: numberIn(value?.x, 0, -4000, 4000),
     y: numberIn(value?.y, 0, -4000, 4000),
     width: typeof value?.width === "number" ? numberIn(value.width, 100, 5, 200) : undefined,
+    widthPx: typeof value?.widthPx === "number" ? numberIn(value.widthPx, 320, 20, 2400) : undefined,
+    height: typeof value?.height === "number" ? numberIn(value.height, 44, 20, 2400) : undefined,
     minHeight: typeof value?.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 2000) : undefined,
     rotation: typeof value?.rotation === "number" ? numberIn(value.rotation, 0, -180, 180) : undefined,
   };
