@@ -70,6 +70,11 @@ body {
   width: min(100%, var(--page-content-width, 760px));
   margin-inline: auto;
   display: grid;
+  /* minmax(0, 1fr) lets the single column shrink below its min-content. Without
+     it the track grows to the widest child (the 5-column scorecard table), which
+     widens every row on the page and pushes content off-screen on phones. Wide
+     children then scroll inside their own overflow-x container instead. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--page-row-gap, 22px);
 }
 

@@ -45,6 +45,18 @@ button { cursor:pointer; }
 .builder-canvas--phone .newsletter-item{flex-basis:var(--item-phone-width,100%);width:var(--item-phone-width,100%);min-height:var(--item-phone-min-height,0);padding:var(--item-phone-padding-top,0) var(--item-phone-padding-right,0) var(--item-phone-padding-bottom,0) var(--item-phone-padding-left,0);margin-top:var(--item-phone-margin-top,0);margin-bottom:var(--item-phone-margin-bottom,0);translate:var(--item-phone-nudge-x,0) var(--item-phone-nudge-y,0)}
 .builder-canvas--desktop .item-row{flex-direction:row}
 .builder-canvas--desktop .newsletter-item{flex-basis:var(--item-desktop-width,var(--item-phone-width,100%))!important;width:var(--item-desktop-width,var(--item-phone-width,100%))!important;min-height:var(--item-desktop-min-height,var(--item-phone-min-height,0));padding:var(--item-desktop-padding-top,var(--item-phone-padding-top,0)) var(--item-desktop-padding-right,var(--item-phone-padding-right,0)) var(--item-desktop-padding-bottom,var(--item-phone-padding-bottom,0)) var(--item-desktop-padding-left,var(--item-phone-padding-left,0));margin-top:var(--item-desktop-margin-top,var(--item-phone-margin-top,0));margin-bottom:var(--item-desktop-margin-bottom,var(--item-phone-margin-bottom,0));translate:var(--item-desktop-nudge-x,0) var(--item-desktop-nudge-y,0)}
+/* Phone preview fidelity. globals.css sizes the hero and headings from the real
+   browser viewport (@media min-width:640px and `8vw` units), which cannot see
+   the simulated phone canvas — so Phone mode would otherwise render desktop
+   type and hero sizes. Re-assert the phone values here so the preview matches
+   an actual device. */
+.builder-canvas--phone .site-hero{min-height:var(--hero-min-height);padding:var(--hero-padding-top) var(--hero-padding-right) var(--hero-padding-bottom) var(--hero-padding-left);justify-content:var(--hero-content-position)}
+.builder-canvas--phone .site-hero__brand{font-size:var(--hero-brand-size)}
+.builder-canvas--phone .site-hero .site-menu--inverted summary{width:var(--hero-menu-size);height:var(--hero-menu-size)}
+.builder-canvas--phone .site-hero__copy{width:min(100%,var(--hero-content-width));margin-top:var(--hero-content-gap);text-align:var(--hero-content-align);align-self:var(--hero-content-justify)}
+.builder-canvas--phone .site-hero__copy p{font-size:var(--hero-kicker-size)}
+.builder-canvas--phone .site-hero__copy h1{font-size:var(--hero-title-size)}
+.builder-canvas--phone h2{font-size:2rem}
 /* Phone canvas gets a light device bezel for a website-builder feel. */
 .builder-canvas--phone{border-radius:24px;box-shadow:0 22px 60px rgba(13,34,56,.18),0 0 0 7px #12171f}
 .builder-canvas--phone .site-shell{border-radius:20px}
