@@ -92,8 +92,8 @@ body {
 .newsletter-item .site-footer { margin: 0; }
 
 @media (max-width: 639px) {
-  .item-row:not(.item-row--phone-columns) { flex-direction: column; }
-  .item-row:not(.item-row--phone-columns) > .newsletter-item { width: 100%; flex-basis: 100%; }
+  .item-row--paired:not(.item-row--phone-columns) { flex-direction: column; }
+  .item-row--paired:not(.item-row--phone-columns) > .newsletter-item { width: 100%; flex-basis: 100%; }
 }
 
 @media (min-width: 640px) {
@@ -737,12 +737,12 @@ h3 {
   inset: 0;
   content: "";
   opacity: var(--hero-image-opacity);
-  /* The cover layer keeps uploaded photos and the pattern continuous through
-     the whole lower edge. The adjustable layer remains on top for framing. */
-  background-image: var(--hero-image), var(--hero-image);
-  background-position: var(--hero-image-position), center;
-  background-size: var(--hero-image-size), cover;
-  background-repeat: no-repeat, no-repeat;
+  /* A single image layer. --hero-image-size defaults to `cover` (fills the
+     hero) and becomes a zoom percentage when the scale control is raised. */
+  background-image: var(--hero-image);
+  background-position: var(--hero-image-position);
+  background-size: var(--hero-image-size);
+  background-repeat: no-repeat;
   background-blend-mode: var(--hero-image-blend);
 }
 

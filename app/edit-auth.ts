@@ -25,11 +25,26 @@ export function isAllowedEditor(email: string): boolean {
   return allowedEmails().includes(email.trim().toLowerCase());
 }
 
+// ---------------------------------------------------------------------------
+// LOCAL-DEV-ONLY BYPASS — remove this block once you're done testing locally.
+// `import.meta.env.DEV` is a Vite build-time constant: it is `true` only under
+// `vinext dev` and is statically replaced with `false` (then dead-code-eliminated)
+// by `vinext build`/`vinext deploy`. This code cannot exist in the deployed
+// bundle, so it can never bypass auth on the live site — but it does mean
+// `/edit` skips ChatGPT sign-in entirely whenever you run `npm run dev`.
+const LOCAL_DEV_USER: ChatGPTUser = { displayName: "Local dev", email: DEFAULT_ALLOWLIST.split(",")[0].trim(), fullName: null };
+function localDevBypass(): ChatGPTUser | null {
+  return import.meta.env.DEV ? LOCAL_DEV_USER : null;
+}
+// ---------------------------------------------------------------------------
+
 /**
  * For server components (editor + preview pages). Redirects anonymous users to
  * sign in, and signed-in-but-not-allowlisted users back to the public site.
  */
 export async function requireEditorUser(returnTo: string): Promise<ChatGPTUser> {
+  const devUser = localDevBypass();
+  if (devUser) return devUser;
   const user = await requireChatGPTUser(returnTo);
   if (!isAllowedEditor(user.email)) {
     redirect("/");
@@ -42,6 +57,8 @@ export async function requireEditorUser(returnTo: string): Promise<ChatGPTUser> 
  * otherwise null so the caller can respond 401/403 without redirecting.
  */
 export async function getEditorUser(): Promise<ChatGPTUser | null> {
+  const devUser = localDevBypass();
+  if (devUser) return devUser;
   const user = await getChatGPTUser();
   if (!user || !isAllowedEditor(user.email)) return null;
   return user;
