@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    "https://cfa-west-bryan-weekly.nathanieldavis.chatgpt.site",
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://cfawestbryan.com",
   ),
   title: {
     default: "CFA West Bryan | Weekly team newsletter",

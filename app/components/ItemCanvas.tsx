@@ -84,7 +84,7 @@ export function ItemCanvas({ content, page, native, editor }: {
   return <div className={`item-page item-page--${page}${editor ? " item-page--editing" : ""}`} style={pageVars}>
     <div className="item-page__content">
       {pageDocument.rows.map((row) => {
-        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => Boolean(item) && !item.style?.hidden);
+        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => item !== undefined && !item.style?.hidden);
         if (!items.length) return null;
         return <div className="item-row-shell" key={row.id} data-row-id={row.id}>
           {editor ? <button className="item-drop item-drop--above" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "above")}>Place above</button> : null}

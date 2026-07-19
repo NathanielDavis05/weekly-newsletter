@@ -1,6 +1,4 @@
-import { env } from "cloudflare:workers";
-import { getDb } from "../../../db";
-import { mediaAssets } from "../../../db/schema";
+import { put } from "@vercel/blob";
 import { getEditorUser } from "../../edit-auth";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -14,13 +12,10 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) return Response.json({ error: "Choose an image file first." }, { status: 400 });
     if (!ACCEPTED_TYPES.has(file.type)) return Response.json({ error: "Use a JPG, PNG, WebP, or GIF image." }, { status: 400 });
     if (file.size > MAX_IMAGE_BYTES) return Response.json({ error: "Images must be 8 MB or smaller." }, { status: 400 });
-    if (!env.MEDIA) return Response.json({ error: "Image storage is not available yet." }, { status: 503 });
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return Response.json({ error: "Image storage is not available yet." }, { status: 503 });
 
-    const id = crypto.randomUUID();
-    const key = `media-${id}`;
-    await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { filename: file.name } });
-    await getDb().insert(mediaAssets).values({ id, key, contentType: file.type, size: String(file.size), createdAt: new Date().toISOString() });
-    return Response.json({ url: `/api/media/${key}`, key });
+    const blob = await put(`media/${file.name}`, file, { access: "public", contentType: file.type, addRandomSuffix: true });
+    return Response.json({ url: blob.url, key: blob.pathname });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not upload this image." }, { status: 500 });
   }

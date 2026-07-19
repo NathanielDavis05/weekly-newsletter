@@ -1,65 +1,61 @@
-import { env } from "cloudflare:workers";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import {
-  type ChatGPTUser,
-  getChatGPTUser,
-  requireChatGPTUser,
-} from "./chatgpt-auth";
 
-// Sign-in with ChatGPT proves *who* someone is, not that they are the owner of
-// this newsletter. Editing is therefore restricted to an allowlist of emails
-// kept in the EDITOR_ALLOWLIST env var (comma-separated). The value lives only
-// on the server and is never sent to the client.
-const DEFAULT_ALLOWLIST = "nathaniel@thedavisspot.com";
+// Editing is protected by a single shared password (env `EDITOR_PASSWORD`).
+// A successful login sets a signed, HttpOnly session cookie; every editor page
+// and content API checks it. Public pages stay anonymous.
 
-function allowedEmails(): string[] {
-  const raw = (env as Record<string, unknown>).EDITOR_ALLOWLIST;
-  const source = typeof raw === "string" && raw.trim() ? raw : DEFAULT_ALLOWLIST;
-  return source
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
+export type EditorUser = { displayName: string; email: string; fullName: string | null };
+
+export const SESSION_COOKIE = "editor_session";
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const EDITOR_USER: EditorUser = { displayName: "Editor", email: "editor", fullName: null };
+
+function secret(): string {
+  return process.env.EDITOR_SESSION_SECRET || process.env.EDITOR_PASSWORD || "insecure-dev-secret";
+}
+function sign(value: string): string {
+  return createHmac("sha256", secret()).update(value).digest("hex");
 }
 
-export function isAllowedEditor(email: string): boolean {
-  return allowedEmails().includes(email.trim().toLowerCase());
+export function createSessionToken(): string {
+  const expires = String(Date.now() + SESSION_TTL_MS);
+  return `${expires}.${sign(expires)}`;
+}
+export function sessionCookieMaxAge(): number {
+  return Math.floor(SESSION_TTL_MS / 1000);
 }
 
-// ---------------------------------------------------------------------------
-// LOCAL-DEV-ONLY BYPASS — remove this block once you're done testing locally.
-// `import.meta.env.DEV` is a Vite build-time constant: it is `true` only under
-// `vinext dev` and is statically replaced with `false` (then dead-code-eliminated)
-// by `vinext build`/`vinext deploy`. This code cannot exist in the deployed
-// bundle, so it can never bypass auth on the live site — but it does mean
-// `/edit` skips ChatGPT sign-in entirely whenever you run `npm run dev`.
-const LOCAL_DEV_USER: ChatGPTUser = { displayName: "Local dev", email: DEFAULT_ALLOWLIST.split(",")[0].trim(), fullName: null };
-function localDevBypass(): ChatGPTUser | null {
-  return import.meta.env.DEV ? LOCAL_DEV_USER : null;
-}
-// ---------------------------------------------------------------------------
-
-/**
- * For server components (editor + preview pages). Redirects anonymous users to
- * sign in, and signed-in-but-not-allowlisted users back to the public site.
- */
-export async function requireEditorUser(returnTo: string): Promise<ChatGPTUser> {
-  const devUser = localDevBypass();
-  if (devUser) return devUser;
-  const user = await requireChatGPTUser(returnTo);
-  if (!isAllowedEditor(user.email)) {
-    redirect("/");
-  }
-  return user;
+function verifySessionToken(token: string | undefined): boolean {
+  if (!token) return false;
+  const [expires, mac] = token.split(".");
+  if (!expires || !mac) return false;
+  if (!Number.isFinite(Number(expires)) || Number(expires) < Date.now()) return false;
+  const expected = sign(expires);
+  const provided = Buffer.from(mac);
+  const wanted = Buffer.from(expected);
+  return provided.length === wanted.length && timingSafeEqual(provided, wanted);
 }
 
-/**
- * For API route handlers. Returns the user only if signed in AND allowlisted,
- * otherwise null so the caller can respond 401/403 without redirecting.
- */
-export async function getEditorUser(): Promise<ChatGPTUser | null> {
-  const devUser = localDevBypass();
-  if (devUser) return devUser;
-  const user = await getChatGPTUser();
-  if (!user || !isAllowedEditor(user.email)) return null;
-  return user;
+/** Constant-time check of a submitted password against `EDITOR_PASSWORD`. */
+export function checkEditorPassword(candidate: string): boolean {
+  const expected = process.env.EDITOR_PASSWORD;
+  if (!expected) return false;
+  const a = createHash("sha256").update(candidate).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+/** For API route handlers. Returns the editor user if signed in, else null. */
+export async function getEditorUser(): Promise<EditorUser | null> {
+  const store = await cookies();
+  return verifySessionToken(store.get(SESSION_COOKIE)?.value) ? EDITOR_USER : null;
+}
+
+/** For server components (editor + preview pages). Redirects to login if not signed in. */
+export async function requireEditorUser(returnTo: string): Promise<EditorUser> {
+  const user = await getEditorUser();
+  if (user) return user;
+  redirect(`/edit/login?return_to=${encodeURIComponent(returnTo)}`);
 }
