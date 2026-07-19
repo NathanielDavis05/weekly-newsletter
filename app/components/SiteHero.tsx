@@ -95,7 +95,7 @@ export function SiteHero({
     "--hero-gradient-end": colorWithOpacity(header.gradientEnd, Math.max(0, Math.min(100, header.gradientOpacity)) / 100),
     "--hero-image": imageUrl ? `url("${imageUrl}")` : "none",
     "--hero-image-position": header.imagePosition,
-    "--hero-image-size": `${header.imageScale}% auto`,
+    "--hero-image-size": header.imageScale === 100 ? "cover" : `${header.imageScale}% auto`,
     "--hero-image-opacity": String(header.imageOpacity / 100),
     "--hero-image-blend": header.imageBlend,
     "--hero-overlay": header.overlayColor,
@@ -118,9 +118,21 @@ export function SiteHero({
     brand: header.showBrand ? <Link key="brand" className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link> : null,
     menu: header.showMenu ? <div key="menu"><SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /></div> : null,
   };
+  const heroEditable = (field: "title" | "kicker", value: string, tag: "h1" | "p") => {
+    const Tag = tag;
+    if (!editor) return <Tag key={field}>{value}</Tag>;
+    return <Tag
+      key={field}
+      contentEditable
+      suppressContentEditableWarning
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+      onBlur={(event) => editor.onHeroTextChange?.(field, event.currentTarget.textContent ?? "")}
+    >{value}</Tag>;
+  };
   const copyItems = {
-    kicker: header.showKicker ? <p key="kicker">{kicker}</p> : null,
-    title: header.showTitle ? <h1 key="title">{title}</h1> : null,
+    kicker: header.showKicker ? heroEditable("kicker", kicker, "p") : null,
+    title: header.showTitle ? heroEditable("title", title, "h1") : null,
   };
   return (
     <header

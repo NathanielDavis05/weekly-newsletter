@@ -12,6 +12,7 @@ export interface CanvasEditorState {
   onResizeItem?: (itemId: string, patch: Partial<ResponsiveLayout>) => void;
   onNudgeItem?: (itemId: string, dx: number, dy: number) => void;
   onFreeTextChange?: (itemId: string, patch: Partial<VisualBlock>) => void;
+  onHeroTextChange?: (field: "title" | "kicker", value: string) => void;
 }
 
 function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorState }) {
@@ -31,23 +32,33 @@ function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorSt
   return <section className="free-block free-block--container">{item.title ? inline("title", item.title, "free-block__title") : null}{inline("body", item.body || "Container content", "free-block__body")}</section>;
 }
 
-function startResize(event: PointerEvent<HTMLButtonElement>, item: VisualBlock, device: "phone" | "desktop", onResize?: CanvasEditorState["onResizeItem"]) {
+function startResize(event: PointerEvent<HTMLButtonElement>, item: VisualBlock, axis: "x" | "y" | "both", onResize?: CanvasEditorState["onResizeItem"]) {
   event.preventDefault(); event.stopPropagation();
   const host = event.currentTarget.closest<HTMLElement>(".newsletter-item"); if (!host) return;
   const row = host.parentElement; if (!row) return;
-  const startX = event.clientX; const startY = event.clientY; const rect = host.getBoundingClientRect(); const startWidth = rect.width; const startHeight = rect.height; const rowWidth = row.getBoundingClientRect().width;
+  const badge = host.querySelector<HTMLElement>(".newsletter-item__dims");
+  const startX = event.clientX; const startY = event.clientY; const rect = host.getBoundingClientRect(); const startWidth = rect.width; const startHeight = rect.height; const rowWidth = row.getBoundingClientRect().width || 1;
+  host.classList.add("newsletter-item--resizing");
+  let widthPct = Math.round((startWidth / rowWidth) * 100); let minHeightPx = Math.round(startHeight);
   const move = (next: globalThis.PointerEvent) => {
-    let width = Math.max(10, Math.min(100, ((startWidth + next.clientX - startX) / rowWidth) * 100));
-    if (!next.altKey) {
-      if (Math.abs(width - 50) <= 2.5) width = 50;
-      if (Math.abs(width - 100) <= 2.5) width = 100;
-      const sibling = Array.from(row.children).find((node) => node !== host && (node as HTMLElement).classList.contains("newsletter-item")) as HTMLElement | undefined;
-      if (sibling) { const siblingWidth = sibling.getBoundingClientRect().width / rowWidth * 100; if (Math.abs(width - siblingWidth) <= 2.5) width = siblingWidth; }
+    const patch: Partial<ResponsiveLayout> = {};
+    if (axis === "x" || axis === "both") {
+      let width = Math.max(10, Math.min(100, ((startWidth + next.clientX - startX) / rowWidth) * 100));
+      if (!next.altKey) {
+        if (Math.abs(width - 50) <= 2.5) width = 50;
+        if (Math.abs(width - 100) <= 2.5) width = 100;
+        const sibling = Array.from(row.children).find((node) => node !== host && (node as HTMLElement).classList.contains("newsletter-item")) as HTMLElement | undefined;
+        if (sibling) { const siblingWidth = sibling.getBoundingClientRect().width / rowWidth * 100; if (Math.abs(width - siblingWidth) <= 2.5) width = siblingWidth; }
+      }
+      widthPct = Math.round(width); patch.width = widthPct;
     }
-    const minHeight = Math.max(0, Math.round(startHeight + next.clientY - startY));
-    onResize?.(item.id, { width: Math.round(width), minHeight });
+    if (axis === "y" || axis === "both") {
+      minHeightPx = Math.max(0, Math.round(startHeight + next.clientY - startY)); patch.minHeight = minHeightPx;
+    }
+    if (badge) badge.textContent = [axis !== "y" ? `${widthPct}% wide` : null, axis !== "x" ? `${minHeightPx}px tall` : null].filter(Boolean).join(" · ");
+    onResize?.(item.id, patch);
   };
-  const end = () => { globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
+  const end = () => { host.classList.remove("newsletter-item--resizing"); globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
   globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
 }
 
@@ -73,11 +84,11 @@ export function ItemCanvas({ content, page, native, editor }: {
   return <div className={`item-page item-page--${page}${editor ? " item-page--editing" : ""}`} style={pageVars}>
     <div className="item-page__content">
       {pageDocument.rows.map((row) => {
-        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => Boolean(item));
+        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => Boolean(item) && !item.style?.hidden);
         if (!items.length) return null;
         return <div className="item-row-shell" key={row.id} data-row-id={row.id}>
           {editor ? <button className="item-drop item-drop--above" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "above")}>Place above</button> : null}
-          <div className={`item-row${row.keepColumnsOnPhone ? " item-row--phone-columns" : ""}`} style={{ gap: `${row.gap}px`, alignItems: row.align }}>
+          <div className={`item-row${row.keepColumnsOnPhone ? " item-row--phone-columns" : ""}${items.length > 1 ? " item-row--paired" : ""}`} style={{ gap: `${row.gap}px`, alignItems: row.align }}>
             {editor ? <button className="item-drop item-drop--side item-drop--left" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "left")}>Left</button> : null}
             {items.map((item) => {
               const selected = editor?.selectedId === item.id; const inner = item.kind === "native" ? native[item.nativeId ?? item.id] : <FreeItem item={item} editor={editor} />;
@@ -100,7 +111,12 @@ export function ItemCanvas({ content, page, native, editor }: {
               >
                 {editor ? <><span className="newsletter-item__grip" aria-label={`Drag ${item.label}`}>⋮⋮</span><span className="newsletter-item__label">{item.label}</span></> : null}
                 {inner}
-                {editor && selected ? <button type="button" className="newsletter-item__resize" aria-label={`Resize ${item.label}`} onPointerDown={(event) => startResize(event, item, editor.device ?? "phone", editor.onResizeItem)} /> : null}
+                {editor && selected ? <>
+                  <span className="newsletter-item__dims" aria-hidden="true" />
+                  <button type="button" className="newsletter-item__resize newsletter-item__resize--x" aria-label={`Resize width of ${item.label}`} onPointerDown={(event) => startResize(event, item, "x", editor.onResizeItem)} />
+                  <button type="button" className="newsletter-item__resize newsletter-item__resize--y" aria-label={`Resize height of ${item.label}`} onPointerDown={(event) => startResize(event, item, "y", editor.onResizeItem)} />
+                  <button type="button" className="newsletter-item__resize newsletter-item__resize--xy" aria-label={`Resize ${item.label}`} onPointerDown={(event) => startResize(event, item, "both", editor.onResizeItem)} />
+                </> : null}
               </div>;
             })}
             {editor ? <button className="item-drop item-drop--side item-drop--right" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "right")}>Right</button> : null}
