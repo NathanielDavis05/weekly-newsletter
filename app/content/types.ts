@@ -237,6 +237,8 @@ export interface BlockStyle {
   fontWeight?: number;
   textAlign?: "left" | "center" | "right";
   maxWidth?: number;
+  /** Named box shadow — see BOX_SHADOWS in edit/panels/blockStyles.ts. */
+  shadow?: string;
   /** Responsive visual sizing, persisted for both the canvas and public page. */
   phone?: ResponsiveLayout;
   desktop?: ResponsiveLayout;

@@ -573,3 +573,41 @@ button { cursor:pointer; }
 .media-item__actions button:hover { border-color: #1672d4; color: #1672d4; }
 .media-item__editor { display: grid; gap: 6px; padding-top: 4px; border-top: 1px solid var(--builder-line, #ddd3c4); }
 .media-item__editor .visual-control span { font-size: 10px; }
+
+/* ---------------------------------------------------------------------------
+   Appearance: presets, palette-linked colours, style transfer
+   --------------------------------------------------------------------------- */
+.inspector-hint { margin: 0 0 8px; font-size: 11px; color: #7a7368; }
+
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.preset {
+  display: grid; gap: 5px; justify-items: center; padding: 8px 6px;
+  border: 1px solid var(--builder-line, #ddd3c4); border-radius: 10px;
+  background: #fff; font: inherit; font-size: 11px; cursor: pointer;
+}
+.preset:hover { border-color: #1672d4; }
+.preset.is-active { border-color: #1672d4; box-shadow: 0 0 0 2px rgba(22, 114, 212, .18); }
+.preset__swatch { width: 100%; height: 26px; border-style: solid; }
+
+.style-transfer { display: flex; gap: 6px; margin-bottom: 10px; }
+.style-transfer button {
+  flex: 1; min-height: 32px; border: 1px solid var(--builder-line, #ddd3c4);
+  border-radius: 8px; background: #fff; font: inherit; font-size: 12px; cursor: pointer;
+}
+.style-transfer button:hover:not(:disabled) { border-color: #1672d4; color: #1672d4; }
+.style-transfer button:disabled { opacity: .45; cursor: default; }
+
+.palette-field { display: grid; gap: 6px; }
+.palette-field__swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+.palette-swatch {
+  width: 22px; height: 22px; padding: 0; cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, .2); border-radius: 5px;
+}
+.palette-swatch.is-active { outline: 2px solid #1672d4; outline-offset: 1px; }
+/* "No colour" — a diagonal slash rather than an empty box. */
+.palette-swatch--none {
+  background: linear-gradient(to top right, transparent 45%, #d80d37 45%, #d80d37 55%, transparent 55%), #fff;
+}
+.palette-field__custom { display: flex; align-items: center; gap: 8px; }
+.palette-field__custom input[type="color"] { width: 34px; height: 26px; padding: 2px; }
+.palette-field__custom small { font-size: 10px; color: #7a7368; }

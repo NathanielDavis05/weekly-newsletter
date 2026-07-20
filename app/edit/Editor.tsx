@@ -19,6 +19,7 @@ import { History } from "./commands/history";
 import { HistoryPanel } from "./panels/HistoryPanel";
 import { MediaPanel, type MediaAsset } from "./panels/MediaPanel";
 import { PublishChecklist } from "./panels/PublishChecklist";
+import { applyPreset, BOX_SHADOWS, copyableStyle, matchPreset, STYLE_PRESETS, tokenColor, tokenIdOf } from "./panels/blockStyles";
 import { SiteDesignPanel } from "./panels/SiteDesignPanel";
 import { buildSections, WeeklyMode } from "./panels/WeeklyMode";
 import { createNextIssue } from "./publishing/nextIssue";
@@ -48,6 +49,44 @@ function DeferredNumber({ value, onCommit, min, max }: { value?: number; onCommi
   return <input type="number" value={draft} min={min} max={max} onFocus={() => { editing.current = true; }} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(shown); event.currentTarget.blur(); } }} />;
 }
 function NumberField(props: { label: string; value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) { return <label className="visual-control"><span>{props.label}</span><DeferredNumber {...props} /></label>; }
+function PaletteColorField({ label, value, onChange, theme, allowClear = true }: {
+  label: string; value?: string; onChange: (value: string | undefined) => void;
+  theme: SiteTheme; allowClear?: boolean;
+}) {
+  const activeToken = tokenIdOf(value);
+  return <div className="visual-control palette-field">
+    <span>{label}</span>
+    <div className="palette-field__swatches">
+      {theme.palette.map((token) => <button
+        key={token.id}
+        type="button"
+        className={`palette-swatch${activeToken === token.id ? " is-active" : ""}`}
+        style={{ background: token.value }}
+        title={`${token.label} — follows the theme`}
+        aria-label={token.label}
+        aria-pressed={activeToken === token.id}
+        onClick={() => onChange(tokenColor(token.id))}
+      />)}
+      {allowClear ? <button
+        type="button"
+        className={`palette-swatch palette-swatch--none${value ? "" : " is-active"}`}
+        title="None"
+        aria-label="No colour"
+        onClick={() => onChange(undefined)}
+      /> : null}
+    </div>
+    <span className="palette-field__custom">
+      <input
+        type="color"
+        aria-label={`${label} custom colour`}
+        value={/^#[0-9a-f]{6}$/i.test(value ?? "") ? value : "#ffffff"}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <small>{activeToken ? "Follows theme" : value ? "Fixed colour" : "Not set"}</small>
+    </span>
+  </div>;
+}
+
 function ColorField({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) { return <label className="visual-control"><span>{label}</span><span className="visual-color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(value ?? "") ? value : "#ffffff"} onChange={(event) => onChange(event.target.value)} /><input value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></span></label>; }
 
 function TextField({ label, value, onChange, area = false, placeholder }: { label: string; value: string; onChange: (value: string) => void; area?: boolean; placeholder?: string }) {
@@ -184,6 +223,9 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const [sheetOpen, setSheetOpen] = useState(false);
   const [query, setQuery] = useState(""); const [busy, setBusy] = useState(false); const [saving, setSaving] = useState(false); const [status, setStatus] = useState("All changes saved"); const [conflict, setConflict] = useState(false);
   const autosaveRef = useRef<Promise<void> | null>(null); const clipboard = useRef<VisualBlock | null>(null);
+  /** "Copy style" carries a look between sections without moving content. */
+  const styleClipboard = useRef<Partial<BlockStyle> | null>(null);
+  const [styleCopied, setStyleCopied] = useState(false);
   // Command history. Continuous gestures (drag, resize) open a transaction so
   // the whole interaction collapses into one undo step.
   // Held in state (not a ref) purely so it is created once without reading a
@@ -599,7 +641,55 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
           {selectedRow.itemIds.length >= 2 ? <><label className="visual-switch"><input type="checkbox" checked={selectedRow.keepColumnsOnPhone} onChange={(event) => updateVisual((doc) => { const row = doc.pages[page].rows.find((candidate) => candidate.id === selectedRow.id); if (row) row.keepColumnsOnPhone = event.target.checked; })} /> Keep side-by-side on phone</label><p className="inspector-device-note">Off by default: paired items stack on phones and sit side-by-side on desktop.</p></> : null}
         </details> : null}
         <details className="inspector-section"><summary>Spacing · {device}</summary><p className="inspector-device-note">Space above this item</p><div className="segmented" role="group" aria-label="Space above"><button type="button" onClick={() => patchLayout(selected.id, { marginTop: -12 })}>Tight</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 0 })}>Snug</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 16 })}>Normal</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 40 })}>Roomy</button></div><div className="inspector-grid"><NumberField label="Top padding" value={currentLayout.paddingTop ?? selectedStyle.paddingTop} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingTop: value })} /><NumberField label="Bottom padding" value={currentLayout.paddingBottom ?? selectedStyle.paddingBottom} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingBottom: value })} /><NumberField label="Left padding" value={currentLayout.paddingLeft ?? selectedStyle.paddingLeft} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingLeft: value })} /><NumberField label="Right padding" value={currentLayout.paddingRight ?? selectedStyle.paddingRight} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingRight: value })} /></div><div className="inspector-grid"><NumberField label="Space above" value={currentLayout.marginTop} min={-80} max={240} onCommit={(value) => patchLayout(selected.id, { marginTop: value })} /><NumberField label="Space below" value={currentLayout.marginBottom} min={-80} max={240} onCommit={(value) => patchLayout(selected.id, { marginBottom: value })} /></div></details>
-        <details className="inspector-section"><summary>Style</summary><div className="alignment-buttons"><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "left" } })}>Left</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "center" } })}>Middle</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "right" } })}>Right</button></div><ColorField label="Background" value={selectedStyle.background} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, background: value } })} /><ColorField label="Text color" value={selectedStyle.color} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, color: value } })} /><div className="inspector-grid"><NumberField label="Corner radius" value={selectedStyle.borderRadius} min={0} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderRadius: value } })} /><NumberField label="Font size" value={selectedStyle.fontSize} min={8} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, fontSize: value } })} /></div><div className="inspector-grid"><ColorField label="Border color" value={selectedStyle.borderColor} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderColor: value } })} /><NumberField label="Border width" value={selectedStyle.borderWidth} min={0} max={20} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderWidth: value } })} /></div></details>
+        <details className="inspector-section" open><summary>Appearance</summary>
+          <p className="inspector-hint">Pick a look, then adjust anything below.</p>
+          <div className="preset-grid">
+            {STYLE_PRESETS.map((preset) => <button
+              key={preset.id}
+              type="button"
+              className={`preset${matchPreset(selectedStyle) === preset.id ? " is-active" : ""}`}
+              title={preset.description}
+              onClick={() => patchItem(selected.id, { style: applyPreset(selectedStyle, preset) })}
+            >
+              <span className="preset__swatch" style={{
+                background: preset.style.background ?? "transparent",
+                borderColor: preset.style.borderColor ?? "var(--builder-line, #ddd3c4)",
+                borderWidth: preset.style.borderWidth ?? 1,
+                borderRadius: Math.min(8, preset.style.borderRadius ?? 4),
+                boxShadow: preset.style.shadow ? BOX_SHADOWS[preset.style.shadow] : undefined,
+              }} aria-hidden="true" />
+              <span>{preset.label}</span>
+            </button>)}
+          </div>
+
+          <div className="style-transfer">
+            <button type="button" onClick={() => { styleClipboard.current = copyableStyle(selectedStyle); setStyleCopied(true); setStatus("Style copied"); }}>Copy style</button>
+            <button type="button" disabled={!styleCopied} onClick={() => { if (styleClipboard.current) { patchItem(selected.id, { style: { ...selectedStyle, ...styleClipboard.current } }); setStatus("Style pasted"); } }}>Paste style</button>
+          </div>
+
+          <div className="alignment-buttons"><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "left" } })}>Left</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "center" } })}>Middle</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "right" } })}>Right</button></div>
+
+          <PaletteColorField theme={theme} label="Background" value={selectedStyle.background} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, background: value } })} />
+          <PaletteColorField theme={theme} label="Text colour" value={selectedStyle.color} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, color: value } })} />
+          <PaletteColorField theme={theme} label="Border colour" value={selectedStyle.borderColor} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderColor: value } })} />
+
+          <div className="inspector-grid">
+            <NumberField label="Border width" value={selectedStyle.borderWidth} min={0} max={12} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderWidth: value } })} />
+            <NumberField label="Corner radius" value={selectedStyle.borderRadius} min={0} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderRadius: value } })} />
+          </div>
+
+          <label className="visual-control"><span>Shadow</span>
+            <select value={selectedStyle.shadow ?? ""} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, shadow: event.target.value || undefined } })}>
+              <option value="">None</option>
+              {Object.keys(BOX_SHADOWS).map((name) => <option key={name} value={name}>{name[0].toUpperCase() + name.slice(1)}</option>)}
+            </select>
+          </label>
+
+          <div className="inspector-grid">
+            <NumberField label="Font size" value={selectedStyle.fontSize} min={8} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, fontSize: value } })} />
+            <NumberField label="Max width" value={selectedStyle.maxWidth} min={120} max={1400} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, maxWidth: value } })} />
+          </div>
+        </details>
         <details className="inspector-section"><summary>Advanced</summary><label className="visual-switch"><input type="checkbox" checked={selectedStyle.linkedDevices ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, linkedDevices: event.target.checked } })} /> Link phone &amp; desktop sizing</label><label className="visual-switch"><input type="checkbox" checked={selectedStyle.hidden ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, hidden: event.target.checked } })} /> Hide on canvas &amp; live site</label><div className="inspector-grid"><NumberField label="Fine nudge X" value={currentLayout.nudgeX} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeX: value })} /><NumberField label="Fine nudge Y" value={currentLayout.nudgeY} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeY: value })} /></div></details>
         <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button><button type="button" className="danger" onClick={() => removeSelected(selected)}>{selected.kind === "native" ? "Remove section" : "Delete"}</button></div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pages.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><div className="inspector-grid"><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /></div><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><details className="inspector-section"><summary>Page padding</summary><div className="inspector-grid"><NumberField label="Top" value={pageDocument.paddingTop} min={0} max={240} onCommit={(value) => patchPage({ paddingTop: value ?? 0 })} /><NumberField label="Bottom" value={pageDocument.paddingBottom} min={0} max={240} onCommit={(value) => patchPage({ paddingBottom: value ?? 0 })} /><NumberField label="Left" value={pageDocument.paddingLeft} min={0} max={240} onCommit={(value) => patchPage({ paddingLeft: value ?? 0 })} /><NumberField label="Right" value={pageDocument.paddingRight} min={0} max={240} onCommit={(value) => patchPage({ paddingRight: value ?? 0 })} /></div></details><p className="inspector-note">The page grows automatically. Select any item to edit content, size, spacing, and style. Paired items stack on phone automatically.</p></div>}</aside> : null}
     </div>

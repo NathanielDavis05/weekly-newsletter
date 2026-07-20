@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { parseRichText, richTextToPlain, type RichText } from "./richtext";
+import { BOX_SHADOWS, safeStyleColor } from "../edit/panels/blockStyles";
 import { defaultTheme, parseTheme } from "./theme";
 import type {
   BlockStyle,
@@ -207,7 +208,17 @@ function withRichText(block: VisualBlock): VisualBlock {
 }
 
 function normaliseBlock(block: VisualBlock): VisualBlock {
-  const style = block.style ? { ...block.style, phone: normaliseLayout(block.style.phone), desktop: normaliseLayout(block.style.desktop) } : undefined;
+  const style = block.style ? {
+    ...block.style,
+    // Colours end up in an inline style attribute; anything unrecognised is
+    // dropped rather than forwarded to the published page.
+    background: safeStyleColor(block.style.background),
+    color: safeStyleColor(block.style.color),
+    borderColor: safeStyleColor(block.style.borderColor),
+    shadow: typeof block.style.shadow === "string" && block.style.shadow in BOX_SHADOWS ? block.style.shadow : undefined,
+    phone: normaliseLayout(block.style.phone),
+    desktop: normaliseLayout(block.style.desktop),
+  } : undefined;
   return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
 }
 
@@ -273,8 +284,9 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
 export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
   if (!style) return undefined; const px = (value: number | undefined) => typeof value === "number" ? `${value}px` : undefined;
   return {
-    backgroundColor: style.background || undefined, color: style.color || undefined, borderColor: style.borderColor || undefined,
+    backgroundColor: safeStyleColor(style.background), color: safeStyleColor(style.color), borderColor: safeStyleColor(style.borderColor),
     borderWidth: px(style.borderWidth), borderStyle: style.borderWidth ? "solid" : undefined, borderRadius: px(style.borderRadius),
+    boxShadow: style.shadow && style.shadow in BOX_SHADOWS ? BOX_SHADOWS[style.shadow] : undefined,
     fontSize: px(style.fontSize), fontWeight: style.fontWeight, textAlign: style.textAlign, maxWidth: px(style.maxWidth), display: style.hidden ? "none" : undefined,
     "--item-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
     "--item-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
