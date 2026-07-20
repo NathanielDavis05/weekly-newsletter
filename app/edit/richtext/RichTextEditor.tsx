@@ -64,6 +64,18 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const hostRef = useRef<HTMLElement>(null);
   const [doc, setDoc] = useState<RichText>(() => parseRichText(value));
+  /**
+   * What React is allowed to paint, which is deliberately *not* the same as the
+   * model while typing.
+   *
+   * When a key is pressed the browser has already put the character in the DOM
+   * and left the caret after it. If React then re-renders the spans — even to
+   * exactly the same text — it replaces those text nodes and the caret jumps to
+   * the start of the field. So typing updates `doc` (the model, which the store
+   * needs) but leaves this alone; only model-driven changes — a toolbar action,
+   * undo, a new value from the store — advance it.
+   */
+  const [renderDoc, setRenderDoc] = useState<RichText>(() => parseRichText(value));
   const [revision, setRevision] = useState(0);
   const [focused, setFocused] = useState(false);
   const [range, setRange] = useState<RichRange | null>(null);
@@ -90,17 +102,26 @@ export function RichTextEditor({
 
   // Adopt an externally-changed document (undo, autosave reload, page switch)
   // without clobbering in-progress typing.
+  //
+  // Both sides are normalised before comparing. `docRef.current` comes straight
+  // out of the DOM serialiser, while `value` has been round-tripped through
+  // parseRichText by the store — which merges runs and drops empties. Comparing
+  // raw against normalised made almost every keystroke look like an external
+  // change, remounting the field and throwing the caret back to the start.
   useEffect(() => {
     const incoming = parseRichText(value);
-    if (JSON.stringify(incoming) === JSON.stringify(docRef.current)) return;
+    if (JSON.stringify(incoming) === JSON.stringify(parseRichText(docRef.current))) return;
     setDoc(incoming);
+    setRenderDoc(incoming);
     setRevision((current) => current + 1);
   }, [value]);
 
   const commit = useCallback(
     (next: RichText, selection: RichRange | null) => {
       pendingSelection.current = selection;
+      docRef.current = next;
       setDoc(next);
+      setRenderDoc(next);
       setRevision((current) => current + 1);
       onChange(next);
     },
@@ -144,8 +165,11 @@ export function RichTextEditor({
     const host = hostRef.current;
     if (!host) return;
     const next = domToRichText(host);
-    // No revision bump: the DOM already shows this, and remounting would move
-    // the caret to the wrong place mid-word.
+    // Updated synchronously so the effect above sees this edit as ours before
+    // the new value arrives back from the store.
+    docRef.current = next;
+    // Note what is *not* here: no setRenderDoc and no revision bump. The DOM
+    // already shows this character; touching either would move the caret.
     setDoc(next);
     onChange(next);
   }, [onChange]);
@@ -288,7 +312,7 @@ export function RichTextEditor({
         // pointer is being used to select text.
         onPointerDown={(event) => event.stopPropagation()}
       >
-        {inline ? <RichTextInline key={revision} doc={doc} /> : <RichTextView key={revision} doc={doc} />}
+        {inline ? <RichTextInline key={revision} doc={renderDoc} /> : <RichTextView key={revision} doc={renderDoc} />}
       </Host>
 
       {showToolbar && typeof document !== "undefined"

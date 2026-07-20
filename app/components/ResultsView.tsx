@@ -40,7 +40,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
     "results-summary": <section className="goal-summary" aria-label={results.summaryAria}>
       <span className="goal-summary__mark" aria-hidden="true">★</span>
       <div>
-        <strong>{f("results.summaryValue", results.summaryValue)} <span>{f("results.summaryUnit", results.summaryUnit)}</span></strong>
+        <strong>{f("results.summaryValue", results.summaryValue)} <span className="unit">{f("results.summaryUnit", results.summaryUnit)}</span></strong>
         <p>{f("results.summaryLabel", results.summaryLabel)}</p>
       </div>
     </section>,

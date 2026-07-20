@@ -109,6 +109,19 @@ export function ItemCanvas({ content, page, native, editor }: {
     style={pageVars}
     // A click that reaches the page background means nothing was hit.
     onPointerDown={editor ? (event) => { if (event.target === event.currentTarget) editor.onDeselect?.(); } : undefined}
+    // While editing, links are content to be edited rather than followed —
+    // clicking the "Cow Appreciation Day" card should put a caret in it, not
+    // jump the page down to the events section.
+    //
+    // Capture phase, not bubble: Next.js <Link> handles the click on the anchor
+    // itself, which would already have navigated by the time a bubbled handler
+    // here ran. Stopping it on the way down is the only reliable point.
+    onClickCapture={editor ? (event) => {
+      if ((event.target as HTMLElement).closest("a")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    } : undefined}
   >
     <div className="item-page__content">
       {pageDocument.rows.map((row) => {

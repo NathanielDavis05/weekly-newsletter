@@ -65,7 +65,7 @@ export function HomeView({ content, editor }: { content: NewsletterContent; edit
         <p>{f("home.scorecard.intro", home.scorecard.intro)}</p>
       </div>
       <div className="score-teaser__result" aria-label={home.scorecard.resultAria}>
-        <strong>{f("home.scorecard.resultValue", home.scorecard.resultValue)} <span>{f("home.scorecard.resultUnit", home.scorecard.resultUnit)}</span></strong>
+        <strong>{f("home.scorecard.resultValue", home.scorecard.resultValue)} <span className="unit">{f("home.scorecard.resultUnit", home.scorecard.resultUnit)}</span></strong>
         <small>{f("home.scorecard.resultLabel", home.scorecard.resultLabel)}</small>
       </div>
       <div className="score-teaser__focus">

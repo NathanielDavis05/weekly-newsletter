@@ -524,7 +524,7 @@ h3 {
   line-height: 0.9;
 }
 
-.score-teaser__result strong span {
+.score-teaser__result strong > span.unit {
   font-size: 1.4rem;
   letter-spacing: -0.02em;
 }
@@ -541,7 +541,7 @@ h3 {
   border-top: 1px solid #c9dfcf;
 }
 
-.score-teaser__focus span {
+.score-teaser__focus > span {
   color: var(--red);
   font-size: 0.75rem;
   font-weight: 500;
@@ -678,7 +678,7 @@ h3 {
   color: var(--red);
 }
 
-.event-row--featured span {
+.event-row--featured > span {
   font-weight: 700;
 }
 
@@ -1045,7 +1045,7 @@ h3 {
   gap: 10px;
 }
 
-.check-list li span {
+.check-list li > span[aria-hidden] {
   display: grid;
   width: 24px;
   height: 24px;
@@ -1123,7 +1123,7 @@ h3 {
   line-height: 0.9;
 }
 
-.goal-summary strong span {
+.goal-summary strong > span.unit {
   font-size: 1.25rem;
   letter-spacing: -0.02em;
 }
