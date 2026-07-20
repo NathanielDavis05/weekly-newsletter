@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { parseRichText, richTextToPlain, type RichText } from "./richtext";
+import { defaultTheme, parseTheme } from "./theme";
 import type {
   BlockStyle,
   HeaderDeviceStyle,
@@ -98,9 +100,11 @@ function defaultPage(page: VisualPageId): VisualPageDocument {
 
 export function defaultVisualDocument(): VisualDocument {
   return {
-    version: 6,
+    version: 9,
     pages: { home: defaultPage("home"), training: defaultPage("training"), results: defaultPage("results") },
     headers: { home: defaultHeader("home"), training: defaultHeader("training"), results: defaultHeader("results") },
+    theme: defaultTheme(),
+    richOverrides: {},
   };
 }
 
@@ -180,9 +184,31 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
   };
 }
 
+/**
+ * v6 -> v7: freeform blocks stored `title`/`body` as plain strings. Rich text is
+ * derived from those strings the first time a v6 document is read, so existing
+ * drafts and published issues gain formatting support without a data backfill —
+ * and the plain fields stay in sync so nothing that reads them breaks.
+ */
+function withRichText(block: VisualBlock): VisualBlock {
+  if (block.kind === "native") return block;
+  const next = { ...block };
+  const upgrade = (rich: RichText | undefined, plain: string | undefined): RichText | undefined => {
+    if (!rich && !plain) return undefined;
+    return parseRichText(rich, plain ?? "");
+  };
+  const richTitle = upgrade(block.richTitle, block.title);
+  const richBody = upgrade(block.richBody, block.body);
+  if (richTitle) { next.richTitle = richTitle; next.title = richTextToPlain(richTitle); }
+  else { delete next.richTitle; }
+  if (richBody) { next.richBody = richBody; next.body = richTextToPlain(richBody); }
+  else { delete next.richBody; }
+  return next;
+}
+
 function normaliseBlock(block: VisualBlock): VisualBlock {
   const style = block.style ? { ...block.style, phone: normaliseLayout(block.style.phone), desktop: normaliseLayout(block.style.desktop) } : undefined;
-  return { ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style };
+  return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
 }
 
 function normaliseRow(value: VisualRow, validIds: Set<string>, fallbackId: string): VisualRow | null {
@@ -212,15 +238,35 @@ function migratePage(page: VisualPageId, incoming: unknown, fallback: VisualPage
   };
 }
 
+/** Normalises the override map, dropping anything that is not usable. */
+function parseRichOverrides(raw: unknown): Record<string, RichText> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, RichText> = {};
+  for (const [path, value] of Object.entries(raw as Record<string, unknown>)) {
+    // Paths address real content fields; anything exotic is discarded rather
+    // than trusted into the published page.
+    if (!/^[a-zA-Z0-9_.]{1,120}$/.test(path)) continue;
+    const doc = parseRichText(value);
+    if (doc.blocks.some((block) => block.spans.length)) out[path] = doc;
+  }
+  return out;
+}
+
 export function visualDocument(content: NewsletterContent): VisualDocument {
   const fallback = defaultVisualDocument(); const candidate = content.visual as unknown as Record<string, unknown> | undefined;
   if (!candidate || !candidate.pages) return fallback;
   const pages = candidate.pages as Partial<Record<VisualPageId, unknown>>;
   const headers = candidate.headers as Partial<Record<VisualPageId, HeaderStyle>> | undefined;
   return {
-    version: 6,
+    version: 9,
     pages: { home: migratePage("home", pages.home, fallback.pages.home), training: migratePage("training", pages.training, fallback.pages.training), results: migratePage("results", pages.results, fallback.pages.results) },
     headers: { home: normaliseHeader(headers?.home, fallback.headers.home), training: normaliseHeader(headers?.training, fallback.headers.training), results: normaliseHeader(headers?.results, fallback.headers.results) },
+    // v7 -> v8: documents saved before the theme existed adopt the brand
+    // defaults, so nothing needs rebuilding by hand.
+    theme: parseTheme(candidate.theme),
+    // v8 -> v9: documents without overrides simply have none, and every native
+    // field keeps rendering its plain string until someone formats it.
+    richOverrides: parseRichOverrides(candidate.richOverrides),
   };
 }
 

@@ -4,6 +4,9 @@
 // existing JSX structure (including split fields for emphasized fragments) so
 // the rendered output stays byte-for-byte identical to the original pages.
 
+import type { RichText } from "./richtext";
+import type { SiteTheme } from "./theme";
+
 export interface LinkContent {
   label: string;
   href: string;
@@ -261,8 +264,18 @@ export interface VisualBlock {
   label: string;
   style?: BlockStyle;
   nativeId?: string;
+  /**
+   * Plain-text mirrors of `richTitle` / `richBody`. These stay populated so that
+   * anything reading the document without a rich-text renderer — validation,
+   * search, older published payloads — keeps working. `rich*` is authoritative
+   * when present; these are derived on save.
+   */
   title?: string;
   body?: string;
+  /** Formatted title. Added in visual document v7. */
+  richTitle?: RichText;
+  /** Formatted body copy. Added in visual document v7. */
+  richBody?: RichText;
   href?: string;
   imageUrl?: string;
   alt?: string;
@@ -282,9 +295,24 @@ export interface VisualPageDocument {
 }
 
 export interface VisualDocument {
-  version: 6;
+  /**
+   * v7 introduced rich text on freeform blocks, v8 the site theme, and v9
+   * formatting overrides for the native sections. Older documents are upgraded
+   * on read by `visualDocument()` — nothing is rewritten in D1 until the next
+   * save.
+   */
+  version: 9;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
+  /** Brand palette and global text styles shared by every page. */
+  theme: SiteTheme;
+  /**
+   * Rich-text formatting for the native newsletter sections, keyed by the
+   * dotted content path of the field it formats (e.g. "training.heading").
+   * The plain string in NewsletterContent stays authoritative for the words;
+   * this only adds formatting. Absent key = render the plain string.
+   */
+  richOverrides: Record<string, RichText>;
 }
 
 export interface VisualRow {

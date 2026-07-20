@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { desc } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { mediaAssets } from "../../../db/schema";
 import { getEditorUser } from "../../edit-auth";
@@ -19,9 +20,26 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const key = `media-${id}`;
     await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { filename: file.name } });
-    await getDb().insert(mediaAssets).values({ id, key, contentType: file.type, size: String(file.size), createdAt: new Date().toISOString() });
-    return Response.json({ url: `/api/media/${key}`, key });
+    await getDb().insert(mediaAssets).values({ id, key, contentType: file.type, size: String(file.size), createdAt: new Date().toISOString(), filename: file.name, altText: null });
+    return Response.json({ url: `/api/media/${key}`, key, filename: file.name });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not upload this image." }, { status: 500 });
+  }
+}
+
+/** The media library listing. Newest first. */
+export async function GET() {
+  if (!(await getEditorUser())) return Response.json({ error: "Not authorized" }, { status: 401 });
+  try {
+    const rows = await getDb().select().from(mediaAssets).orderBy(desc(mediaAssets.createdAt)).limit(300);
+    return Response.json({
+      assets: rows.map((row) => ({ ...row, url: `/api/media/${row.key}` })),
+    });
+  } catch (error) {
+    // No table yet means nothing has been uploaded; an empty library is the
+    // honest answer rather than an error that blocks the panel from opening.
+    const message = error instanceof Error ? error.message : "Unexpected error";
+    if (message.includes("no such table")) return Response.json({ assets: [] });
+    return Response.json({ error: message }, { status: 500 });
   }
 }

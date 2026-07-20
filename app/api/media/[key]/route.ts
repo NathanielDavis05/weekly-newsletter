@@ -20,3 +20,21 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   await getDb().delete(mediaAssets).where(eq(mediaAssets.key, key));
   return Response.json({ deleted: true });
 }
+
+/** Renames an asset or updates its alt text. */
+export async function PATCH(request: Request, { params }: { params: Promise<{ key: string }> }) {
+  if (!(await getEditorUser())) return Response.json({ error: "Not authorized" }, { status: 401 });
+  const { key } = await params;
+  try {
+    const payload = (await request.json().catch(() => ({}))) as { filename?: string; altText?: string };
+    const patch: { filename?: string; altText?: string } = {};
+    if (typeof payload.filename === "string") patch.filename = payload.filename.trim().slice(0, 200);
+    if (typeof payload.altText === "string") patch.altText = payload.altText.trim().slice(0, 400);
+    if (!Object.keys(patch).length) return Response.json({ error: "Nothing to change." }, { status: 400 });
+
+    await getDb().update(mediaAssets).set(patch).where(eq(mediaAssets.key, key));
+    return Response.json({ updated: true, ...patch });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Unexpected error" }, { status: 500 });
+  }
+}

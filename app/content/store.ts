@@ -20,14 +20,19 @@ async function readRow(): Promise<ContentRow | null> {
 
 async function snapshotLegacy(row: ContentRow) {
   const versionOf = (json: string | null) => { try { return (JSON.parse(json || "{}")?.visual?.version as number | undefined) ?? 0; } catch { return 0; } };
-  if (Math.max(versionOf(row.draft), versionOf(row.published)) >= 6) return;
+  // Bumped alongside VisualDocument.version so that each schema upgrade keeps
+  // one pre-migration copy of the draft and published payloads in D1.
+  if (Math.max(versionOf(row.draft), versionOf(row.published)) >= 9) return;
   const now = new Date().toISOString(); const db = binding();
   const statements = [];
   for (const [kind, content] of [["migration-draft", row.draft], ["migration-published", row.published]] as const) {
     if (!content) continue;
+    // The id carries the *source* schema version as well as the revision, so a
+    // later upgrade at the same revision cannot be swallowed by OR IGNORE.
+    const id = `${kind}-v${versionOf(content)}-${row.revision}`;
     statements.push(db.prepare(
       "INSERT OR IGNORE INTO newsletter_versions (id, kind, content, revision, created_at) VALUES (?, ?, ?, ?, ?)",
-    ).bind(`${kind}-${row.revision}`, kind, content, row.revision, now));
+    ).bind(id, kind, content, row.revision, now));
   }
   if (statements.length) await db.batch(statements);
 }
@@ -55,6 +60,60 @@ export async function saveDraft(content: NewsletterContent, expectedRevision: nu
     if ((updated.meta.changes ?? 0) < 1) throw new RevisionConflictError((await readRow())?.revision ?? current);
   }
   return { draft: parseContent(json), revision };
+}
+
+export interface VersionSummary {
+  id: string;
+  kind: string;
+  revision: number;
+  createdAt: string;
+  label: string | null;
+  author: string | null;
+}
+
+/**
+ * Records a restorable point in time. Autosaves deliberately do not call this —
+ * history would be unreadable at one entry per second — so rows come from
+ * manual saves, publishes, restores and schema migrations.
+ */
+export async function recordVersion(
+  kind: "save" | "publish" | "restore",
+  content: string,
+  revision: number,
+  label: string,
+  author: string | null,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const id = `${kind}-${revision}-${now}`;
+  await binding().prepare(
+    "INSERT OR REPLACE INTO newsletter_versions (id, kind, content, revision, created_at, label, author) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).bind(id, kind, content, revision, now, label.slice(0, 200), author).run();
+}
+
+/** Newest first. Content is excluded so the list stays cheap to load. */
+export async function listVersions(limit = 50): Promise<VersionSummary[]> {
+  const result = await binding().prepare(
+    "SELECT id, kind, revision, created_at AS createdAt, label, author FROM newsletter_versions ORDER BY created_at DESC LIMIT ?",
+  ).bind(Math.max(1, Math.min(200, limit))).all<VersionSummary>();
+  return result.results ?? [];
+}
+
+/**
+ * Copies an old version back into the draft. The published issue is untouched:
+ * restoring gives you the old content to look at and edit, and it only goes
+ * live if you then publish.
+ */
+export async function restoreVersion(id: string, author: string | null): Promise<{ draft: NewsletterContent; revision: number }> {
+  const row = await binding().prepare(
+    "SELECT content FROM newsletter_versions WHERE id = ? LIMIT 1",
+  ).bind(id).first<{ content: string }>();
+  if (!row) throw new Error("That version is no longer available.");
+
+  const current = await readRow();
+  const revision = (current?.revision ?? 0) + 1;
+  await replaceDraft(row.content, revision);
+  await recordVersion("restore", row.content, revision, `Restored an earlier version`, author);
+  return { draft: parseContent(row.content), revision };
 }
 
 export async function publishDraft(expectedRevision: number): Promise<{ published: NewsletterContent; revision: number }> {

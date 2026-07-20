@@ -3,11 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, ReactNode } from "react";
 import { HomeView } from "../components/HomeView";
-import type { CanvasEditorState } from "../components/ItemCanvas";
+import type { CanvasEditorState, ContentFieldRequest, TextFieldRequest } from "../components/ItemCanvas";
 import { ResultsView } from "../components/ResultsView";
 import { TrainingView } from "../components/TrainingView";
 import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, NewsletterContent, ResponsiveLayout, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
+import { richTextFromPlain, richTextToPlain } from "../content/richtext";
+import { setByPath } from "../content/paths";
+import { defaultTheme, defaultTextStyles, withRecentColor, type ColorToken, type SiteTheme, type TextStyleDef, type TextStyleId } from "../content/theme";
 import { defaultHeader, visualDocument } from "../content/visual";
+import { GuideLayer, type GuideLayerHandle } from "./canvas/GuideLayer";
+import { useDragReorder } from "./canvas/useDragReorder";
+import { useResize } from "./canvas/useResize";
+import * as ops from "./commands/documentOps";
+import { History } from "./commands/history";
+import { HistoryPanel } from "./panels/HistoryPanel";
+import { MediaPanel, type MediaAsset } from "./panels/MediaPanel";
+import { PublishChecklist } from "./panels/PublishChecklist";
+import { SiteDesignPanel } from "./panels/SiteDesignPanel";
+import { buildSections, WeeklyMode } from "./panels/WeeklyMode";
+import { createNextIssue } from "./publishing/nextIssue";
+import { validateNewsletter, type ValidationIssue } from "./publishing/validation";
+import { RichTextEditor } from "./richtext/RichTextEditor";
 
 const pages: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
 type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; imageUrl?: string; style?: BlockStyle };
@@ -140,48 +156,154 @@ function HeroInspector({ page, header, content, patch, patchDevice, upload, chan
 
 export function Editor({ initialDraft, initialPublished, initialRevision, userEmail }: { initialDraft: NewsletterContent; initialPublished: NewsletterContent; initialRevision: number; userEmail: string }) {
   const normalized = (value: NewsletterContent) => ({ ...value, visual: visualDocument(value) });
-  const [content, setContent] = useState(() => normalized(initialDraft)); const [saved, setSaved] = useState(() => normalized(initialDraft)); const [published, setPublished] = useState(() => normalized(initialPublished));
+  const [content, setContent] = useState<NewsletterContent>(() => normalized(initialDraft)); const [saved, setSaved] = useState<NewsletterContent>(() => normalized(initialDraft)); const [published, setPublished] = useState<NewsletterContent>(() => normalized(initialPublished));
   const [revision, setRevision] = useState(initialRevision); const revisionRef = useRef(initialRevision);
-  const [page, setPage] = useState<VisualPageId>("home"); const [device, setDevice] = useState<"phone" | "desktop">("phone"); const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [history, setHistory] = useState<NewsletterContent[]>([]); const [future, setFuture] = useState<NewsletterContent[]>([]); const [drawer, setDrawer] = useState<"add" | "layers" | null>(null); const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [page, setPage] = useState<VisualPageId>("home"); const [device, setDevice] = useState<"phone" | "desktop">("phone");
+  // Selection is an array so shift-click can extend it. The first entry is the
+  // primary selection and drives the inspector.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]); const selectedId = selectedIds[0] ?? null;
+  const [drawer, setDrawer] = useState<"add" | "layers" | "design" | "weekly" | "history" | "media" | null>("weekly");
+  // Weekly mode is the default: routine updates are the common case, and the
+  // full design canvas is a deliberate step up rather than the starting point.
+  const [mode, setMode] = useState<"weekly" | "design">("weekly");
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  // Phones get a different shell: the inspector is a dismissible sheet rather
+  // than a permanent panel, so the canvas stays visible while editing.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const query = globalThis.matchMedia("(max-width: 900px)");
+    const sync = () => setIsMobile(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  // The phone sheet is tracked separately from the desktop panel rather than
+  // sharing one flag: on a phone the inspector covers the canvas, so it must
+  // start closed and open only when explicitly asked for.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [query, setQuery] = useState(""); const [busy, setBusy] = useState(false); const [saving, setSaving] = useState(false); const [status, setStatus] = useState("All changes saved"); const [conflict, setConflict] = useState(false);
   const autosaveRef = useRef<Promise<void> | null>(null); const clipboard = useRef<VisualBlock | null>(null);
-  const document = useMemo(() => visualDocument(content), [content]); const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
+  // Command history. Continuous gestures (drag, resize) open a transaction so
+  // the whole interaction collapses into one undo step.
+  // Held in state (not a ref) purely so it is created once without reading a
+  // ref during render; the instance itself never changes.
+  const [history] = useState(() => new History<NewsletterContent>());
+  const [historyState, setHistoryState] = useState<ReturnType<History<NewsletterContent>["snapshot"]>>({ canUndo: false, canRedo: false, undoLabel: null, redoLabel: null, depth: 0 });
+  useEffect(() => history.subscribe(() => setHistoryState(history.snapshot())), [history]);
+  // Mirrors `content` synchronously so history and rapid successive edits always
+  // see the newest document without waiting for a React commit.
+  const contentRef = useRef(content);
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const guidesRef = useRef<GuideLayerHandle | null>(null);
+  const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme; const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
   const dirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(saved), [content, saved]);
 
-  const edit = useCallback((mutator: (draft: NewsletterContent) => void) => { setConflict(false); setContent((previous) => { const next = structuredClone(previous); mutator(next); next.visual = visualDocument(next); setHistory((items) => [...items, previous].slice(-75)); setFuture([]); return next; }); }, []);
-  const updateVisual = useCallback((mutator: (doc: ReturnType<typeof visualDocument>) => void) => edit((draft) => { const next = visualDocument(draft); mutator(next); draft.visual = next; }), [edit]);
+  // Every mutation runs through here. Computing the next document outside the
+  // setState updater keeps the updater pure — React may call it twice, which
+  // would otherwise record duplicate history entries.
+  const edit = useCallback((mutator: (draft: NewsletterContent) => void, options?: { label?: string; coalesceKey?: string }) => {
+    setConflict(false);
+    const previous = contentRef.current;
+    const next = structuredClone(previous);
+    mutator(next);
+    next.visual = visualDocument(next);
+    contentRef.current = next;
+    history.record(previous, next, { label: options?.label ?? "Edit", coalesceKey: options?.coalesceKey });
+    setContent(next);
+  }, [history]);
+  const updateVisual = useCallback((mutator: (doc: ReturnType<typeof visualDocument>) => void, options?: { label?: string; coalesceKey?: string }) => edit((draft) => { const next = visualDocument(draft); mutator(next); draft.visual = next; }, options), [edit]);
+  /** Replaces the whole visual document — used by the pure ops in documentOps. */
+  const applyOp = useCallback((label: string, op: (doc: ReturnType<typeof visualDocument>) => ReturnType<typeof visualDocument>) => {
+    edit((draft) => { draft.visual = op(visualDocument(draft)); }, { label });
+  }, [edit]);
+  const beginGesture = useCallback((label: string) => history.begin(contentRef.current, label), [history]);
+  const endGesture = useCallback(() => history.commit(contentRef.current), [history]);
   const patchItem = useCallback((id: string, patch: Partial<VisualBlock>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (item) Object.assign(item, patch); }), [page, updateVisual]);
   const patchLayout = useCallback((id: string, patch: Partial<ResponsiveLayout>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (!item) return; const style = item.style ?? {}; const target = device; item.style = { ...style, [target]: { ...style[target], ...patch } }; if (style.linkedDevices) item.style[target === "phone" ? "desktop" : "phone"] = { ...style[target === "phone" ? "desktop" : "phone"], ...patch }; }), [device, page, updateVisual]);
   const patchPage = (patch: Partial<typeof pageDocument>) => updateVisual((doc) => Object.assign(doc.pages[page], patch));
 
-  const moveItem = useCallback((itemId: string, targetRowId: string, zone: "above" | "below" | "left" | "right") => updateVisual((doc) => { const targetPage = doc.pages[page]; const targetIndex = targetPage.rows.findIndex((row) => row.id === targetRowId); if (targetIndex < 0) return; for (const row of targetPage.rows) row.itemIds = row.itemIds.filter((id) => id !== itemId); targetPage.rows = targetPage.rows.filter((row) => row.itemIds.length); const freshTargetIndex = targetPage.rows.findIndex((row) => row.id === targetRowId); const target = targetPage.rows[freshTargetIndex]; if (!target) return; if ((zone === "left" || zone === "right") && target.itemIds.length < 2) target.itemIds.splice(zone === "left" ? 0 : target.itemIds.length, 0, itemId); else { const index = freshTargetIndex + (zone === "below" || zone === "right" ? 1 : 0); targetPage.rows.splice(index, 0, { id: `${page}-row-${uid()}`, itemIds: [itemId], gap: 16, align: "stretch", keepColumnsOnPhone: false }); } }), [page, updateVisual]);
-  const nudge = useCallback((id: string, dx: number, dy: number) => { const item = pageDocument.items.find((candidate) => candidate.id === id); const layout = item?.style?.[device]; patchLayout(id, { nudgeX: Math.max(-48, Math.min(48, (layout?.nudgeX ?? 0) + dx)), nudgeY: Math.max(-48, Math.min(48, (layout?.nudgeY ?? 0) + dy)) }); }, [device, pageDocument.items, patchLayout]);
+  const moveItem = useCallback((itemId: string, targetRowId: string, zone: ops.DropZone) => applyOp("Move item", (doc) => ops.moveItem(doc, page, itemId, targetRowId, zone)), [applyOp, page]);
+  // Arrow-key nudges coalesce: holding a key is one undo step, not forty.
+  const nudge = useCallback((id: string, dx: number, dy: number) => edit((draft) => { draft.visual = ops.nudgeItem(visualDocument(draft), page, id, device, dx, dy); }, { label: "Nudge", coalesceKey: `nudge:${id}` }), [device, edit, page]);
 
-  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedId(item.id); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
-  const duplicate = useCallback((id: string) => updateVisual((doc) => { const targetPage = doc.pages[page]; const source = targetPage.items.find((item) => item.id === id); const rowIndex = targetPage.rows.findIndex((row) => row.itemIds.includes(id)); if (!source || rowIndex < 0) return; const copy = structuredClone(source); copy.id = uid(); copy.label = `${copy.label} copy`; targetPage.items.push(copy); targetPage.rows.splice(rowIndex + 1, 0, { id: `${page}-row-${uid()}`, itemIds: [copy.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); setSelectedId(copy.id); }), [page, updateVisual]);
-  const remove = useCallback((id: string) => updateVisual((doc) => { const target = doc.pages[page]; target.items = target.items.filter((item) => item.id !== id || item.kind === "native"); target.rows.forEach((row) => { row.itemIds = row.itemIds.filter((itemId) => itemId !== id); }); target.rows = target.rows.filter((row) => row.itemIds.length); setSelectedId(null); }), [page, updateVisual]);
-  const hideItem = useCallback((id: string) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (item) item.style = { ...(item.style ?? {}), hidden: true }; setSelectedId(null); }), [page, updateVisual]);
-  const removeSelected = useCallback((item: VisualBlock) => { if (item.kind === "native") hideItem(item.id); else remove(item.id); }, [hideItem, remove]);
+  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedIds([item.id]); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
+  const duplicate = useCallback((id: string) => {
+    const result = ops.duplicateItem(visualDocument(contentRef.current), page, id);
+    if (!result.newId) return;
+    applyOp("Duplicate", () => result.doc);
+    setSelectedIds([result.newId]);
+  }, [applyOp, page]);
+  // Native newsletter sections are hidden rather than deleted — their copy lives
+  // in NewsletterContent and must survive.
+  const remove = useCallback((id: string) => { applyOp("Delete", (doc) => ops.removeItem(doc, page, id)); setSelectedIds([]); }, [applyOp, page]);
+  const hideItem = useCallback((id: string) => { applyOp("Hide", (doc) => ops.setHidden(doc, page, id, true)); setSelectedIds([]); }, [applyOp, page]);
+  const removeSelected = useCallback((item: VisualBlock) => remove(item.id), [remove]);
 
-  const undo = () => setHistory((entries) => { const previous = entries.at(-1); if (!previous) return entries; setContent((current) => { setFuture((items) => [current, ...items]); return previous; }); return entries.slice(0, -1); });
-  const redo = () => setFuture((entries) => { const next = entries[0]; if (!next) return entries; setContent((current) => { setHistory((items) => [...items, current]); return next; }); return entries.slice(1); });
+  // --- multi-selection commands -------------------------------------------
+  const groupSelected = useCallback(() => applyOp("Group", (doc) => ops.groupItems(doc, page, selectedIds)), [applyOp, page, selectedIds]);
+  const ungroupSelected = useCallback(() => applyOp("Ungroup", (doc) => ops.ungroupItems(doc, page, selectedIds)), [applyOp, page, selectedIds]);
+  const alignSelected = useCallback((align: ops.AlignMode) => applyOp("Align", (doc) => ops.alignItems(doc, page, selectedIds, align, device)), [applyOp, device, page, selectedIds]);
+  const matchSelected = useCallback((dimension: ops.SizeDimension) => applyOp("Match size", (doc) => ops.matchSize(doc, page, selectedIds, dimension, device)), [applyOp, device, page, selectedIds]);
+  const distributeSelected = useCallback(() => applyOp("Distribute", (doc) => ops.distributeWidths(doc, page, selectedIds, device)), [applyOp, device, page, selectedIds]);
+
+  const undo = useCallback(() => { const state = history.undo(); if (state) { contentRef.current = state; setContent(state); } }, [history]);
+  const redo = useCallback(() => { const state = history.redo(); if (state) { contentRef.current = state; setContent(state); } }, [history]);
 
   type ApiData = { draft?: NewsletterContent; published?: NewsletterContent; revision?: number; error?: string };
   const api = useCallback(async (url: string, init: RequestInit) => { const controller = new AbortController(); const timer = globalThis.setTimeout(() => controller.abort(), 20000); try { const response = await fetch(url, { headers: { "content-type": "application/json" }, signal: controller.signal, ...init }); const data = await response.json().catch(() => ({})) as ApiData; if (!response.ok) { const error = new Error(data.error || "Could not save changes.") as Error & { status?: number; revision?: number }; error.status = response.status; error.revision = data.revision; throw error; } return data; } catch (error) { if (error instanceof DOMException && error.name === "AbortError") throw new Error("Saving timed out. Your changes remain in this tab; try Save again."); throw error; } finally { globalThis.clearTimeout(timer); } }, []);
-  const acceptSaved = useCallback((data: ApiData, snapshot: NewsletterContent) => { const next = normalized(data.draft ?? snapshot); const nextRevision = data.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setSaved(next); setContent((current) => JSON.stringify(current) === JSON.stringify(snapshot) ? next : current); }, []);
-  const persist = useCallback(async (snapshot: NewsletterContent) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); }, [acceptSaved, api]);
+  const acceptSaved = useCallback((data: ApiData, snapshot: NewsletterContent) => { const next = normalized(data.draft ?? snapshot); const nextRevision = data.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setSaved(next); setContent((current) => { const adopted = JSON.stringify(current) === JSON.stringify(snapshot) ? next : current; contentRef.current = adopted; return adopted; }); }, []);
+  const persist = useCallback(async (snapshot: NewsletterContent, label?: string) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current, label }) }); acceptSaved(data, snapshot); }, [acceptSaved, api]);
 
   useEffect(() => { if (!dirty || busy || saving || conflict) return; const snapshot = structuredClone(content); const timer = globalThis.setTimeout(() => { const task = (async () => { setSaving(true); setStatus("Saving draft…"); try { await persist(snapshot); setStatus("Draft autosaved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setSaving(false); autosaveRef.current = null; } })(); autosaveRef.current = task; }, 1000); return () => globalThis.clearTimeout(timer); }, [busy, conflict, content, dirty, persist, saving]);
 
-  const saveNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(content); await persist(snapshot); setConflict(false); setStatus("Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
-  const publishNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); let snapshot = structuredClone(content); if (JSON.stringify(snapshot) !== JSON.stringify(saved)) { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); snapshot = normalized(data.draft ?? snapshot); } const result = await api("/api/content/publish", { method: "POST", body: JSON.stringify({ expectedRevision: revisionRef.current }) }); const nextRevision = result.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setPublished(normalized(result.published ?? snapshot)); setSaved(snapshot); setContent(snapshot); setStatus("Published — live site updated"); setConflict(false); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
+  const saveNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(content); await persist(snapshot, "Manual save"); setConflict(false); setStatus("Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
+  const publishNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); let snapshot = structuredClone(content); if (JSON.stringify(snapshot) !== JSON.stringify(saved)) { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); snapshot = normalized(data.draft ?? snapshot); } const result = await api("/api/content/publish", { method: "POST", body: JSON.stringify({ expectedRevision: revisionRef.current }) }); const nextRevision = result.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setPublished(normalized(result.published ?? snapshot)); setSaved(snapshot); contentRef.current = snapshot; setContent(snapshot); setStatus("Published — live site updated"); setConflict(false); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
 
   const upload = async (file: File, hero = false) => { setBusy(true); try { const form = new FormData(); form.append("file", file); const response = await fetch("/api/media", { method: "POST", body: form }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Upload failed"); if (hero) patchHeader({ imageUrl: data.url }); else if (selected) patchItem(selected.id, { imageUrl: data.url, alt: selected.alt || file.name }); setStatus("Image uploaded"); } catch (error) { setStatus(error instanceof Error ? error.message : "Upload failed"); } finally { setBusy(false); } };
   const patchHeader = (patch: Partial<HeaderStyle>) => updateVisual((doc) => { doc.headers[page] = { ...doc.headers[page], ...patch }; });
   const patchHeaderDevice = (target: "phone" | "desktop", patch: Partial<HeaderDeviceStyle>) => updateVisual((doc) => { const header = doc.headers[page]; header[target] = { ...header[target], ...patch }; if (header.linked) header[target === "phone" ? "desktop" : "phone"] = { ...header[target === "phone" ? "desktop" : "phone"], ...patch }; });
 
-  useEffect(() => { const keys = (event: globalThis.KeyboardEvent) => { const target = event.target as HTMLElement; if (/INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable) return; if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); } if (selected && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicate(selected.id); } if (selected && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") { clipboard.current = structuredClone(selected); } if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v" && clipboard.current) { event.preventDefault(); const copy = structuredClone(clipboard.current); copy.id = uid(); updateVisual((doc) => { doc.pages[page].items.push(copy); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [copy.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedId(copy.id); } if (selected && (event.key === "Backspace" || event.key === "Delete")) { event.preventDefault(); removeSelected(selected); } }; globalThis.addEventListener("keydown", keys); return () => globalThis.removeEventListener("keydown", keys); }, [duplicate, page, remove, removeSelected, selected, updateVisual]);
+  useEffect(() => {
+    const keys = (event: globalThis.KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      // Never hijack keys while a form field or the rich-text editor has focus.
+      if (/INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable) return;
+      const mod = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
+
+      if (mod && key === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); return; }
+      if (event.key === "Escape") { event.preventDefault(); setSelectedIds([]); return; }
+
+      if (mod && key === "g" && selectedIds.length > 1) {
+        event.preventDefault();
+        if (event.shiftKey) ungroupSelected(); else groupSelected();
+        return;
+      }
+      if (mod && key === "d" && selected) { event.preventDefault(); duplicate(selected.id); return; }
+      if (mod && key === "c" && selected) { clipboard.current = structuredClone(selected); return; }
+      if (mod && key === "v" && clipboard.current) {
+        event.preventDefault();
+        const copy = structuredClone(clipboard.current);
+        copy.id = uid();
+        applyOp("Paste", (doc) => ops.insertItem(doc, page, copy, selected?.id));
+        setSelectedIds([copy.id]);
+        return;
+      }
+      if (selected && (event.key === "Backspace" || event.key === "Delete")) { event.preventDefault(); removeSelected(selected); return; }
+
+      // Arrow keys nudge; shift makes it ten pixels.
+      if (selected && event.key.startsWith("Arrow")) {
+        const amount = event.shiftKey ? 10 : 1;
+        const deltas: Record<string, [number, number]> = { ArrowLeft: [-amount, 0], ArrowRight: [amount, 0], ArrowUp: [0, -amount], ArrowDown: [0, amount] };
+        const delta = deltas[event.key];
+        if (delta) { event.preventDefault(); nudge(selected.id, delta[0], delta[1]); }
+      }
+    };
+    globalThis.addEventListener("keydown", keys);
+    return () => globalThis.removeEventListener("keydown", keys);
+  }, [applyOp, duplicate, groupSelected, nudge, page, redo, removeSelected, selected, selectedIds.length, undo, ungroupSelected]);
 
   const moveRow = useCallback((itemId: string, dir: number) => updateVisual((doc) => { const rows = doc.pages[page].rows; const index = rows.findIndex((row) => row.itemIds.includes(itemId)); if (index < 0) return; const next = index + dir; if (next < 0 || next >= rows.length) return; const [row] = rows.splice(index, 1); rows.splice(next, 0, row); }), [page, updateVisual]);
   const setHeroText = useCallback((field: "title" | "kicker", value: string) => edit((draft) => {
@@ -189,19 +311,282 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     else if (page === "training") { if (field === "title") draft.training.heading = value; else draft.training.badge = value; }
     else { if (field === "title") draft.results.heading = value; else draft.results.eyebrow = value; }
   }), [edit, page]);
-  const editor: CanvasEditorState = { selectedId, device, onSelect: (id) => { setSelectedId(id); setInspectorOpen(true); }, onMoveItem: moveItem, onResizeItem: (id, patch) => patchLayout(id, patch), onNudgeItem: nudge, onFreeTextChange: patchItem, onHeroTextChange: setHeroText };
+  // Rich text edits write both the formatted document and its plain-text mirror
+  // so `title`/`body` stay usable by anything that has not been taught about
+  // rich text yet (validation, search, the inspector's own summaries).
+  const renderText = useCallback((request: TextFieldRequest) => (
+    <RichTextEditor
+      key={`${request.itemId}-${request.field}`}
+      value={request.doc}
+      theme={theme}
+      className={request.className}
+      placeholder={request.placeholder}
+      singleLine={request.singleLine}
+      ariaLabel={request.placeholder}
+      onChange={(next) => patchItem(request.itemId, {
+        [request.field]: next,
+        [request.field === "richTitle" ? "title" : "body"]: richTextToPlain(next),
+      })}
+    />
+  ), [patchItem, theme]);
+
+  // Gestures write to the DOM while the pointer is down and commit once on
+  // release, wrapped in a history transaction.
+  const startResize = useResize({
+    onBegin: () => beginGesture("Resize"),
+    onCommit: (itemId, patch) => patchLayout(itemId, patch),
+    onEnd: () => endGesture(),
+    guides: guidesRef,
+    surface: surfaceRef,
+  });
+  const canPair = useCallback((rowId: string, itemId: string) => {
+    const row = visualDocument(contentRef.current).pages[page].rows.find((candidate) => candidate.id === rowId);
+    if (!row) return false;
+    return row.itemIds.includes(itemId) ? row.itemIds.length <= ops.MAX_ITEMS_PER_ROW : row.itemIds.length < ops.MAX_ITEMS_PER_ROW;
+  }, [page]);
+  const startDrag = useDragReorder({
+    onBegin: () => beginGesture("Move item"),
+    onDrop: moveItem,
+    onEnd: () => endGesture(),
+    guides: guidesRef,
+    surface: surfaceRef,
+    scroller: scrollerRef,
+    canPair,
+  });
+
+  /** Scrolls the canvas to an item — used when selecting from the layers list. */
+  const revealOnCanvas = useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      surfaceRef.current
+        ?.querySelector(`[data-item-id="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }, []);
+
+  // --- site theme ---------------------------------------------------------
+  const patchTheme = useCallback((label: string, mutate: (draft: SiteTheme) => SiteTheme) => {
+    updateVisual((doc) => { doc.theme = mutate(doc.theme); }, { label });
+  }, [updateVisual]);
+
+  const patchTextStyle = useCallback((id: TextStyleId, patch: Partial<TextStyleDef>) => {
+    patchTheme("Text style", (draft) => {
+      const next = { ...draft, textStyles: { ...draft.textStyles, [id]: { ...draft.textStyles[id], ...patch } } };
+      // A colour chosen here becomes a recent colour everywhere.
+      return typeof patch.color === "string" ? withRecentColor(next, patch.color) : next;
+    });
+  }, [patchTheme]);
+
+  const patchToken = useCallback((id: string, patch: Partial<ColorToken>) => {
+    patchTheme("Brand colour", (draft) => {
+      const next = { ...draft, palette: draft.palette.map((token) => token.id === id ? { ...token, ...patch } : token) };
+      return typeof patch.value === "string" ? withRecentColor(next, patch.value) : next;
+    });
+  }, [patchTheme]);
+
+  const resetTextStyle = useCallback((id: TextStyleId) => {
+    patchTheme("Reset text style", (draft) => ({ ...draft, textStyles: { ...draft.textStyles, [id]: defaultTextStyles()[id] } }));
+  }, [patchTheme]);
+
+  const resetTheme = useCallback(() => patchTheme("Reset theme", (draft) => ({ ...defaultTheme(), recentColors: draft.recentColors })), [patchTheme]);
+
+  /** How many rich-text blocks link to each global style, shown in the panel. */
+  const styleUsage = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const target of Object.values(document.pages)) {
+      for (const item of target.items) {
+        for (const doc of [item.richTitle, item.richBody]) {
+          for (const block of doc?.blocks ?? []) {
+            if (block.styleId) counts[block.styleId] = (counts[block.styleId] ?? 0) + 1;
+          }
+        }
+      }
+    }
+    return counts;
+  }, [document]);
+
+  const select = useCallback((id: string, additive?: boolean) => {
+    setSelectedIds((previous) => {
+      if (!additive) return [id];
+      return previous.includes(id) ? previous.filter((candidate) => candidate !== id) : [...previous, id];
+    });
+    setInspectorOpen(true);
+  }, []);
+
+  /**
+   * Formatting for the fixed newsletter copy. The words stay in
+   * NewsletterContent (so nothing that reads those fields breaks) while the
+   * formatting lives in the visual document's override map, keyed by field path.
+   * Both are written together on every edit.
+   */
+  const renderField = useCallback((request: ContentFieldRequest) => (
+    <RichTextEditor
+      key={request.path}
+      value={request.doc ?? richTextFromPlain(request.value)}
+      theme={theme}
+      inline={!request.block}
+      singleLine={!request.block}
+      className={request.className}
+      placeholder={request.placeholder}
+      ariaLabel={`Edit ${request.path.split(".").pop() ?? "text"}`}
+      fieldPath={request.path}
+      onChange={(next) => edit((draft) => {
+        const doc = visualDocument(draft);
+        doc.richOverrides = { ...doc.richOverrides, [request.path]: next };
+        draft.visual = doc;
+        // Keep the plain field authoritative for the words themselves.
+        setByPath(draft, request.path, richTextToPlain(next));
+      }, { label: "Edit text", coalesceKey: `field:${request.path}` })}
+    />
+  ), [edit, theme]);
+
+  // Validation feeds both the publish checklist and the weekly section list, so
+  // the two can never disagree about what is wrong.
+  const validation = useMemo(
+    () => validateNewsletter(content, document, { dirty }),
+    [content, document, dirty],
+  );
+  const weeklySections = useMemo(
+    () => buildSections(content, document, page, [...validation.errors, ...validation.warnings]),
+    [content, document, page, validation],
+  );
+
+  const jumpToIssue = useCallback((issue: ValidationIssue) => {
+    setChecklistOpen(false);
+    if (issue.page && issue.page !== page) setPage(issue.page);
+    if (issue.itemId) {
+      setSelectedIds([issue.itemId]);
+      revealOnCanvas(issue.itemId);
+      return;
+    }
+    if (issue.path) {
+      // Content-path issues live in a native section; focus its field directly.
+      //
+      // The checklist is still unmounting when this runs, and when the button
+      // the user clicked disappears the browser bounces focus back to <body> —
+      // clobbering ours. Rather than guess how many frames React needs, retry
+      // until the focus sticks (or give up after a few frames).
+      const path = issue.path;
+      const target = () => globalThis.document.querySelector<HTMLElement>(`[data-field-path="${CSS.escape(path)}"]`);
+      target()?.scrollIntoView({ block: "center", behavior: "smooth" });
+      let attempts = 0;
+      const settle = () => {
+        const field = target();
+        if (!field || attempts > 12) return;
+        field.focus();
+        attempts += 1;
+        if (globalThis.document.activeElement !== field) requestAnimationFrame(settle);
+      };
+      requestAnimationFrame(settle);
+    }
+  }, [page, revealOnCanvas]);
+
+  const startNextIssue = useCallback(() => {
+    const result = createNextIssue(contentRef.current, visualDocument(contentRef.current));
+    const confirmed = globalThis.confirm(
+      `Create next issue?\n\n${result.summary.map((line) => `• ${line}`).join("\n")}\n\nThis updates your draft only. The live newsletter stays as it is until you publish.`,
+    );
+    if (!confirmed) return;
+    edit((draft) => {
+      Object.assign(draft, result.content);
+    }, { label: "Create next issue" });
+    setSelectedIds([]);
+    setStatus("Next issue drafted — the live newsletter is unchanged");
+  }, [edit]);
+
+  const editor: CanvasEditorState = { selectedId, selectedIds, device,
+    renderField,
+    onDeselect: () => setSelectedIds([]),
+    onStartDrag: startDrag,
+    onStartResize: startResize,
+    surfaceRef,
+    overlay: <GuideLayer ref={guidesRef} />, onSelect: select, onMoveItem: moveItem, onResizeItem: (id, patch) => patchLayout(id, patch), onNudgeItem: nudge, onFreeTextChange: patchItem, onHeroTextChange: setHeroText, renderText };
   const filteredTemplates = templates.filter((item) => `${item.label} ${item.kind}`.toLowerCase().includes(query.toLowerCase()));
   const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => { const id = event.dataTransfer.getData("application/x-newsletter-template"); if (id) { event.preventDefault(); addTemplate(id); } };
   const selectedStyle = selected?.style ?? {}; const currentLayout = selectedStyle[device] ?? {}; const heroSelected = selectedId === `hero-${page}`;
   const previewHref = page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
 
   return <div className="builder">
-    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><select aria-label="Page" value={page} onChange={(event) => { setPage(event.target.value as VisualPageId); setSelectedId(null); setDrawer(null); }}>{pages.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><button type="button" disabled={!history.length || busy} onClick={undo}>↶</button><button type="button" disabled={!future.length || busy} onClick={redo}>↷</button><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={publishNow} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => setInspectorOpen(!inspectorOpen)}>☰</button></header>
+    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><select aria-label="Page" value={page} onChange={(event) => { setPage(event.target.value as VisualPageId); setSelectedIds([]); setDrawer(null); }}>{pages.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><button type="button" className={drawer === "design" ? "is-active" : ""} onClick={() => setDrawer(drawer === "design" ? null : "design")}>Design</button><button type="button" className={drawer === "media" ? "is-active" : ""} onClick={() => setDrawer(drawer === "media" ? null : "media")}>Media</button><button type="button" className={drawer === "history" ? "is-active" : ""} onClick={() => setDrawer(drawer === "history" ? null : "history")}>History</button><div className="device-switch mode-switch"><button type="button" className={mode === "weekly" ? "is-active" : ""} onClick={() => { setMode("weekly"); setDrawer("weekly"); }}>Weekly</button><button type="button" className={mode === "design" ? "is-active" : ""} onClick={() => { setMode("design"); setDrawer(null); }}>Design mode</button></div><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} aria-label="Undo" disabled={!historyState.canUndo || busy} onClick={undo}>↶</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} aria-label="Redo" disabled={!historyState.canRedo || busy} onClick={redo}>↷</button><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={() => setChecklistOpen(true)} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button></header>
+    {checklistOpen ? <PublishChecklist
+      result={validation}
+      busy={busy}
+      onPublish={() => { setChecklistOpen(false); void publishNow(); }}
+      onClose={() => setChecklistOpen(false)}
+      onJump={jumpToIssue}
+    /> : null}
     {conflict ? <div className="stale-banner"><strong>Newer changes exist in another tab.</strong><span>Your current tab has stopped autosaving to protect them.</span><button type="button" onClick={() => globalThis.location.reload()}>Reload latest draft</button></div> : null}
     <div className={`builder-workspace${inspectorOpen ? "" : " builder-workspace--wide"}`}>
-      {drawer ? <aside className="builder-drawer">{drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedId(`hero-${page}`); setInspectorOpen(true); setDrawer(null); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id, index, ids) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <div className={`layer-row${selectedId === id ? " is-active" : ""}`} key={id}><button type="button" className="layer-row__select" onClick={() => { setSelectedId(id); setInspectorOpen(true); setDrawer(null); }}>{item.label}{item.style?.hidden ? <em> · hidden</em> : null}</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, -1)} disabled={index === 0} aria-label="Move up">↑</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, 1)} disabled={index === ids.length - 1} aria-label="Move down">↓</button></div> : null; })}</>}</aside> : null}
-      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedId(`hero-${page}`); setInspectorOpen(true); }}>Edit Hero</button></div><div className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>
-      {inspectorOpen ? <aside className="builder-inspector">{heroSelected ? <HeroInspector page={page} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
+      {drawer ? <aside className="builder-drawer">{drawer === "media" ? <MediaPanel
+        onClose={() => setDrawer(null)}
+        onUse={selected?.kind === "image" ? (asset: MediaAsset) => {
+          patchItem(selected.id, { imageUrl: asset.url, alt: asset.altText ?? selected.alt ?? "" });
+          setStatus("Image placed");
+        } : null}
+      /> : drawer === "weekly" ? <WeeklyMode
+        sections={weeklySections}
+        selectedId={selectedId}
+        onEdit={(itemId) => { select(itemId); revealOnCanvas(itemId); }}
+        onToggleHidden={(itemId, hidden) => applyOp(hidden ? "Hide" : "Show", (doc) => ops.setHidden(doc, page, itemId, hidden))}
+        onMove={(itemId, direction) => moveRow(itemId, direction)}
+        onCreateNextIssue={startNextIssue}
+        onOpenChecklist={() => setChecklistOpen(true)}
+      /> : drawer === "history" ? <HistoryPanel
+        onClose={() => setDrawer(null)}
+        onRestored={(nextRevision) => { revisionRef.current = nextRevision; globalThis.location.reload(); }}
+      /> : drawer === "design" ? <SiteDesignPanel
+        theme={theme}
+        usage={styleUsage}
+        onPatchStyle={patchTextStyle}
+        onPatchToken={patchToken}
+        onResetStyle={resetTextStyle}
+        onResetTheme={resetTheme}
+        onClose={() => setDrawer(null)}
+      /> : drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); setDrawer(null); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id, index, ids) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <div className={`layer-row${selectedIds.includes(id) ? " is-active" : ""}`} key={id}><button type="button" className="layer-row__select" onClick={(event) => { select(id, event.shiftKey); revealOnCanvas(id); }}>{item.label}{item.style?.hidden ? <em> · hidden</em> : null}</button><button type="button" className="layer-row__move" onClick={() => (item.style?.hidden ? applyOp("Show", (doc) => ops.setHidden(doc, page, id, false)) : hideItem(id))} aria-label={item.style?.hidden ? `Show ${item.label}` : `Hide ${item.label}`} title={item.style?.hidden ? "Show" : "Hide"}>{item.style?.hidden ? "◌" : "◉"}</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, -1)} disabled={index === 0} aria-label="Move up">↑</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, 1)} disabled={index === ids.length - 1} aria-label="Move down">↓</button></div> : null; })}</>}</aside> : null}
+      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>
+      {isMobile ? <>
+        {selected && !sheetOpen ? (
+          <div className="mobile-selection" role="status">
+            <span className="mobile-selection__name">{selected.label}</span>
+            <button type="button" onClick={() => setSheetOpen(true)}>Edit</button>
+            <button type="button" aria-label="Deselect" onClick={() => setSelectedIds([])}>×</button>
+          </div>
+        ) : null}
+        <nav className="mobile-nav" aria-label="Editor navigation">
+          <button type="button" className={drawer === "weekly" ? "is-active" : ""} onClick={() => setDrawer(drawer === "weekly" ? null : "weekly")}>
+            <span aria-hidden="true">☰</span>Sections
+          </button>
+          <button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>
+            <span aria-hidden="true">＋</span>Add
+          </button>
+          <a href={previewHref} target="_blank" rel="noreferrer">
+            <span aria-hidden="true">👁</span>Preview
+          </a>
+          <button type="button" className="mobile-nav__publish" onClick={() => setChecklistOpen(true)} disabled={busy || conflict}>
+            <span aria-hidden="true">↑</span>Publish
+          </button>
+        </nav>
+      </> : null}
+      {(isMobile ? sheetOpen : inspectorOpen) ? <aside className="builder-inspector">{isMobile ? <button type="button" className="inspector-close" onClick={() => setSheetOpen(false)} aria-label="Close panel"><span aria-hidden="true" /></button> : null}{selectedIds.length > 1 ? <div className="multi-actions">
+        <p className="visual-kicker">{selectedIds.length} items selected</p>
+        <div className="multi-actions__row">
+          <button type="button" onClick={groupSelected} title="Group (⌘G)">Group</button>
+          <button type="button" onClick={ungroupSelected} title="Ungroup (⌘⇧G)">Ungroup</button>
+        </div>
+        <div className="multi-actions__row">
+          <button type="button" onClick={() => alignSelected("left")}>Align left</button>
+          <button type="button" onClick={() => alignSelected("center")}>Centre</button>
+          <button type="button" onClick={() => alignSelected("right")}>Align right</button>
+        </div>
+        <div className="multi-actions__row">
+          <button type="button" onClick={() => matchSelected("width")}>Match width</button>
+          <button type="button" onClick={() => matchSelected("height")}>Match height</button>
+          <button type="button" onClick={() => matchSelected("both")}>Match both</button>
+        </div>
+        <div className="multi-actions__row">
+          <button type="button" onClick={distributeSelected}>Distribute widths</button>
+        </div>
+        <p className="inspector-note">Sizes apply to the <strong>{device}</strong> layout. Shift-click on the canvas or in Items to change the selection.</p>
+      </div> : heroSelected ? <HeroInspector page={page} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
         {selected.kind === "native" ? <NativeEditor id={selected.nativeId ?? selected.id} content={content} change={edit} /> : null}
         <details className="inspector-section" open><summary>Size · {device}</summary>
           <div className="segmented" role="group" aria-label="Width"><button type="button" onClick={() => patchLayout(selected.id, { width: 100 })}>Full</button><button type="button" onClick={() => patchLayout(selected.id, { width: 50 })}>Half</button><button type="button" onClick={() => patchLayout(selected.id, { width: undefined })}>Auto</button></div>

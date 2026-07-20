@@ -22,6 +22,20 @@
       "when": 1784397600000,
       "tag": "0002_item_document_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784500000000,
+      "tag": "0003_version_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784600000000,
+      "tag": "0004_media_metadata",
+      "breakpoints": true
     }
   ]
 }
