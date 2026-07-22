@@ -12,6 +12,7 @@ const { getByPath, getStringByPath, setByPath } = await import("../app/content/p
 const { visualDocument, defaultVisualDocument } = await import("../app/content/visual.ts");
 const { parseRichText, richTextToPlain, richTextFromPlain } = await import("../app/content/richtext.ts");
 const { defaultContent } = await import("../app/content/defaults.ts");
+const { mergeContent } = await import("../app/content/merge.ts");
 
 // ---------------------------------------------------------------------------
 // Path access
@@ -48,6 +49,17 @@ test("writing into an array element works", () => {
   const draft = structuredClone(defaultContent);
   assert.equal(setByPath(draft, "training.statusRows.0.label", "New label"), true);
   assert.equal(draft.training.statusRows[0].label, "New label");
+});
+
+test("legacy scorecards migrate into one shared CMS source", () => {
+  const legacy = structuredClone(defaultContent);
+  delete legacy.shared.scorecard;
+  legacy.home.scorecard.heading = "Shared guest experience";
+  legacy.results.scorecard.rows[0].june = "91%";
+
+  const migrated = mergeContent(legacy);
+  assert.equal(migrated.shared.scorecard.heading, "Shared guest experience");
+  assert.equal(migrated.shared.scorecard.table.rows[0].june, "91%");
 });
 
 test("writing a path that does not exist fails loudly rather than inventing one", () => {

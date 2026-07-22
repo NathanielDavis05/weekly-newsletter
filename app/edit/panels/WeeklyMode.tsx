@@ -42,6 +42,7 @@ const SECTION_NAMES: Record<string, string> = {
   "home-events": "Upcoming events",
   "home-grow": "Leadership opportunity",
   "home-footer": "Footer",
+  "home-signin": "Reader sign-in",
   "training-intro": "Training introduction",
   "training-status": "Training deadlines",
   "training-action": "Training button",
@@ -64,13 +65,13 @@ const SECTION_NAMES: Record<string, string> = {
  * answered without the section having to describe itself.
  */
 function nativeSectionText(content: NewsletterContent, nativeId: string): string {
-  const { home, training, results } = content;
+  const { home, training, results, shared } = content;
   const map: Record<string, string[]> = {
     "home-overview-intro": [home.overview.heading, home.overview.intro],
     "home-action": [home.overview.actionCard.heading, home.overview.actionCard.bodyPrefix, home.overview.actionCard.bodyEmphasis],
     "home-event": [home.overview.eventCard.title, home.overview.eventCard.detail],
     "home-recognition-link": [home.overview.recognitionCard.title, home.overview.recognitionCard.detail],
-    "home-scorecard": [home.scorecard.heading, home.scorecard.resultValue],
+    "home-scorecard": [shared.scorecard.heading, shared.scorecard.resultValue],
     "home-recognition-heading": [home.recognition.heading],
     "home-recognition-feature": [home.recognition.feature.heading, home.recognition.feature.body],
     "home-birthday": [home.recognition.birthday.name, home.recognition.birthday.date],
@@ -78,6 +79,7 @@ function nativeSectionText(content: NewsletterContent, nativeId: string): string
     "home-events": home.events.items.map((event) => event.name),
     "home-grow": [home.grow.heading, home.grow.body],
     "home-footer": [home.footer.brand, home.footer.line],
+    "home-signin": [home.signin.heading, home.signin.lead, home.signin.doneHeading, home.signin.doneBody],
     "training-intro": [training.heading, training.lead],
     "training-status": training.statusRows.map((row) => row.strongPrefix),
     "training-action": [training.primaryButton.label],
@@ -91,7 +93,7 @@ function nativeSectionText(content: NewsletterContent, nativeId: string): string
     "results-metric-1": [results.headlineMetrics[1]?.label ?? "", results.headlineMetrics[1]?.value ?? ""],
     "results-metric-2": [results.headlineMetrics[2]?.label ?? "", results.headlineMetrics[2]?.value ?? ""],
     "results-focus": [results.focus.heading, results.focus.body],
-    "results-scorecard": [results.scorecard.heading],
+    "results-scorecard": [shared.scorecard.heading, ...shared.scorecard.table.rows.map((row) => row.label)],
     "results-momentum": [results.momentum.heading, results.momentum.body],
   };
   return (map[nativeId] ?? []).join(" ").trim();

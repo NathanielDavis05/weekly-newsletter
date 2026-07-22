@@ -171,6 +171,34 @@ export interface ScorecardRow {
   june: string;
 }
 
+/**
+ * One source of truth for the scorecard wherever it appears. The home page
+ * shows a compact teaser; the results page shows the complete table.
+ */
+export interface SharedScorecard {
+  eyebrow: string;
+  heading: string;
+  intro: string;
+  resultAria: string;
+  resultValue: string;
+  resultUnit: string;
+  resultLabel: string;
+  focusLabel: string;
+  focusValue: string;
+  buttonLabel: string;
+  buttonHref: string;
+  table: {
+    eyebrow: string;
+    heading: string;
+    headerMeasure: string;
+    headerGoal: string;
+    headerApr: string;
+    headerMay: string;
+    headerJun: string;
+    rows: ScorecardRow[];
+  };
+}
+
 export interface ResultsContent {
   eyebrow: string;
   heading: string;
@@ -207,6 +235,7 @@ export interface SharedContent {
   navHeading: string;
   navLinks: LinkContent[];
   detailBackLabel: string;
+  scorecard: SharedScorecard;
 }
 
 export interface NewsletterContent {

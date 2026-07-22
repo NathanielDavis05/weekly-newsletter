@@ -6,6 +6,7 @@ import { RichField } from "./RichField";
 
 export function ResultsView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
   const { results } = content;
+  const scorecard = content.shared.scorecard;
   // Formatting overrides for the fixed copy, keyed by content path.
   const overrides = visualDocument(content).richOverrides;
   /** A formattable field. Inline by default so surrounding markup is untouched. */
@@ -54,24 +55,24 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
     </aside>,
 
     "results-scorecard": <section className="detail-section">
-      <p className="eyebrow">{f("results.scorecard.eyebrow", results.scorecard.eyebrow)}</p>
-      <h2>{f("results.scorecard.heading", results.scorecard.heading)}</h2>
+      <p className="eyebrow">{f("shared.scorecard.eyebrow", scorecard.eyebrow)}</p>
+      <h2>{f("shared.scorecard.heading", scorecard.heading)}</h2>
       <div className="metrics-table-wrap">
         <table className="metrics-table">
           <thead><tr>
-            <th>{f("results.scorecard.headerMeasure", results.scorecard.headerMeasure)}</th>
-            <th>{f("results.scorecard.headerGoal", results.scorecard.headerGoal)}</th>
-            <th>{f("results.scorecard.headerApr", results.scorecard.headerApr)}</th>
-            <th>{f("results.scorecard.headerMay", results.scorecard.headerMay)}</th>
-            <th>{f("results.scorecard.headerJun", results.scorecard.headerJun)}</th>
+            <th>{f("shared.scorecard.table.headerMeasure", scorecard.table.headerMeasure)}</th>
+            <th>{f("shared.scorecard.table.headerGoal", scorecard.table.headerGoal)}</th>
+            <th>{f("shared.scorecard.table.headerApr", scorecard.table.headerApr)}</th>
+            <th>{f("shared.scorecard.table.headerMay", scorecard.table.headerMay)}</th>
+            <th>{f("shared.scorecard.table.headerJun", scorecard.table.headerJun)}</th>
           </tr></thead>
           <tbody>
-            {results.scorecard.rows.map((row, index) => <tr key={row.label}>
-              <th>{f(`results.scorecard.rows.${index}.label`, row.label)}</th>
-              <td>{f(`results.scorecard.rows.${index}.goal`, row.goal)}</td>
-              <td>{f(`results.scorecard.rows.${index}.april`, row.april)}</td>
-              <td>{f(`results.scorecard.rows.${index}.may`, row.may)}</td>
-              <td><strong>{f(`results.scorecard.rows.${index}.june`, row.june)}</strong></td>
+            {scorecard.table.rows.map((row, index) => <tr key={row.label}>
+              <th>{f(`shared.scorecard.table.rows.${index}.label`, row.label)}</th>
+              <td>{f(`shared.scorecard.table.rows.${index}.goal`, row.goal)}</td>
+              <td>{f(`shared.scorecard.table.rows.${index}.april`, row.april)}</td>
+              <td>{f(`shared.scorecard.table.rows.${index}.may`, row.may)}</td>
+              <td><strong>{f(`shared.scorecard.table.rows.${index}.june`, row.june)}</strong></td>
             </tr>)}
           </tbody>
         </table>

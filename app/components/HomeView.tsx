@@ -7,8 +7,9 @@ import { ReaderSignin } from "./ReaderSignin";
 import { RichField } from "./RichField";
 import { SiteHero } from "./SiteHero";
 
-export function HomeView({ content, editor }: { content: NewsletterContent; editor?: CanvasEditorState }) {
+export function HomeView({ content, editor, archived }: { content: NewsletterContent; editor?: CanvasEditorState; archived?: boolean }) {
   const { home } = content;
+  const scorecard = content.shared.scorecard;
   // Formatting overrides for the fixed copy, keyed by content path.
   const overrides = visualDocument(content).richOverrides;
   /** A formattable field. Inline by default so surrounding markup is untouched. */
@@ -61,19 +62,19 @@ export function HomeView({ content, editor }: { content: NewsletterContent; edit
 
     "home-scorecard": <section className="score-teaser">
       <div>
-        <p className="eyebrow eyebrow--green">{f("home.scorecard.eyebrow", home.scorecard.eyebrow)}</p>
-        <h2>{f("home.scorecard.heading", home.scorecard.heading)}</h2>
-        <p>{f("home.scorecard.intro", home.scorecard.intro)}</p>
+        <p className="eyebrow eyebrow--green">{f("shared.scorecard.eyebrow", scorecard.eyebrow)}</p>
+        <h2>{f("shared.scorecard.heading", scorecard.heading)}</h2>
+        <p>{f("shared.scorecard.intro", scorecard.intro)}</p>
       </div>
-      <div className="score-teaser__result" aria-label={home.scorecard.resultAria}>
-        <strong>{f("home.scorecard.resultValue", home.scorecard.resultValue)} <span className="unit">{f("home.scorecard.resultUnit", home.scorecard.resultUnit)}</span></strong>
-        <small>{f("home.scorecard.resultLabel", home.scorecard.resultLabel)}</small>
+      <div className="score-teaser__result" aria-label={scorecard.resultAria}>
+        <strong>{f("shared.scorecard.resultValue", scorecard.resultValue)} <span className="unit">{f("shared.scorecard.resultUnit", scorecard.resultUnit)}</span></strong>
+        <small>{f("shared.scorecard.resultLabel", scorecard.resultLabel)}</small>
       </div>
       <div className="score-teaser__focus">
-        <span>{f("home.scorecard.focusLabel", home.scorecard.focusLabel)}</span>
-        <strong>{f("home.scorecard.focusValue", home.scorecard.focusValue)}</strong>
+        <span>{f("shared.scorecard.focusLabel", scorecard.focusLabel)}</span>
+        <strong>{f("shared.scorecard.focusValue", scorecard.focusValue)}</strong>
       </div>
-      <Link className="button button--navy" href={home.scorecard.buttonHref}>{f("home.scorecard.buttonLabel", home.scorecard.buttonLabel)}</Link>
+      <Link className="button button--navy" href={scorecard.buttonHref}>{f("shared.scorecard.buttonLabel", scorecard.buttonLabel)}</Link>
     </section>,
 
     "home-recognition-heading": <section id="recognition">
@@ -133,7 +134,10 @@ export function HomeView({ content, editor }: { content: NewsletterContent; edit
       <span>{f("home.footer.line", home.footer.line)}</span>
     </footer>,
 
-    "home-signin": <ReaderSignin
+    // Omitted entirely when viewing an archived issue: signing into a past
+    // week's newsletter would be meaningless, and ItemCanvas skips a row
+    // whose native entry is undefined.
+    "home-signin": archived ? undefined : <ReaderSignin
       editing={Boolean(editor)}
       eyebrow={f("home.signin.eyebrow", home.signin.eyebrow)}
       heading={f("home.signin.heading", home.signin.heading)}

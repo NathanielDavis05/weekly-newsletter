@@ -74,7 +74,7 @@ function fixedLinks(content: NewsletterContent): Array<{ path: string; label: st
     { path: "home.overview.actionCard.linkHref", label: "Action card link", href: home.overview.actionCard.linkHref, text: home.overview.actionCard.linkLabel },
     { path: "home.overview.eventCard.href", label: "Event card", href: home.overview.eventCard.href, text: home.overview.eventCard.title },
     { path: "home.overview.recognitionCard.href", label: "Recognition card", href: home.overview.recognitionCard.href, text: home.overview.recognitionCard.title },
-    { path: "home.scorecard.buttonHref", label: "Scorecard button", href: home.scorecard.buttonHref, text: home.scorecard.buttonLabel },
+    { path: "shared.scorecard.buttonHref", label: "Scorecard button", href: shared.scorecard.buttonHref, text: shared.scorecard.buttonLabel },
     { path: "home.grow.buttonHref", label: "Grow button", href: home.grow.buttonHref, text: home.grow.buttonLabel },
     { path: "training.primaryButton.href", label: "Training button", href: training.primaryButton.href, text: training.primaryButton.label },
     { path: "training.helpLink.href", label: "Training help link", href: training.helpLink.href, text: training.helpLink.label },

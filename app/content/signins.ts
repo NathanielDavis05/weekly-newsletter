@@ -1,10 +1,10 @@
 import { env } from "cloudflare:workers";
-import type { NewsletterContent } from "./types";
 
 // Reader sign-ins let the team mark "I've read this" by entering their name. The
-// roster is partitioned per issue so each week starts fresh: the issue key is
-// derived from the published hero's dated line (e.g. "Team update · July 10,
-// 2026"), which the editor already updates for every new issue.
+// roster is partitioned per issue so each week starts fresh — "issue" identity
+// (issueKeyForContent) is shared with the archive in ./issues.ts, so both
+// features agree on where one week ends and the next begins.
+export { issueKeyForContent } from "./issues";
 
 export interface Signin {
   name: string;
@@ -14,28 +14,6 @@ export interface Signin {
 function binding() {
   if (!env.DB) throw new Error("Cloudflare D1 binding `DB` is unavailable.");
   return env.DB;
-}
-
-/** FNV-1a: small, dependency-free, stable across server restarts. */
-function hash(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
-}
-
-/**
- * A stable identifier for "this week's issue". Built from the dated hero line so
- * a normal weekly update gets its own roster, while a typo-fix republish that
- * leaves the date untouched keeps the same roster. Falls back to a hash of the
- * whole document when the hero is somehow empty.
- */
-export function issueKeyForContent(content: NewsletterContent): string {
-  const hero = content.home?.hero;
-  const identity = `${hero?.kicker ?? ""}\n${hero?.headline ?? ""}`.trim();
-  return `i_${hash(identity || JSON.stringify(content))}`;
 }
 
 /** Idempotent so the feature works in local dev before the migration is applied. */

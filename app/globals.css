@@ -1058,6 +1058,74 @@ h3 {
   transform: translateX(-50%);
 }
 
+/* Past-issues archive */
+.archive-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 10px;
+}
+
+.archive-row {
+  display: flex;
+  padding: 18px 20px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  gap: 12px;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.archive-row:hover {
+  border-color: var(--red);
+}
+
+.archive-row__title {
+  display: block;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.archive-row__meta {
+  display: block;
+  margin-top: 2px;
+  color: #75808a;
+  font-size: 0.82rem;
+}
+
+.archive-row__arrow {
+  flex: 0 0 auto;
+  color: var(--red);
+  font-size: 1.3rem;
+}
+
+.archive-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  background: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.archive-banner a {
+  color: white;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .detail-main {
   padding: 34px 20px 64px;
 }

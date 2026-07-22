@@ -127,7 +127,7 @@ export function defaultVisualDocument(): VisualDocument {
 
 const RESERVED_SLUGS = new Set([
   "", "home", "training", "results", "edit", "api", "images", "fonts",
-  "favicon.ico", "sitemap.xml", "robots.txt", "acknowledge",
+  "favicon.ico", "sitemap.xml", "robots.txt", "acknowledge", "archive",
 ]);
 
 /** Lowercase, hyphenated, ASCII-only — safe to drop straight into a URL path. */

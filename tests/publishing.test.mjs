@@ -113,11 +113,11 @@ test("the shipped newsletter has no publish-blocking errors", () => {
 
 test("an empty link is an error that blocks publishing", () => {
   const content = clone(defaultContent);
-  content.home.scorecard.buttonHref = "";
+  content.shared.scorecard.buttonHref = "";
   const result = validateNewsletter(content, baseDoc(), { today: JULY_2026 });
 
   assert.equal(result.canPublish, false);
-  assert.ok(result.errors.some((issue) => issue.path === "home.scorecard.buttonHref"));
+  assert.ok(result.errors.some((issue) => issue.path === "shared.scorecard.buttonHref"));
 });
 
 test("a placeholder href counts as going nowhere", () => {
