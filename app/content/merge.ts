@@ -51,6 +51,18 @@ export function mergeContent(stored: unknown): NewsletterContent {
   return withVisualDocument(merged);
 }
 
+/**
+ * Applies copy proposed by the AI without granting it control of the editor's
+ * layout document. `visual` owns section visibility, placement, sizing, and
+ * media; treating model output as authoritative there can make sections appear
+ * to vanish even when the request was only to change copy.
+ */
+export function mergeAiContent(current: NewsletterContent, generated: unknown): NewsletterContent {
+  const merged = mergeContent(generated);
+  merged.visual = current.visual ? structuredClone(current.visual) : undefined;
+  return merged;
+}
+
 /** Safely parse a JSON content string, falling back to defaults on any error. */
 export function parseContent(raw: string | null | undefined): NewsletterContent {
   if (!raw) return defaultContent;
