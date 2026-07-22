@@ -158,6 +158,7 @@ export interface WeeklyModeProps {
   onToggleHidden: (itemId: string, hidden: boolean) => void;
   onMove: (itemId: string, direction: number) => void;
   onCreateNextIssue: () => void;
+  onCreateWithAi: () => void;
   onOpenChecklist: () => void;
 }
 
@@ -168,6 +169,7 @@ export function WeeklyMode({
   onToggleHidden,
   onMove,
   onCreateNextIssue,
+  onCreateWithAi,
   onOpenChecklist,
 }: WeeklyModeProps) {
   const needsWork = sections.filter((section) => section.state === "empty" || section.state === "attention").length;
@@ -180,6 +182,7 @@ export function WeeklyMode({
           <p>{needsWork ? `${needsWork} section${needsWork === 1 ? "" : "s"} need attention` : "Every section is filled in"}</p>
         </div>
         <button type="button" className="weekly__next" onClick={onCreateNextIssue}>Create next issue</button>
+        <button type="button" className="weekly__next" onClick={onCreateWithAi}>✨ Create with AI</button>
       </div>
 
       <ol className="weekly__list">

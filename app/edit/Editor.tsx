@@ -643,6 +643,22 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     setStatus("Next issue drafted — the live newsletter is unchanged");
   }, [edit]);
 
+  const startAiIssue = useCallback(async () => {
+    const notes = globalThis.prompt("Paste this week's notes, dates, scores, announcements, and shout-outs. The assistant will prepare a draft for your review.");
+    if (!notes?.trim()) return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/ai/prepare-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+      const payload = await response.json() as { content?: NewsletterContent; summary?: string[]; rollover?: string[]; error?: string };
+      if (!response.ok || !payload.content) throw new Error(payload.error ?? "Could not prepare the draft.");
+      const summary = [...(payload.rollover ?? []), ...(payload.summary ?? [])].map((line) => `• ${line}`).join("\n");
+      if (!globalThis.confirm(`Review the AI draft:\n\n${summary}\n\nApply this to your draft? Nothing live will change until you publish.`)) return;
+      edit((draft) => { Object.assign(draft, payload.content); }, { label: "AI prepared next issue" });
+      setSelectedIds([]); setStatus("AI draft applied — review it before publishing");
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Could not prepare the draft."); }
+    finally { setBusy(false); }
+  }, [edit]);
+
   const editor: CanvasEditorState = { selectedId, selectedIds, device,
     renderField,
     onDeselect: () => setSelectedIds([]),
@@ -679,6 +695,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         onToggleHidden={(itemId, hidden) => applyOp(hidden ? "Hide" : "Show", (doc) => ops.setHidden(doc, page, itemId, hidden))}
         onMove={(itemId, direction) => moveRow(itemId, direction)}
         onCreateNextIssue={startNextIssue}
+        onCreateWithAi={() => { void startAiIssue(); }}
         onOpenChecklist={() => setChecklistOpen(true)}
       /> : drawer === "history" ? <HistoryPanel
         onClose={() => setDrawer(null)}
