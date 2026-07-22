@@ -36,6 +36,13 @@
       "when": 1784600000000,
       "tag": "0004_media_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784644239686,
+      "tag": "0005_reader_signins",
+      "breakpoints": true
     }
   ]
 }

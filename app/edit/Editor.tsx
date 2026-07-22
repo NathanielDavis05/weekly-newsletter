@@ -2,21 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, ReactNode } from "react";
+import { CustomPageView } from "../components/CustomPageView";
 import { HomeView } from "../components/HomeView";
 import type { CanvasEditorState, ContentFieldRequest, TextFieldRequest } from "../components/ItemCanvas";
 import { ResultsView } from "../components/ResultsView";
 import { TrainingView } from "../components/TrainingView";
-import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, NewsletterContent, ResponsiveLayout, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
+import type { BlockHighlight, BlockStatusItem, BlockStyle, BlockTableData, HeaderDeviceStyle, HeaderStyle, NewsletterContent, ResponsiveLayout, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
+import { SYSTEM_PAGE_IDS } from "../content/types";
 import { richTextFromPlain, richTextToPlain } from "../content/richtext";
 import { setByPath } from "../content/paths";
 import { defaultTheme, defaultTextStyles, withRecentColor, type ColorToken, type SiteTheme, type TextStyleDef, type TextStyleId } from "../content/theme";
-import { defaultHeader, visualDocument } from "../content/visual";
+import { addCustomPage, defaultHeader, removeCustomPage, renameCustomPage, slugify, visualDocument } from "../content/visual";
 import { GuideLayer, type GuideLayerHandle } from "./canvas/GuideLayer";
 import { useDragReorder } from "./canvas/useDragReorder";
 import { useResize } from "./canvas/useResize";
 import * as ops from "./commands/documentOps";
 import { History } from "./commands/history";
 import { HistoryPanel } from "./panels/HistoryPanel";
+import { ReadersPanel } from "./panels/ReadersPanel";
 import { MediaPanel, type MediaAsset } from "./panels/MediaPanel";
 import { PublishChecklist } from "./panels/PublishChecklist";
 import { applyPreset, BOX_SHADOWS, copyableStyle, matchPreset, STYLE_PRESETS, tokenColor, tokenIdOf } from "./panels/blockStyles";
@@ -26,8 +29,8 @@ import { createNextIssue } from "./publishing/nextIssue";
 import { validateNewsletter, type ValidationIssue } from "./publishing/validation";
 import { RichTextEditor } from "./richtext/RichTextEditor";
 
-const pages: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
-type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; imageUrl?: string; style?: BlockStyle };
+const SYSTEM_PAGES: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
+type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; imageUrl?: string; style?: BlockStyle; tableData?: BlockTableData; statusItems?: BlockStatusItem[]; highlight?: BlockHighlight };
 const templates: Template[] = [
   { id: "heading", kind: "text", label: "Heading", icon: "T", title: "New heading", style: { fontSize: 34, fontWeight: 700, phone: { width: 100 }, desktop: { width: 80 } } },
   { id: "paragraph", kind: "text", label: "Paragraph", icon: "¶", body: "Add your message here.", style: { fontSize: 16, phone: { width: 100 }, desktop: { width: 80 } } },
@@ -37,10 +40,13 @@ const templates: Template[] = [
   { id: "stat", kind: "container", label: "Stat card", icon: "5", title: "5 of 6", body: "goals met", style: { background: "#edf8f0", color: "#08733d", borderRadius: 18, textAlign: "center", paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 48 } } },
   { id: "image", kind: "image", label: "Image", icon: "▧", style: { phone: { width: 100 }, desktop: { width: 70 } } },
   { id: "divider", kind: "divider", label: "Divider", icon: "—", style: { phone: { width: 100 }, desktop: { width: 100 } } },
+  { id: "data-table", kind: "table", label: "Table", icon: "▦", title: "Table heading", tableData: { columns: ["Measure", "This week", "Goal"], rows: [{ label: "New row", values: ["", ""] }] }, style: { phone: { width: 100 }, desktop: { width: 90 } } },
+  { id: "status-tracker", kind: "status-list", label: "Status list", icon: "☰", title: "Status heading", statusItems: [{ token: "1", tokenRed: false, label: "Label", strongPrefix: "Detail", strongEmphasis: "" }], style: { phone: { width: 100 }, desktop: { width: 90 } } },
+  { id: "highlight-stat", kind: "highlight", label: "Highlight stat", icon: "5", highlight: { value: "5", unit: "of 6", label: "goals met", tone: "green" }, style: { background: "#edf8f0", borderRadius: 18, paddingTop: 24, paddingRight: 20, paddingBottom: 24, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 48 } } },
 ];
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const makeItem = (template: Template): VisualBlock => ({ id: uid(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, imageUrl: template.imageUrl, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined });
+const makeItem = (template: Template): VisualBlock => ({ id: uid(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, imageUrl: template.imageUrl, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined, tableData: template.tableData ? structuredClone(template.tableData) : undefined, statusItems: template.statusItems ? structuredClone(template.statusItems) : undefined, highlight: template.highlight ? structuredClone(template.highlight) : undefined });
 
 function DeferredNumber({ value, onCommit, min, max }: { value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) {
   const shown = value == null ? "" : String(value); const [draft, setDraft] = useState(shown); const editing = useRef(false);
@@ -108,6 +114,60 @@ function ListItemFrame({ index, count, onMove, onRemove, children }: { index: nu
   </div>;
 }
 
+/** Row editor for a `table` block — generalises the results scorecard. */
+function TableBlockEditor({ data, onChange }: { data: BlockTableData; onChange: (next: BlockTableData) => void }) {
+  const [labelHeader, ...dataHeaders] = data.columns.length ? data.columns : ["Measure"];
+  const setColumnHeader = (index: number, value: string) => { const columns = [...data.columns]; columns[index] = value; onChange({ ...data, columns }); };
+  const addColumn = () => onChange({ ...data, columns: [...data.columns, "Column"], rows: data.rows.map((row) => ({ ...row, values: [...row.values, ""] })) });
+  const removeColumn = (dataIndex: number) => onChange({ ...data, columns: data.columns.filter((_, index) => index !== dataIndex + 1), rows: data.rows.map((row) => ({ ...row, values: row.values.filter((_, index) => index !== dataIndex) })) });
+  const setRowLabel = (rowIndex: number, value: string) => { const rows = data.rows.map((row, index) => index === rowIndex ? { ...row, label: value } : row); onChange({ ...data, rows }); };
+  const setCell = (rowIndex: number, cellIndex: number, value: string) => { const rows = data.rows.map((row, index) => { if (index !== rowIndex) return row; const values = [...row.values]; values[cellIndex] = value; return { ...row, values }; }); onChange({ ...data, rows }); };
+  const move = (index: number, dir: number) => { const rows = [...data.rows]; const next = index + dir; if (next < 0 || next >= rows.length) return; [rows[index], rows[next]] = [rows[next], rows[index]]; onChange({ ...data, rows }); };
+  const remove = (index: number) => onChange({ ...data, rows: data.rows.filter((_, candidate) => candidate !== index) });
+  const add = () => onChange({ ...data, rows: [...data.rows, { label: "New row", values: dataHeaders.map(() => "") }] });
+  return <>
+    <TextField label="Row label header" value={labelHeader ?? ""} onChange={(value) => setColumnHeader(0, value)} />
+    <p className="inspector-device-note">Columns</p>
+    <div className="inspector-list">{dataHeaders.map((column, index) => <div className="list-item" key={index}>
+      <div className="list-item__head"><span>Column {index + 1}</span><button type="button" className="danger" onClick={() => removeColumn(index)} aria-label="Remove column" disabled={dataHeaders.length <= 1}>✕</button></div>
+      <TextField label="Header" value={column} onChange={(value) => setColumnHeader(index + 1, value)} />
+    </div>)}</div>
+    <button type="button" className="list-add" onClick={addColumn} disabled={data.columns.length >= 6}>+ Add column</button>
+    <p className="inspector-device-note">Rows</p>
+    <div className="inspector-list">{data.rows.map((row, rowIndex) => <ListItemFrame key={rowIndex} index={rowIndex} count={data.rows.length} onMove={(dir) => move(rowIndex, dir)} onRemove={() => remove(rowIndex)}>
+      <TextField label="Row label" value={row.label} onChange={(value) => setRowLabel(rowIndex, value)} />
+      <div className="inspector-grid">{dataHeaders.map((column, cellIndex) => <TextField key={cellIndex} label={column || `Col ${cellIndex + 1}`} value={row.values[cellIndex] ?? ""} onChange={(value) => setCell(rowIndex, cellIndex, value)} />)}</div>
+    </ListItemFrame>)}</div>
+    <button type="button" className="list-add" onClick={add}>+ Add row</button>
+  </>;
+}
+
+/** Row editor for a `status-list` block — generalises the training tracker. */
+function StatusListBlockEditor({ items, onChange }: { items: BlockStatusItem[]; onChange: (next: BlockStatusItem[]) => void }) {
+  const field = (index: number, patch: Partial<BlockStatusItem>) => onChange(items.map((item, candidate) => candidate === index ? { ...item, ...patch } : item));
+  const move = (index: number, dir: number) => { const next = index + dir; if (next < 0 || next >= items.length) return; const copy = [...items]; [copy[index], copy[next]] = [copy[next], copy[index]]; onChange(copy); };
+  const remove = (index: number) => onChange(items.filter((_, candidate) => candidate !== index));
+  const add = () => onChange([...items, { token: "•", tokenRed: false, label: "Label", strongPrefix: "Detail", strongEmphasis: "" }]);
+  return <>
+    <div className="inspector-list">{items.map((item, index) => <ListItemFrame key={index} index={index} count={items.length} onMove={(dir) => move(index, dir)} onRemove={() => remove(index)}>
+      <div className="inspector-grid"><TextField label="Token" value={item.token} onChange={(value) => field(index, { token: value })} /><TextField label="Label" value={item.label} onChange={(value) => field(index, { label: value })} /></div>
+      <TextField label="Text" value={item.strongPrefix} onChange={(value) => field(index, { strongPrefix: value })} />
+      <TextField label="Emphasis (optional)" value={item.strongEmphasis} onChange={(value) => field(index, { strongEmphasis: value })} />
+      <ToggleField label="Red badge" checked={item.tokenRed} onChange={(value) => field(index, { tokenRed: value })} />
+    </ListItemFrame>)}</div>
+    <button type="button" className="list-add" onClick={add}>+ Add row</button>
+  </>;
+}
+
+/** Editor for a `highlight` block — the big-number pattern. */
+function HighlightBlockEditor({ value, onChange }: { value: BlockHighlight; onChange: (next: BlockHighlight) => void }) {
+  return <>
+    <div className="inspector-grid"><TextField label="Value" value={value.value} onChange={(next) => onChange({ ...value, value: next })} /><TextField label="Unit (optional)" value={value.unit} onChange={(next) => onChange({ ...value, unit: next })} /></div>
+    <TextField label="Label" value={value.label} onChange={(next) => onChange({ ...value, label: next })} />
+    <label className="visual-control"><span>Tone</span><select value={value.tone} onChange={(event) => onChange({ ...value, tone: event.target.value as BlockHighlight["tone"] })}><option value="green">Green</option><option value="red">Red</option><option value="navy">Navy</option></select></label>
+  </>;
+}
+
 function SharedEditor({ content, change }: { content: NewsletterContent; change: (mutator: (draft: NewsletterContent) => void) => void }) {
   const shared = content.shared; const links = shared.navLinks;
   const move = (index: number, dir: number) => change((draft) => { const list = draft.shared.navLinks; const next = index + dir; if (next < 0 || next >= list.length) return; const item = list[index]; list[index] = list[next]; list[next] = item; });
@@ -166,7 +226,7 @@ function NativeEditor({ id, content, change }: { id: string; content: Newsletter
   return <p className="inspector-note">Edit this item’s layout and appearance below.</p>;
 }
 
-function HeroInspector({ page, header, content, patch, patchDevice, upload, change }: { page: VisualPageId; header: HeaderStyle; content: NewsletterContent; patch: (next: Partial<HeaderStyle>) => void; patchDevice: (device: "phone" | "desktop", next: Partial<HeaderDeviceStyle>) => void; upload: (file: File) => void; change: (mutator: (draft: NewsletterContent) => void) => void }) {
+function HeroInspector({ page, pageLabel, header, content, patch, patchDevice, upload, change }: { page: VisualPageId; pageLabel: string; header: HeaderStyle; content: NewsletterContent; patch: (next: Partial<HeaderStyle>) => void; patchDevice: (device: "phone" | "desktop", next: Partial<HeaderDeviceStyle>) => void; upload: (file: File) => void; change: (mutator: (draft: NewsletterContent) => void) => void }) {
   const deviceFields = (device: "phone" | "desktop") => { const d = header[device]; return <div className="inspector-grid">
     <NumberField label="Min height" value={d.minHeight} min={0} max={900} onCommit={(value) => patchDevice(device, { minHeight: value ?? 0 })} />
     <NumberField label="Title size" value={d.titleSize} min={12} max={160} onCommit={(value) => patchDevice(device, { titleSize: value ?? 40 })} />
@@ -175,10 +235,11 @@ function HeroInspector({ page, header, content, patch, patchDevice, upload, chan
     <NumberField label="Top padding" value={d.paddingTop} min={0} max={300} onCommit={(value) => patchDevice(device, { paddingTop: value ?? 0 })} />
     <NumberField label="Bottom padding" value={d.paddingBottom} min={0} max={300} onCommit={(value) => patchDevice(device, { paddingBottom: value ?? 0 })} />
   </div>; };
-  return <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Hero</p><h2>{pages.find((item) => item.id === page)?.label} header</h2></div>
+  const isSystemPage = page === "home" || page === "training" || page === "results";
+  return <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Hero</p><h2>{pageLabel} header</h2></div>
     <div className="inspector-actions"><button type="button" onClick={() => patch(defaultHeader(page))}>Reset Hero</button></div>
-    <TextField label="Header title" value={page === "home" ? content.home.hero.headline : page === "training" ? content.training.heading : content.results.heading} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.headline = value; else if (page === "training") draft.training.heading = value; else draft.results.heading = value; })} />
-    <TextField label="Header kicker" value={page === "home" ? content.home.hero.kicker : page === "training" ? content.training.badge : content.results.eyebrow} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.kicker = value; else if (page === "training") draft.training.badge = value; else draft.results.eyebrow = value; })} />
+    {isSystemPage ? <TextField label="Header title" value={page === "home" ? content.home.hero.headline : page === "training" ? content.training.heading : content.results.heading} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.headline = value; else if (page === "training") draft.training.heading = value; else draft.results.heading = value; })} /> : <p className="inspector-device-note">This page's title is set on the Page settings panel, or by editing the heading directly on the canvas.</p>}
+    {isSystemPage ? <TextField label="Header kicker" value={page === "home" ? content.home.hero.kicker : page === "training" ? content.training.badge : content.results.eyebrow} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.kicker = value; else if (page === "training") draft.training.badge = value; else draft.results.eyebrow = value; })} /> : null}
     <label className="visual-control"><span>Lower edge</span><select value={header.shape} onChange={(event) => patch({ shape: event.target.value as HeaderStyle["shape"] })}>{["straight", "curve", "inverted-curve", "wave", "angled", "double-angle", "zigzag", "scallop", "rounded", "asymmetric"].map((shape) => <option value={shape} key={shape}>{shape.replaceAll("-", " ")}</option>)}</select></label>
     <div className="inspector-grid"><NumberField label="Edge depth" value={header.shapeDepth} min={0} max={180} onCommit={(value) => patch({ shapeDepth: value ?? 0 })} /><NumberField label="Edge position" value={header.shapePosition} min={-180} max={180} onCommit={(value) => patch({ shapePosition: value ?? 0 })} /></div>
     <ColorField label="Background" value={header.backgroundColor} onChange={(value) => patch({ backgroundColor: value })} /><ColorField label="Transition color" value={header.transitionColor} onChange={(value) => patch({ transitionColor: value })} />
@@ -201,7 +262,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // Selection is an array so shift-click can extend it. The first entry is the
   // primary selection and drives the inspector.
   const [selectedIds, setSelectedIds] = useState<string[]>([]); const selectedId = selectedIds[0] ?? null;
-  const [drawer, setDrawer] = useState<"add" | "layers" | "design" | "weekly" | "history" | "media" | null>("weekly");
+  const [drawer, setDrawer] = useState<"add" | "layers" | "design" | "weekly" | "history" | "media" | "readers" | null>("weekly");
   // Weekly mode is the default: routine updates are the common case, and the
   // full design canvas is a deliberate step up rather than the starting point.
   const [mode, setMode] = useState<"weekly" | "design">("weekly");
@@ -239,7 +300,14 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const surfaceRef = useRef<HTMLElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const guidesRef = useRef<GuideLayerHandle | null>(null);
-  const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme; const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
+  const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme;
+  // System pages (Home/Training/Results) plus whatever the editor has created.
+  // If the currently-open page was just deleted this falls back to Home so the
+  // canvas below never indexes a page that no longer exists.
+  const pages = useMemo(() => [...SYSTEM_PAGES, ...document.customPages.map((meta) => ({ id: meta.id, label: meta.title }))], [document.customPages]);
+  const isCustomPage = !(SYSTEM_PAGE_IDS as readonly string[]).includes(page);
+  const pageDocument = document.pages[page] ?? document.pages.home;
+  const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
   const dirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(saved), [content, saved]);
 
   // Every mutation runs through here. Computing the next document outside the
@@ -307,6 +375,42 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const patchHeader = (patch: Partial<HeaderStyle>) => updateVisual((doc) => { doc.headers[page] = { ...doc.headers[page], ...patch }; });
   const patchHeaderDevice = (target: "phone" | "desktop", patch: Partial<HeaderDeviceStyle>) => updateVisual((doc) => { const header = doc.headers[page]; header[target] = { ...header[target], ...patch }; if (header.linked) header[target === "phone" ? "desktop" : "phone"] = { ...header[target === "phone" ? "desktop" : "phone"], ...patch }; });
 
+  // --- custom pages ---------------------------------------------------------
+  // A page beyond the fixed Home/Training/Results, built entirely from
+  // freeform blocks. Creating one also adds a menu link so it is actually
+  // reachable; deleting one removes that link and returns to Home if it was
+  // the page currently open.
+  const addPage = useCallback(() => {
+    const title = globalThis.prompt("Page title:", "New page")?.trim();
+    if (!title) return;
+    let createdId: string | null = null;
+    edit((draft) => {
+      const doc = visualDocument(draft);
+      const created = addCustomPage(doc, title);
+      createdId = created.id;
+      draft.visual = doc;
+      draft.shared.navLinks.push({ label: title, href: `/${created.slug}` });
+    }, { label: "Add page" });
+    if (createdId) { setPage(createdId); setSelectedIds([]); setDrawer(null); }
+  }, [edit]);
+
+  const renamePage = useCallback((id: string, title: string) => {
+    updateVisual((doc) => renameCustomPage(doc, id, title));
+  }, [updateVisual]);
+
+  const deletePage = useCallback((id: string) => {
+    const meta = document.customPages.find((candidate) => candidate.id === id);
+    if (!meta) return;
+    if (!globalThis.confirm(`Delete "${meta.title}"? This removes the page and its menu link. This cannot be undone from here.`)) return;
+    edit((draft) => {
+      const doc = visualDocument(draft);
+      removeCustomPage(doc, id);
+      draft.visual = doc;
+      draft.shared.navLinks = draft.shared.navLinks.filter((link) => link.href !== `/${meta.slug}`);
+    }, { label: "Delete page" });
+    if (page === id) { setPage("home"); setSelectedIds([]); }
+  }, [document.customPages, edit, page]);
+
   useEffect(() => {
     const keys = (event: globalThis.KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -351,7 +455,11 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const setHeroText = useCallback((field: "title" | "kicker", value: string) => edit((draft) => {
     if (page === "home") { if (field === "title") draft.home.hero.headline = value; else draft.home.hero.kicker = value; }
     else if (page === "training") { if (field === "title") draft.training.heading = value; else draft.training.badge = value; }
-    else { if (field === "title") draft.results.heading = value; else draft.results.eyebrow = value; }
+    else if (page === "results") { if (field === "title") draft.results.heading = value; else draft.results.eyebrow = value; }
+    // Custom pages have no typed content field for their hero — the title on
+    // canvas is the page's own title (renaming it here keeps the page list and
+    // nav in sync); there is nothing to store a kicker into, so it is ignored.
+    else if (field === "title") { const doc = visualDocument(draft); renameCustomPage(doc, page, value); draft.visual = doc; }
   }), [edit, page]);
   // Rich text edits write both the formatted document and its plain-text mirror
   // so `title`/`body` stay usable by anything that has not been taught about
@@ -548,7 +656,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const previewHref = page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
 
   return <div className="builder">
-    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><select aria-label="Page" value={page} onChange={(event) => { setPage(event.target.value as VisualPageId); setSelectedIds([]); setDrawer(null); }}>{pages.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><button type="button" className={drawer === "design" ? "is-active" : ""} onClick={() => setDrawer(drawer === "design" ? null : "design")}>Design</button><button type="button" className={drawer === "media" ? "is-active" : ""} onClick={() => setDrawer(drawer === "media" ? null : "media")}>Media</button><button type="button" className={drawer === "history" ? "is-active" : ""} onClick={() => setDrawer(drawer === "history" ? null : "history")}>History</button><div className="device-switch mode-switch"><button type="button" className={mode === "weekly" ? "is-active" : ""} onClick={() => { setMode("weekly"); setDrawer("weekly"); }}>Weekly</button><button type="button" className={mode === "design" ? "is-active" : ""} onClick={() => { setMode("design"); setDrawer(null); }}>Design mode</button></div><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} aria-label="Undo" disabled={!historyState.canUndo || busy} onClick={undo}>↶</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} aria-label="Redo" disabled={!historyState.canRedo || busy} onClick={redo}>↷</button><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={() => setChecklistOpen(true)} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button></header>
+    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><select aria-label="Page" value={page} onChange={(event) => { setPage(event.target.value as VisualPageId); setSelectedIds([]); setDrawer(null); }}>{pages.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button type="button" title="Add a new page" onClick={addPage}>＋ Page</button><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><button type="button" className={drawer === "design" ? "is-active" : ""} onClick={() => setDrawer(drawer === "design" ? null : "design")}>Design</button><button type="button" className={drawer === "media" ? "is-active" : ""} onClick={() => setDrawer(drawer === "media" ? null : "media")}>Media</button><button type="button" className={drawer === "history" ? "is-active" : ""} onClick={() => setDrawer(drawer === "history" ? null : "history")}>History</button><button type="button" className={drawer === "readers" ? "is-active" : ""} onClick={() => setDrawer(drawer === "readers" ? null : "readers")}>Readers</button><div className="device-switch mode-switch"><button type="button" className={mode === "weekly" ? "is-active" : ""} onClick={() => { setMode("weekly"); setDrawer("weekly"); }}>Weekly</button><button type="button" className={mode === "design" ? "is-active" : ""} onClick={() => { setMode("design"); setDrawer(null); }}>Design mode</button></div><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} aria-label="Undo" disabled={!historyState.canUndo || busy} onClick={undo}>↶</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} aria-label="Redo" disabled={!historyState.canRedo || busy} onClick={redo}>↷</button><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={() => setChecklistOpen(true)} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button></header>
     {checklistOpen ? <PublishChecklist
       result={validation}
       busy={busy}
@@ -575,6 +683,8 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       /> : drawer === "history" ? <HistoryPanel
         onClose={() => setDrawer(null)}
         onRestored={(nextRevision) => { revisionRef.current = nextRevision; globalThis.location.reload(); }}
+      /> : drawer === "readers" ? <ReadersPanel
+        onClose={() => setDrawer(null)}
       /> : drawer === "design" ? <SiteDesignPanel
         theme={theme}
         usage={styleUsage}
@@ -584,7 +694,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         onResetTheme={resetTheme}
         onClose={() => setDrawer(null)}
       /> : drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); setDrawer(null); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id, index, ids) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <div className={`layer-row${selectedIds.includes(id) ? " is-active" : ""}`} key={id}><button type="button" className="layer-row__select" onClick={(event) => { select(id, event.shiftKey); revealOnCanvas(id); }}>{item.label}{item.style?.hidden ? <em> · hidden</em> : null}</button><button type="button" className="layer-row__move" onClick={() => (item.style?.hidden ? applyOp("Show", (doc) => ops.setHidden(doc, page, id, false)) : hideItem(id))} aria-label={item.style?.hidden ? `Show ${item.label}` : `Hide ${item.label}`} title={item.style?.hidden ? "Show" : "Hide"}>{item.style?.hidden ? "◌" : "◉"}</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, -1)} disabled={index === 0} aria-label="Move up">↑</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, 1)} disabled={index === ids.length - 1} aria-label="Move down">↓</button></div> : null; })}</>}</aside> : null}
-      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>
+      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : page === "results" ? <ResultsView content={content} editor={editor} /> : <CustomPageView content={content} page={page} title={pages.find((item) => item.id === page)?.label ?? ""} editor={editor} />}</div></main>
       {isMobile ? <>
         {selected && !sheetOpen ? (
           <div className="mobile-selection" role="status">
@@ -628,7 +738,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
           <button type="button" onClick={distributeSelected}>Distribute widths</button>
         </div>
         <p className="inspector-note">Sizes apply to the <strong>{device}</strong> layout. Shift-click on the canvas or in Items to change the selection.</p>
-      </div> : heroSelected ? <HeroInspector page={page} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
+      </div> : heroSelected ? <HeroInspector page={page} pageLabel={pages.find((item) => item.id === page)?.label ?? ""} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" || selected.kind === "table" || selected.kind === "status-list" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}{selected.kind === "table" ? <TableBlockEditor data={selected.tableData ?? { columns: ["Measure"], rows: [] }} onChange={(next) => patchItem(selected.id, { tableData: next })} /> : null}{selected.kind === "status-list" ? <StatusListBlockEditor items={selected.statusItems ?? []} onChange={(next) => patchItem(selected.id, { statusItems: next })} /> : null}{selected.kind === "highlight" ? <HighlightBlockEditor value={selected.highlight ?? { value: "0", unit: "", label: "", tone: "navy" }} onChange={(next) => patchItem(selected.id, { highlight: next })} /> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
         {selected.kind === "native" ? <NativeEditor id={selected.nativeId ?? selected.id} content={content} change={edit} /> : null}
         <details className="inspector-section" open><summary>Size · {device}</summary>
           <div className="segmented" role="group" aria-label="Width"><button type="button" onClick={() => patchLayout(selected.id, { width: 100 })}>Full</button><button type="button" onClick={() => patchLayout(selected.id, { width: 50 })}>Half</button><button type="button" onClick={() => patchLayout(selected.id, { width: undefined })}>Auto</button></div>
@@ -691,7 +801,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
           </div>
         </details>
         <details className="inspector-section"><summary>Advanced</summary><label className="visual-switch"><input type="checkbox" checked={selectedStyle.linkedDevices ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, linkedDevices: event.target.checked } })} /> Link phone &amp; desktop sizing</label><label className="visual-switch"><input type="checkbox" checked={selectedStyle.hidden ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, hidden: event.target.checked } })} /> Hide on canvas &amp; live site</label><div className="inspector-grid"><NumberField label="Fine nudge X" value={currentLayout.nudgeX} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeX: value })} /><NumberField label="Fine nudge Y" value={currentLayout.nudgeY} min={-48} max={48} onCommit={(value) => patchLayout(selected.id, { nudgeY: value })} /></div></details>
-        <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button><button type="button" className="danger" onClick={() => removeSelected(selected)}>{selected.kind === "native" ? "Remove section" : "Delete"}</button></div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pages.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><div className="inspector-grid"><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /></div><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><details className="inspector-section"><summary>Page padding</summary><div className="inspector-grid"><NumberField label="Top" value={pageDocument.paddingTop} min={0} max={240} onCommit={(value) => patchPage({ paddingTop: value ?? 0 })} /><NumberField label="Bottom" value={pageDocument.paddingBottom} min={0} max={240} onCommit={(value) => patchPage({ paddingBottom: value ?? 0 })} /><NumberField label="Left" value={pageDocument.paddingLeft} min={0} max={240} onCommit={(value) => patchPage({ paddingLeft: value ?? 0 })} /><NumberField label="Right" value={pageDocument.paddingRight} min={0} max={240} onCommit={(value) => patchPage({ paddingRight: value ?? 0 })} /></div></details><p className="inspector-note">The page grows automatically. Select any item to edit content, size, spacing, and style. Paired items stack on phone automatically.</p></div>}</aside> : null}
+        <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button><button type="button" className="danger" onClick={() => removeSelected(selected)}>{selected.kind === "native" ? "Remove section" : "Delete"}</button></div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pages.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><div className="inspector-grid"><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /></div><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><details className="inspector-section"><summary>Page padding</summary><div className="inspector-grid"><NumberField label="Top" value={pageDocument.paddingTop} min={0} max={240} onCommit={(value) => patchPage({ paddingTop: value ?? 0 })} /><NumberField label="Bottom" value={pageDocument.paddingBottom} min={0} max={240} onCommit={(value) => patchPage({ paddingBottom: value ?? 0 })} /><NumberField label="Left" value={pageDocument.paddingLeft} min={0} max={240} onCommit={(value) => patchPage({ paddingLeft: value ?? 0 })} /><NumberField label="Right" value={pageDocument.paddingRight} min={0} max={240} onCommit={(value) => patchPage({ paddingRight: value ?? 0 })} /></div></details><p className="inspector-note">The page grows automatically. Select any item to edit content, size, spacing, and style. Paired items stack on phone automatically.</p>{isCustomPage ? <details className="inspector-section" open><summary>Page</summary><label className="visual-control"><span>Title</span><input value={pages.find((item) => item.id === page)?.label ?? ""} onChange={(event) => renamePage(page, event.target.value)} /></label><p className="inspector-device-note">URL: /{document.customPages.find((meta) => meta.id === page)?.slug}</p><button type="button" className="danger" onClick={() => deletePage(page)}>Delete this page</button></details> : null}</div>}</aside> : null}
     </div>
   </div>;
 }

@@ -104,6 +104,17 @@ export interface HomeContent {
     brand: string;
     line: string;
   };
+  /** The "I've read this" reader sign-in card. `doneBody` is the lowercase tail
+   *  of the confirmation sentence — the "Thanks, {name} —" lead-in is generated
+   *  at render time since a submitted name isn't authorable copy. */
+  signin: {
+    eyebrow: string;
+    heading: string;
+    lead: string;
+    buttonLabel: string;
+    doneHeading: string;
+    doneBody: string;
+  };
   /** Optional override for the hero background photo (URL). Empty = default. */
   heroImage: string;
 }
@@ -211,7 +222,25 @@ export interface NewsletterContent {
   visual?: VisualDocument;
 }
 
-export type VisualPageId = "home" | "training" | "results";
+/**
+ * The three pages ship with bespoke components and typed content
+ * (HomeContent/TrainingContent/ResultsContent). Custom pages — created from the
+ * editor — have neither: they are pure block canvases, identified only by this
+ * open id and a CustomPageMeta entry. VisualPageId stays a plain string so a
+ * `Record<VisualPageId, ...>` accepts any number of custom pages alongside the
+ * three fixed ones.
+ */
+export type VisualPageId = string;
+export const SYSTEM_PAGE_IDS = ["home", "training", "results"] as const;
+export type SystemPageId = (typeof SYSTEM_PAGE_IDS)[number];
+
+/** A page the editor created — title, URL slug, and nothing else structural. */
+export interface CustomPageMeta {
+  id: string;
+  title: string;
+  slug: string;
+  createdAt: string;
+}
 
 export type VisualBlockKind =
   | "native"
@@ -219,7 +248,33 @@ export type VisualBlockKind =
   | "image"
   | "button"
   | "divider"
-  | "container";
+  | "container"
+  | "table"
+  | "status-list"
+  | "highlight";
+
+/** Data for a `table` block — the generalised form of the results scorecard. */
+export interface BlockTableData {
+  columns: string[];
+  rows: { label: string; values: string[] }[];
+}
+
+/** One row of a `status-list` block — the generalised training tracker. */
+export interface BlockStatusItem {
+  token: string;
+  tokenRed: boolean;
+  label: string;
+  strongPrefix: string;
+  strongEmphasis: string;
+}
+
+/** Data for a `highlight` block — the big-number pattern (goal-summary/metric-card). */
+export interface BlockHighlight {
+  value: string;
+  unit: string;
+  label: string;
+  tone: "green" | "red" | "navy";
+}
 
 export interface BlockStyle {
   paddingTop?: number;
@@ -281,6 +336,12 @@ export interface VisualBlock {
   href?: string;
   imageUrl?: string;
   alt?: string;
+  /** Present when kind === "table". */
+  tableData?: BlockTableData;
+  /** Present when kind === "status-list". */
+  statusItems?: BlockStatusItem[];
+  /** Present when kind === "highlight". */
+  highlight?: BlockHighlight;
 }
 
 export interface VisualPageDocument {
@@ -315,6 +376,12 @@ export interface VisualDocument {
    * this only adds formatting. Absent key = render the plain string.
    */
   richOverrides: Record<string, RichText>;
+  /**
+   * Pages created from the editor, beyond the three fixed ones. Order here is
+   * the order they appear in the page switcher; each entry's `id` is also the
+   * key into `pages`/`headers` above.
+   */
+  customPages: CustomPageMeta[];
 }
 
 export interface VisualRow {

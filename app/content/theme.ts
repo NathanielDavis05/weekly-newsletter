@@ -118,6 +118,29 @@ export const tokenVar = (id: string) => `--brand-${id}`;
 export const styleVar = (id: TextStyleId, property: string) => `--text-${id}-${property}`;
 
 /**
+ * Builds a `clamp()` that eases a font size from its mobile value to its desktop
+ * value across the 640px–1024px viewport band, so type scales smoothly instead
+ * of snapping at one breakpoint. The slope/intercept are computed here as plain
+ * numbers because pure CSS cannot interpolate between two runtime px variables
+ * (multiplying two lengths is a math error). Below 640px the clamp floors at the
+ * mobile size; above 1024px it caps at the desktop size — mobile authoring is
+ * therefore never affected. Authors add no new inputs; this is derived.
+ */
+const FLUID_MIN_VW = 640;
+const FLUID_MAX_VW = 1024;
+export function fluidFontClamp(mobilePx: number, desktopPx: number): string {
+  if (mobilePx === desktopPx) return `${desktopPx}px`;
+  // preferred = slopeVw * 1vw + interceptPx, passing through
+  // (640px -> mobile) and (1024px -> desktop).
+  const slopeVw = (100 * (desktopPx - mobilePx)) / (FLUID_MAX_VW - FLUID_MIN_VW);
+  const interceptPx = mobilePx - (slopeVw * FLUID_MIN_VW) / 100;
+  const lo = Math.min(mobilePx, desktopPx);
+  const hi = Math.max(mobilePx, desktopPx);
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  return `clamp(${lo}px, ${round(interceptPx)}px + ${round(slopeVw)}vw, ${hi}px)`;
+}
+
+/**
  * Flattens the theme into custom properties for the page root. Both the editor
  * canvas and the published page mount these, which is what keeps them matching.
  */
@@ -131,7 +154,10 @@ export function themeToCssVars(theme: SiteTheme): Record<string, string> {
     vars[styleVar(id, "family")] = FONT_STACKS[style.fontFamily] ?? FONT_STACKS.brand;
     vars[styleVar(id, "size")] = `${style.fontSize}px`;
     // Mobile falls back to a gentle reduction rather than jumping to desktop.
-    vars[styleVar(id, "size-mobile")] = `${style.mobileFontSize ?? Math.max(12, Math.round(style.fontSize * 0.88))}px`;
+    const mobileSize = style.mobileFontSize ?? Math.max(12, Math.round(style.fontSize * 0.88));
+    vars[styleVar(id, "size-mobile")] = `${mobileSize}px`;
+    // A pre-computed clamp that eases mobile -> desktop across the viewport band.
+    vars[styleVar(id, "size-fluid")] = fluidFontClamp(mobileSize, style.fontSize);
     vars[styleVar(id, "weight")] = String(style.fontWeight);
     vars[styleVar(id, "line")] = String(style.lineHeight);
     vars[styleVar(id, "tracking")] = `${style.letterSpacing}px`;

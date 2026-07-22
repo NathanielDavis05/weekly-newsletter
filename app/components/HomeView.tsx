@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import type { NewsletterContent } from "../content/types";
 import { visualDocument } from "../content/visual";
 import { ItemCanvas, type CanvasEditorState } from "./ItemCanvas";
+import { ReaderSignin } from "./ReaderSignin";
 import { RichField } from "./RichField";
 import { SiteHero } from "./SiteHero";
 
@@ -131,6 +132,16 @@ export function HomeView({ content, editor }: { content: NewsletterContent; edit
       <strong>{f("home.footer.brand", home.footer.brand)}</strong>
       <span>{f("home.footer.line", home.footer.line)}</span>
     </footer>,
+
+    "home-signin": <ReaderSignin
+      editing={Boolean(editor)}
+      eyebrow={f("home.signin.eyebrow", home.signin.eyebrow)}
+      heading={f("home.signin.heading", home.signin.heading)}
+      lead={f("home.signin.lead", home.signin.lead)}
+      buttonLabel={f("home.signin.buttonLabel", home.signin.buttonLabel)}
+      doneHeading={f("home.signin.doneHeading", home.signin.doneHeading)}
+      doneBody={f("home.signin.doneBody", home.signin.doneBody)}
+    />,
   };
 
   return <div className="site-shell">

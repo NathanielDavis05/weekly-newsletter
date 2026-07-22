@@ -36,6 +36,26 @@
   --gold-soft: #fbf0d9;
   --line: #ddd4c7;
   --shadow: 0 12px 30px rgba(13, 34, 56, 0.08);
+
+  /* ---- Desktop scale system -------------------------------------------------
+     The newsletter is authored at phone width. Rather than centre that column
+     in a wide dead frame, these tokens let the layout scale up intentionally:
+       --shell-max     how wide the outer frame may grow (hero + full-bleed art)
+       --fluid-scale   a 1x->~1.35x multiplier keyed to viewport width. It is
+                       pinned to 1 at/below 640px so mobile is byte-identical,
+                       then ramps to its ceiling by ~1200px. Multiply spacing,
+                       min-heights and imagery by it to grow them proportionally.
+     Text is handled separately by the per-style `--*-size-fluid` clamps so prose
+     tracks a readable measure rather than this raw multiplier. */
+  --shell-max: 1120px;
+  --fluid-scale: 1;
+}
+
+@media (min-width: 640px) {
+  :root {
+    /* 640px -> 1 ... 1200px -> 1.35, then held. */
+    --fluid-scale: clamp(1, calc(1 + (100vw - 640px) / 1600), 1.35);
+  }
 }
 
 * {
@@ -67,6 +87,12 @@ body {
 }
 
 .item-page__content {
+  /* Two-tier width. The column itself may grow toward the shell so cards, image
+     blocks and paired rows use the desktop room (see the >=640px rule below),
+     while the author's "Content width" caps the readable text measure via
+     --reading-max so prose never sprawls into an unreadable line length. On
+     phone the column stays exactly as authored. */
+  --reading-max: var(--page-content-width, 760px);
   width: min(100%, var(--page-content-width, 760px));
   margin-inline: auto;
   display: grid;
@@ -113,6 +139,27 @@ body {
   }
 }
 
+/* Desktop: let the content column grow past the authored width so paired rows,
+   cards, image blocks and grids use the extra room. It never exceeds the shell
+   minus a comfortable gutter, and never shrinks below what the author set. */
+@media (min-width: 640px) {
+  .item-page__content {
+    /* A comfortable editorial column: wide enough for paired rows and grids to
+       breathe, but never so wide that single mobile-authored cards sprawl with
+       their content clustered on the left. The dramatic width lives in the
+       full-bleed hero, not in stretched content boxes. */
+    width: min(100%, max(var(--page-content-width, 760px), 880px));
+  }
+}
+
+/* Keep author rich-text prose at a readable measure even when the column is
+   wide. The block stays full width (so any background/box spans the column);
+   only the running text is capped. Native newsletter sections already carry
+   their own intro max-widths, so this targets the free-form rich-text blocks. */
+.item-page .rt {
+  max-width: var(--reading-max, 760px);
+}
+
 a {
   color: inherit;
 }
@@ -156,7 +203,7 @@ h3 {
 }
 
 .site-shell {
-  width: min(100%, 820px);
+  width: min(100%, var(--shell-max, 1200px));
   min-height: 100vh;
   margin-inline: auto;
   overflow: clip;
@@ -708,6 +755,129 @@ h3 {
   font-size: 0.92rem;
 }
 
+/* Reader sign-in ("I've read this") */
+.reader-signin {
+  border-top: 1px solid rgba(13, 34, 56, 0.08);
+}
+
+.reader-signin__preview-toggle {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 10px;
+  padding: 3px;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--cream);
+}
+
+.reader-signin__preview-toggle button {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--navy-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reader-signin__preview-toggle button.is-active {
+  color: white;
+  background: var(--navy);
+}
+
+.reader-signin__card {
+  max-width: var(--reading-max, 620px);
+  margin-inline: auto;
+  padding: clamp(20px, 4vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.reader-signin__card .eyebrow {
+  color: var(--red);
+}
+
+.reader-signin__card h2 {
+  margin-bottom: 8px;
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+}
+
+.reader-signin__lead {
+  max-width: 42ch;
+  margin: 0 auto 18px;
+  color: var(--navy-soft);
+}
+
+.reader-signin__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  max-width: 460px;
+  margin-inline: auto;
+}
+
+.reader-signin__input {
+  flex: 1 1 220px;
+  min-height: 50px;
+  padding: 12px 16px;
+  color: var(--navy);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--cream);
+}
+
+.reader-signin__input:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 1px;
+}
+
+.reader-signin__form .button {
+  flex: 0 0 auto;
+}
+
+.reader-signin__error {
+  margin: 12px 0 0;
+  color: var(--red);
+  font-size: 0.9rem;
+}
+
+.reader-signin__done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.reader-signin__done h2 {
+  margin-bottom: 4px;
+}
+
+.reader-signin__done p {
+  margin: 0;
+  color: var(--navy-soft);
+}
+
+.reader-signin__check {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: white;
+  border-radius: 50%;
+  background: var(--green);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
 .site-footer {
   display: flex;
   padding: 24px 20px 34px;
@@ -725,8 +895,8 @@ h3 {
 .site-hero {
   position: relative;
   display: flex;
-  min-height: var(--hero-min-height);
-  padding: var(--hero-padding-top) var(--hero-padding-right) var(--hero-padding-bottom) var(--hero-padding-left);
+  min-height: var(--hero-fluid-min-height, var(--hero-min-height));
+  padding: var(--hero-fluid-padding-top, var(--hero-padding-top)) var(--hero-fluid-padding-right, var(--hero-padding-right)) var(--hero-fluid-padding-bottom, var(--hero-padding-bottom)) var(--hero-fluid-padding-left, var(--hero-padding-left));
   overflow: hidden;
   flex-direction: column;
   justify-content: var(--hero-content-position);
@@ -791,15 +961,15 @@ h3 {
 .site-hero .site-menu[open] nav { z-index: 10053; }
 .hero-item { position: relative; display: inline-flex; min-width: 0; }.site-hero__copy .hero-item { display: block; }.hero-item--selected { outline: 2px solid #fff; outline-offset: 4px; }.hero-item__handle { position: absolute; z-index: 5; top: -16px; right: -18px; display: none; width: 22px; height: 22px; padding: 0; border: 1px solid rgba(255,255,255,.65); border-radius: 5px; color: var(--navy); background: #fff; font: 700 .8rem/1 Apercu, sans-serif; touch-action: none; cursor: grab; }.site-hero--editable .hero-item:hover .hero-item__handle, .site-hero--editable .hero-item--selected .hero-item__handle { display: block; }
 .site-hero__topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.site-hero__brand { display: inline-flex; flex-direction: column; color: var(--hero-brand); font-size: var(--hero-brand-size); font-weight: 700; line-height: 1.05; text-decoration: none; }
+.site-hero__brand { display: inline-flex; flex-direction: column; color: var(--hero-brand); font-size: var(--hero-fluid-brand-size, var(--hero-brand-size)); font-weight: 700; line-height: 1.05; text-decoration: none; }
 .site-hero__brand small { margin-top: 3px; color: var(--hero-kicker); font-size: .64em; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
 .site-hero__back { display: inline-flex; min-height: 36px; align-items: center; color: var(--hero-brand); font-size: .86rem; font-weight: 500; text-decoration: none; gap: 6px; }
-.site-hero .site-menu--inverted summary { width: var(--hero-menu-size); height: var(--hero-menu-size); border-color: var(--hero-menu-border); background: var(--hero-menu-bg); color: var(--hero-menu); }
+.site-hero .site-menu--inverted summary { width: var(--hero-fluid-menu-size, var(--hero-menu-size)); height: var(--hero-fluid-menu-size, var(--hero-menu-size)); border-color: var(--hero-menu-border); background: var(--hero-menu-bg); color: var(--hero-menu); }
 .site-hero .site-menu--inverted summary span { background: var(--hero-menu); }
-.site-hero__copy { display: grid; width: min(100%, var(--hero-content-width)); margin-top: var(--hero-content-gap); text-align: var(--hero-content-align); align-self: var(--hero-content-justify); }
-.site-hero__copy p { margin: 0 0 5px; color: var(--hero-kicker); font-size: var(--hero-kicker-size); font-weight: 500; letter-spacing: var(--hero-kicker-tracking); text-transform: uppercase; }
-.site-hero__copy h1 { margin: 0; color: var(--hero-text); font-size: var(--hero-title-size); font-weight: var(--hero-title-weight); letter-spacing: var(--hero-title-tracking); line-height: 1.02; }
-.site-hero--detail { min-height: var(--hero-min-height); }
+.site-hero__copy { display: grid; width: min(100%, var(--hero-fluid-content-width, var(--hero-content-width))); margin-top: var(--hero-fluid-content-gap, var(--hero-content-gap)); text-align: var(--hero-content-align); align-self: var(--hero-content-justify); }
+.site-hero__copy p { margin: 0 0 5px; color: var(--hero-kicker); font-size: var(--hero-fluid-kicker-size, var(--hero-kicker-size)); font-weight: 500; letter-spacing: var(--hero-kicker-tracking); text-transform: uppercase; }
+.site-hero__copy h1 { margin: 0; color: var(--hero-text); font-size: var(--hero-fluid-title-size, var(--hero-title-size)); font-weight: var(--hero-title-weight); letter-spacing: var(--hero-title-tracking); line-height: 1.02; }
+.site-hero--detail { min-height: var(--hero-fluid-min-height, var(--hero-min-height)); }
 .site-hero--editable { cursor: pointer; outline: 1px dashed transparent; outline-offset: -2px; }
 .site-hero--editable:hover, .site-hero--selected { outline: 3px solid var(--red) !important; outline-offset: -3px; }
 .site-hero__badge { position: absolute; z-index: 5; top: 5px; left: 6px; padding: 4px 6px; border-radius: 5px; color: white; background: var(--navy); font-size: .61rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: 0; }
@@ -833,26 +1003,26 @@ h3 {
   }
 }
 
-/* Very compact mobile-first defaults. The editor can restore or exceed them. */
-.section { padding: 24px 20px; }
-.section--overview { padding-top: 12px; }
-.detail-main { padding: 22px 18px 40px; }
+/* Very compact mobile-first defaults. The editor can restore or exceed them.
+   Padding eases from the mobile value to the former desktop value across the
+   640px–1024px band (clamp floors at mobile, so phones are untouched), instead
+   of snapping at a single breakpoint. */
+.section { padding: clamp(24px, -29.33px + 8.33vw, 56px) clamp(20px, -26.67px + 7.29vw, 48px); }
+.section--overview { padding-top: clamp(12px, -31.33px + 6.77vw, 38px); }
+.detail-main { padding: clamp(22px, -21.33px + 6.77vw, 48px) clamp(18px, -72px + 14.06vw, 72px) clamp(40px, -26.67px + 10.42vw, 80px); }
 .detail-intro { margin-bottom: 18px; }
 
 @media (min-width: 640px) {
-  .site-hero {
-    min-height: var(--hero-desktop-min-height);
-    padding: var(--hero-desktop-padding-top) var(--hero-desktop-padding-right) var(--hero-desktop-padding-bottom) var(--hero-desktop-padding-left);
-    justify-content: var(--hero-desktop-content-position);
-  }
-  .site-hero__brand { font-size: var(--hero-desktop-brand-size); }
-  .site-hero .site-menu--inverted summary { width: var(--hero-desktop-menu-size); height: var(--hero-desktop-menu-size); }
-  .site-hero__copy { width: min(100%, var(--hero-desktop-content-width)); margin-top: var(--hero-desktop-content-gap); text-align: var(--hero-desktop-content-align); align-self: var(--hero-desktop-content-justify); }
-  .site-hero__copy p { font-size: var(--hero-desktop-kicker-size); }
-  .site-hero__copy h1 { font-size: var(--hero-desktop-title-size); }
-  .section { padding: 34px 34px; }
-  .section--overview { padding-top: 20px; }
-  .detail-main { padding: 30px 42px 52px; }
+  /* Sizes/dimensions are eased by the pre-computed --hero-fluid-* clamps, so the
+     desktop breakpoint only needs the keyword alignment values that a clamp
+     cannot express (vertical position + text alignment). */
+  .site-hero { justify-content: var(--hero-desktop-content-position); }
+  /* A full-bleed hero that only scaled its authored (phone-ish) height becomes a
+     thin letterbox on wide screens. Give it a viewport-proportional floor so it
+     keeps a banner-like presence (~3:1 or better), capped so it never dominates.
+     Detail heroes keep their own shorter height via a higher-specificity rule. */
+  .site-hero { min-height: max(var(--hero-fluid-min-height, var(--hero-min-height)), min(400px, 32vw)); }
+  .site-hero__copy { text-align: var(--hero-desktop-content-align); align-self: var(--hero-desktop-content-justify); }
 }
 
 /* Detail views */
@@ -1292,13 +1462,8 @@ h3 {
     margin-top: 52px;
   }
 
-  .section {
-    padding: 56px 48px;
-  }
-
-  .section--overview {
-    padding-top: 38px;
-  }
+  /* .section / .section--overview / .detail-main padding are eased by the clamps
+     in the base rules above; no fixed 640px override here (it would re-snap). */
 
   .priority-stack {
     grid-template-columns: 1fr 1fr;
@@ -1320,10 +1485,6 @@ h3 {
 
   .detail-header {
     padding-inline: 38px;
-  }
-
-  .detail-main {
-    padding: 48px 72px 80px;
   }
 
   .action-block {
@@ -1417,13 +1578,8 @@ h3 {
   }
 }
 
-/* Keep the public desktop presentation deliberately compact; older desktop rules
-   above are retained for legacy blocks but must not expand the new briefing. */
-@media (min-width: 640px) {
-  .section { padding: 34px 34px; }
-  .section--overview { padding-top: 20px; }
-  .detail-main { padding: 30px 42px 52px; }
-}
+/* Section/detail padding is now eased by --fluid-scale in the base rules, so the
+   former fixed 640px overrides have been removed to avoid a hard jump. */
 
 /* Persisted freeform layout. Elements remain responsive but may be positioned,
    overlapped, resized, and rotated independently by the visual editor. */
@@ -1453,6 +1609,20 @@ h3 {
   }
   .freeform-item.freeform-absolute { top: var(--ff-desktop-y, 0); left: var(--ff-desktop-x, 0); transform: rotate(var(--ff-desktop-rotation, 0deg)); }
 }
+
+/* ---------------------------------------------------------------------------
+   Freeform "highlight" block — the big-number pattern (goal-summary / metric
+   card), generalised so it can be dropped on any page. Box treatment (padding,
+   background, border) comes from the block's own style like every other
+   freeform block; this only sizes the number and sets its tone colour.
+   --------------------------------------------------------------------------- */
+.free-block--highlight { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.free-block__highlight-value { font-size: clamp(2.2rem, 8vw, 3rem); letter-spacing: -0.05em; line-height: 1; }
+.free-block__highlight-value .unit { margin-left: 2px; font-size: 0.4em; letter-spacing: -0.02em; }
+.free-block__highlight-label { font-size: 0.92rem; font-weight: 500; color: var(--navy-soft); }
+.free-block--highlight-green .free-block__highlight-value { color: var(--green); }
+.free-block--highlight-red .free-block__highlight-value { color: var(--red); }
+.free-block--highlight-navy .free-block__highlight-value { color: var(--navy); }
 
 /* ---------------------------------------------------------------------------
    Rich text (shared renderer)
@@ -1492,18 +1662,15 @@ h3 {
 .rt-style--smallText, .rt-style--eyebrow, .rt-style--deadline,
 .rt-style--buttonText, .rt-style--caption {
   font-family: var(--style-family);
-  font-size: var(--style-size-mobile);
+  /* Eases from the mobile size to the desktop size across the viewport band.
+     The clamp is pre-computed per style by themeToCssVars; it floors at the
+     mobile value (so phones are unaffected) and caps at the desktop value. */
+  font-size: var(--style-size-fluid, var(--style-size-mobile));
   font-weight: var(--style-weight);
   line-height: var(--style-line);
   letter-spacing: var(--style-tracking);
   color: var(--style-color);
   text-transform: var(--style-transform);
-}
-@media (min-width: 640px) {
-  .rt-style--mainTitle, .rt-style--pageTitle, .rt-style--sectionHeading,
-  .rt-style--cardTitle, .rt-style--bodyLarge, .rt-style--body,
-  .rt-style--smallText, .rt-style--eyebrow, .rt-style--deadline,
-  .rt-style--buttonText, .rt-style--caption { font-size: var(--style-size); }
 }
 
 /* Bind each style class to its own slice of the theme variables. */

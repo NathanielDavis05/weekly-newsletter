@@ -494,6 +494,22 @@ button { cursor:pointer; }
 .history-row__confirm { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .history-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: #fdeaee; color: #ad0527; font-size: 12px; }
 
+.readers-summary {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 4px 0 12px; padding: 12px 14px;
+  border: 1px solid var(--builder-line, #ddd3c4); border-radius: 10px; background: #fff;
+}
+.readers-summary strong { font-size: 22px; line-height: 1; color: #0d6b3b; }
+.readers-summary span { font-size: 12px; color: #7a7368; }
+.readers-summary .rt-link-btn { margin-left: auto; }
+.readers-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.readers-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 10px;
+  border: 1px solid var(--builder-line, #ddd3c4); border-radius: 10px; background: #fff;
+}
+.readers-row__name { font-size: 13px; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.readers-row small { flex: 0 0 auto; font-size: 11px; color: #7a7368; }
+
 /* ---------------------------------------------------------------------------
    Phone shell: bottom navigation + selection bar
    --------------------------------------------------------------------------- */

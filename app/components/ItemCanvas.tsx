@@ -83,6 +83,49 @@ function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorSt
   if (item.kind === "image") return item.imageUrl ? <figure className="free-block free-block--image"><img src={item.imageUrl} alt={item.alt ?? ""} /></figure> : <div className="free-block free-block--placeholder">Add an image</div>;
   if (item.kind === "button") return <div className="free-block free-block--button"><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.title || "Button"}</a></div>;
   if (item.kind === "divider") return <hr className="free-block free-block--divider" />;
+
+  if (item.kind === "table") {
+    // columns[0] headers the row-label column itself (e.g. "Measure"); the rest
+    // head the data columns, aligned 1:1 with each row's `values`.
+    const table = item.tableData ?? { columns: [], rows: [] };
+    const [labelHeader, ...dataHeaders] = table.columns;
+    return <section className="free-block free-block--table">
+      {text("richTitle", "free-block__title", "Table heading", true)}
+      <div className="metrics-table-wrap">
+        <table className="metrics-table">
+          <thead><tr><th>{labelHeader}</th>{dataHeaders.map((column, index) => <th key={index}>{column}</th>)}</tr></thead>
+          <tbody>
+            {table.rows.map((row, index) => <tr key={index}>
+              <th>{row.label}</th>
+              {dataHeaders.map((_, columnIndex) => <td key={columnIndex}>{row.values[columnIndex] ?? ""}</td>)}
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </section>;
+  }
+
+  if (item.kind === "status-list") {
+    const rows = item.statusItems ?? [];
+    return <section className="free-block free-block--status">
+      {text("richTitle", "free-block__title", "Status list heading", true)}
+      <div className="status-list">
+        {rows.map((row, index) => <div className="status-row" key={index}>
+          <span className={`status-token${row.tokenRed ? " status-token--red" : ""}`} aria-hidden="true">{row.token}</span>
+          <div><small>{row.label}</small><strong>{row.strongPrefix}<em>{row.strongEmphasis}</em></strong></div>
+        </div>)}
+      </div>
+    </section>;
+  }
+
+  if (item.kind === "highlight") {
+    const highlight = item.highlight ?? { value: "0", unit: "", label: "", tone: "navy" as const };
+    return <section className={`free-block free-block--highlight free-block--highlight-${highlight.tone}`}>
+      <strong className="free-block__highlight-value">{highlight.value}{highlight.unit ? <span className="unit">{highlight.unit}</span> : null}</strong>
+      <span className="free-block__highlight-label">{highlight.label}</span>
+    </section>;
+  }
+
   return <section className="free-block free-block--container">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</section>;
 }
 

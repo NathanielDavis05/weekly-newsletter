@@ -119,6 +119,14 @@ export const defaultContent: NewsletterContent = {
       brand: "CFA West Bryan",
       line: "Team newsletter · July 10, 2026",
     },
+    signin: {
+      eyebrow: "Before you go",
+      heading: "Mark this as read",
+      lead: "Add your name so we know you’ve seen this week’s update.",
+      buttonLabel: "I've read this",
+      doneHeading: "You're checked in",
+      doneBody: "the team knows you’ve read this week’s update.",
+    },
     heroImage: "",
   },
   training: {

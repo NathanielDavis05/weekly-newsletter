@@ -3,7 +3,11 @@ import { parseRichText, richTextToPlain, type RichText } from "./richtext";
 import { BOX_SHADOWS, safeStyleColor } from "../edit/panels/blockStyles";
 import { defaultTheme, parseTheme } from "./theme";
 import type {
+  BlockHighlight,
+  BlockStatusItem,
   BlockStyle,
+  BlockTableData,
+  CustomPageMeta,
   HeaderDeviceStyle,
   HeaderStyle,
   NewsletterContent,
@@ -14,6 +18,7 @@ import type {
   VisualPageId,
   VisualRow,
 } from "./types";
+import { SYSTEM_PAGE_IDS } from "./types";
 
 type SeedItem = [id: string, label: string];
 
@@ -32,11 +37,13 @@ const pageSeeds: Record<VisualPageId, { items: SeedItem[]; rows: string[][] }> =
       ["home-events", "Nearby events"],
       ["home-grow", "Grow with us"],
       ["home-footer", "Footer"],
+      ["home-signin", "Reader sign-in"],
     ],
     rows: [
       ["home-overview-intro"], ["home-action"], ["home-event", "home-recognition-link"],
       ["home-scorecard"], ["home-recognition-heading"], ["home-recognition-feature"],
       ["home-birthday", "home-anniversaries"], ["home-events"], ["home-grow"], ["home-footer"],
+      ["home-signin"],
     ],
   },
   training: {
@@ -89,8 +96,12 @@ export function defaultHeader(page: VisualPageId): HeaderStyle {
   };
 }
 
+/**
+ * Custom pages have no seed — they start as an empty canvas the editor fills in
+ * with freeform blocks, rather than the fixed native sections a system page has.
+ */
 function defaultPage(page: VisualPageId): VisualPageDocument {
-  const seed = pageSeeds[page];
+  const seed = pageSeeds[page as keyof typeof pageSeeds] ?? { items: [], rows: [] };
   return {
     items: seed.items.map(([id, label]) => ({ id, kind: "native", nativeId: id, label })),
     rows: seed.rows.map((itemIds, index) => ({ id: `${page}-row-${index + 1}`, itemIds, gap: 16, align: "stretch", keepColumnsOnPhone: false })),
@@ -106,7 +117,68 @@ export function defaultVisualDocument(): VisualDocument {
     headers: { home: defaultHeader("home"), training: defaultHeader("training"), results: defaultHeader("results") },
     theme: defaultTheme(),
     richOverrides: {},
+    customPages: [],
   };
+}
+
+// ---------------------------------------------------------------------------
+// Custom pages
+// ---------------------------------------------------------------------------
+
+const RESERVED_SLUGS = new Set([
+  "", "home", "training", "results", "edit", "api", "images", "fonts",
+  "favicon.ico", "sitemap.xml", "robots.txt", "acknowledge",
+]);
+
+/** Lowercase, hyphenated, ASCII-only — safe to drop straight into a URL path. */
+export function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+/** Appends `-2`, `-3`, ... until the slug is not in `taken`. */
+function uniqueSlug(base: string, taken: Set<string>): string {
+  const root = base || "page";
+  if (!taken.has(root) && !RESERVED_SLUGS.has(root)) return root;
+  for (let n = 2; n < 1000; n += 1) {
+    const candidate = `${root}-${n}`;
+    if (!taken.has(candidate) && !RESERVED_SLUGS.has(candidate)) return candidate;
+  }
+  return `${root}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+/** Builds the metadata for a brand-new custom page with a unique id and slug. */
+export function makeCustomPage(title: string, existing: CustomPageMeta[]): CustomPageMeta {
+  const taken = new Set(existing.map((page) => page.slug));
+  const slug = uniqueSlug(slugify(title) || "page", taken);
+  return { id: `page-${crypto.randomUUID()}`, title: shortText(title, "New page"), slug, createdAt: new Date().toISOString() };
+}
+
+function isCustomPageMeta(value: unknown): value is CustomPageMeta {
+  return Boolean(value && typeof value === "object" && "id" in value && "slug" in value && "title" in value);
+}
+
+/** Re-validates slugs on read so a hand-edited or migrated document cannot
+ *  collide with a system route or with itself. */
+function parseCustomPages(raw: unknown): CustomPageMeta[] {
+  if (!Array.isArray(raw)) return [];
+  const seenIds = new Set<string>(); const seenSlugs = new Set<string>();
+  const out: CustomPageMeta[] = [];
+  for (const value of raw) {
+    if (!isCustomPageMeta(value)) continue;
+    const id = shortText(value.id, "");
+    if (!id || seenIds.has(id)) continue;
+    const title = shortText(value.title, "Untitled page");
+    const slug = uniqueSlug(slugify(value.slug) || slugify(title) || "page", seenSlugs);
+    seenIds.add(id); seenSlugs.add(slug);
+    out.push({ id, title, slug, createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString() });
+  }
+  return out.slice(0, 40);
 }
 
 const numberIn = (value: unknown, fallback: number, min: number, max: number) => typeof value === "number" && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
@@ -207,6 +279,42 @@ function withRichText(block: VisualBlock): VisualBlock {
   return next;
 }
 
+const MAX_TABLE_COLUMNS = 6;
+const MAX_TABLE_ROWS = 30;
+const MAX_STATUS_ITEMS = 30;
+
+function normaliseTableData(value: unknown, fallback?: BlockTableData): BlockTableData | undefined {
+  if (!value || typeof value !== "object") return fallback;
+  const source = value as Partial<BlockTableData>;
+  const columns = Array.isArray(source.columns) ? source.columns.map((column) => shortText(column, "")).slice(0, MAX_TABLE_COLUMNS) : fallback?.columns ?? ["Column"];
+  const rows = Array.isArray(source.rows) ? source.rows.slice(0, MAX_TABLE_ROWS).map((row) => ({
+    label: shortText((row as { label?: unknown })?.label, ""),
+    values: Array.isArray((row as { values?: unknown })?.values) ? (row as { values: unknown[] }).values.map((cell) => shortText(cell, "")).slice(0, MAX_TABLE_COLUMNS) : [],
+  })) : fallback?.rows ?? [];
+  return { columns, rows };
+}
+
+function normaliseStatusItems(value: unknown, fallback?: BlockStatusItem[]): BlockStatusItem[] | undefined {
+  if (!Array.isArray(value)) return fallback;
+  return value.slice(0, MAX_STATUS_ITEMS).map((item) => {
+    const source = (item ?? {}) as Partial<BlockStatusItem>;
+    return {
+      token: shortText(source.token, "•"), tokenRed: Boolean(source.tokenRed),
+      label: shortText(source.label, ""), strongPrefix: shortText(source.strongPrefix, ""), strongEmphasis: shortText(source.strongEmphasis, ""),
+    };
+  });
+}
+
+const HIGHLIGHT_TONES = new Set<BlockHighlight["tone"]>(["green", "red", "navy"]);
+function normaliseHighlight(value: unknown, fallback?: BlockHighlight): BlockHighlight | undefined {
+  if (!value || typeof value !== "object") return fallback;
+  const source = value as Partial<BlockHighlight>;
+  return {
+    value: shortText(source.value, "0"), unit: shortText(source.unit, ""), label: shortText(source.label, ""),
+    tone: HIGHLIGHT_TONES.has(source.tone as BlockHighlight["tone"]) ? (source.tone as BlockHighlight["tone"]) : "navy",
+  };
+}
+
 function normaliseBlock(block: VisualBlock): VisualBlock {
   const style = block.style ? {
     ...block.style,
@@ -219,7 +327,14 @@ function normaliseBlock(block: VisualBlock): VisualBlock {
     phone: normaliseLayout(block.style.phone),
     desktop: normaliseLayout(block.style.desktop),
   } : undefined;
-  return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
+  const next = withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
+  if (block.kind === "table") next.tableData = normaliseTableData(block.tableData, { columns: ["Column"], rows: [] });
+  else delete next.tableData;
+  if (block.kind === "status-list") next.statusItems = normaliseStatusItems(block.statusItems, []);
+  else delete next.statusItems;
+  if (block.kind === "highlight") next.highlight = normaliseHighlight(block.highlight, { value: "0", unit: "", label: "", tone: "navy" });
+  else delete next.highlight;
+  return next;
 }
 
 function normaliseRow(value: VisualRow, validIds: Set<string>, fallbackId: string): VisualRow | null {
@@ -268,17 +383,53 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
   if (!candidate || !candidate.pages) return fallback;
   const pages = candidate.pages as Partial<Record<VisualPageId, unknown>>;
   const headers = candidate.headers as Partial<Record<VisualPageId, HeaderStyle>> | undefined;
+  const customPages = parseCustomPages(candidate.customPages);
+  // The three system pages always exist; custom pages are whatever the editor
+  // has created. Both are migrated the same way — a custom page's "fallback" is
+  // simply an empty canvas rather than one of the seeded layouts.
+  const allIds: VisualPageId[] = [...SYSTEM_PAGE_IDS, ...customPages.map((page) => page.id)];
+  const migratedPages: Record<VisualPageId, VisualPageDocument> = {};
+  const migratedHeaders: Record<VisualPageId, HeaderStyle> = {};
+  for (const id of allIds) {
+    const fallbackPage = fallback.pages[id] ?? defaultPage(id);
+    const fallbackHeader = fallback.headers[id] ?? defaultHeader(id);
+    migratedPages[id] = migratePage(id, pages[id], fallbackPage);
+    migratedHeaders[id] = normaliseHeader(headers?.[id], fallbackHeader);
+  }
   return {
     version: 9,
-    pages: { home: migratePage("home", pages.home, fallback.pages.home), training: migratePage("training", pages.training, fallback.pages.training), results: migratePage("results", pages.results, fallback.pages.results) },
-    headers: { home: normaliseHeader(headers?.home, fallback.headers.home), training: normaliseHeader(headers?.training, fallback.headers.training), results: normaliseHeader(headers?.results, fallback.headers.results) },
+    pages: migratedPages,
+    headers: migratedHeaders,
     // v7 -> v8: documents saved before the theme existed adopt the brand
     // defaults, so nothing needs rebuilding by hand.
     theme: parseTheme(candidate.theme),
     // v8 -> v9: documents without overrides simply have none, and every native
     // field keeps rendering its plain string until someone formats it.
     richOverrides: parseRichOverrides(candidate.richOverrides),
+    customPages,
   };
+}
+
+/** Adds a new custom page (empty canvas) and returns its metadata for callers
+ *  that also need to add a nav link or select the new page. */
+export function addCustomPage(doc: VisualDocument, title: string): CustomPageMeta {
+  const meta = makeCustomPage(title, doc.customPages);
+  doc.customPages.push(meta);
+  doc.pages[meta.id] = defaultPage(meta.id);
+  doc.headers[meta.id] = defaultHeader(meta.id);
+  return meta;
+}
+
+export function renameCustomPage(doc: VisualDocument, id: string, title: string): void {
+  const meta = doc.customPages.find((page) => page.id === id);
+  if (meta) meta.title = shortText(title, meta.title);
+}
+
+/** Removes a custom page's metadata and its stored blocks/header. */
+export function removeCustomPage(doc: VisualDocument, id: string): void {
+  doc.customPages = doc.customPages.filter((page) => page.id !== id);
+  delete doc.pages[id];
+  delete doc.headers[id];
 }
 
 export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
