@@ -100,6 +100,32 @@ function TextField({ label, value, onChange, area = false, placeholder }: { labe
     ? <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     : <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />}</label>;
 }
+
+type AiPreparedDraft = { content: NewsletterContent; summary: string[]; rollover: string[] };
+
+function AiNotesDialog({ busy, onClose, onSubmit }: { busy: boolean; onClose: () => void; onSubmit: (notes: string) => void }) {
+  const [notes, setNotes] = useState("");
+  return <div className="ai-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="ai-notes-title">
+    <form className="ai-dialog" onSubmit={(event) => { event.preventDefault(); if (notes.trim()) onSubmit(notes); }}>
+      <div className="ai-dialog__head"><h2 id="ai-notes-title">Prepare with AI</h2><button type="button" onClick={onClose} aria-label="Close">×</button></div>
+      <p>Paste this week&rsquo;s notes, dates, scores, announcements, and shout-outs. You&rsquo;ll review every change before it is added to the draft.</p>
+      <label className="visual-control"><span>Weekly notes</span><textarea autoFocus value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="For example: In addition to the current shoutouts, add Nathaniel." /></label>
+      <div className="ai-dialog__actions"><button type="button" onClick={onClose} disabled={busy}>Cancel</button><button className="publish-button" type="submit" disabled={busy || !notes.trim()}>{busy ? "Preparing…" : "Prepare draft"}</button></div>
+    </form>
+  </div>;
+}
+
+function AiReviewDialog({ draft, onClose, onApply }: { draft: AiPreparedDraft; onClose: () => void; onApply: () => void }) {
+  const summary = [...draft.rollover, ...draft.summary];
+  return <div className="ai-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="ai-review-title">
+    <div className="ai-dialog">
+      <div className="ai-dialog__head"><h2 id="ai-review-title">Review AI draft</h2><button type="button" onClick={onClose} aria-label="Close">×</button></div>
+      <p>Only newsletter copy will change. Your layout, images, styling, and section visibility stay exactly as they are.</p>
+      <ul className="ai-dialog__summary">{summary.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}</ul>
+      <div className="ai-dialog__actions"><button type="button" onClick={onClose}>Keep editing</button><button className="publish-button" type="button" onClick={onApply}>Apply to draft</button></div>
+    </div>
+  </div>;
+}
 function ToggleField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return <label className="visual-switch"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /> {label}</label>;
 }
@@ -267,6 +293,8 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // full design canvas is a deliberate step up rather than the starting point.
   const [mode, setMode] = useState<"weekly" | "design">("weekly");
   const [checklistOpen, setChecklistOpen] = useState(false);
+  const [aiNotesOpen, setAiNotesOpen] = useState(false);
+  const [aiDraft, setAiDraft] = useState<AiPreparedDraft | null>(null);
   // Phones get a different shell: the inspector is a dismissible sheet rather
   // than a permanent panel, so the canvas stays visible while editing.
   const [isMobile, setIsMobile] = useState(false);
@@ -643,21 +671,23 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     setStatus("Next issue drafted — the live newsletter is unchanged");
   }, [edit]);
 
-  const startAiIssue = useCallback(async () => {
-    const notes = globalThis.prompt("Paste this week's notes, dates, scores, announcements, and shout-outs. The assistant will prepare a draft for your review.");
-    if (!notes?.trim()) return;
+  const startAiIssue = useCallback(async (notes: string) => {
     setBusy(true);
     try {
       const response = await fetch("/api/ai/prepare-issue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
       const payload = await response.json() as { content?: NewsletterContent; summary?: string[]; rollover?: string[]; error?: string };
       if (!response.ok || !payload.content) throw new Error(payload.error ?? "Could not prepare the draft.");
-      const summary = [...(payload.rollover ?? []), ...(payload.summary ?? [])].map((line) => `• ${line}`).join("\n");
-      if (!globalThis.confirm(`Review the AI draft:\n\n${summary}\n\nApply this to your draft? Nothing live will change until you publish.`)) return;
-      edit((draft) => { Object.assign(draft, payload.content); }, { label: "AI prepared next issue" });
-      setSelectedIds([]); setStatus("AI draft applied — review it before publishing");
+      setAiNotesOpen(false);
+      setAiDraft({ content: payload.content, summary: payload.summary ?? [], rollover: payload.rollover ?? [] });
     } catch (error) { setStatus(error instanceof Error ? error.message : "Could not prepare the draft."); }
     finally { setBusy(false); }
-  }, [edit]);
+  }, []);
+
+  const applyAiIssue = useCallback(() => {
+    if (!aiDraft) return;
+    edit((draft) => { Object.assign(draft, aiDraft.content); }, { label: "AI prepared next issue" });
+    setAiDraft(null); setSelectedIds([]); setStatus("AI draft applied — review it before publishing");
+  }, [aiDraft, edit]);
 
   const editor: CanvasEditorState = { selectedId, selectedIds, device,
     renderField,
@@ -680,6 +710,8 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       onClose={() => setChecklistOpen(false)}
       onJump={jumpToIssue}
     /> : null}
+    {aiNotesOpen ? <AiNotesDialog busy={busy} onClose={() => setAiNotesOpen(false)} onSubmit={(notes) => { void startAiIssue(notes); }} /> : null}
+    {aiDraft ? <AiReviewDialog draft={aiDraft} onClose={() => setAiDraft(null)} onApply={applyAiIssue} /> : null}
     {conflict ? <div className="stale-banner"><strong>Newer changes exist in another tab.</strong><span>Your current tab has stopped autosaving to protect them.</span><button type="button" onClick={() => globalThis.location.reload()}>Reload latest draft</button></div> : null}
     <div className={`builder-workspace${inspectorOpen ? "" : " builder-workspace--wide"}`}>
       {drawer ? <aside className="builder-drawer">{drawer === "media" ? <MediaPanel
@@ -695,7 +727,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         onToggleHidden={(itemId, hidden) => applyOp(hidden ? "Hide" : "Show", (doc) => ops.setHidden(doc, page, itemId, hidden))}
         onMove={(itemId, direction) => moveRow(itemId, direction)}
         onCreateNextIssue={startNextIssue}
-        onCreateWithAi={() => { void startAiIssue(); }}
+        onCreateWithAi={() => setAiNotesOpen(true)}
         onOpenChecklist={() => setChecklistOpen(true)}
       /> : drawer === "history" ? <HistoryPanel
         onClose={() => setDrawer(null)}

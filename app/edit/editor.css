@@ -480,6 +480,25 @@ button { cursor:pointer; }
 .checklist__actions .publish-button { border-color: #d80d37; }
 .checklist__actions button:disabled { opacity: .5; cursor: not-allowed; }
 
+.ai-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 9900; display: grid; place-items: center;
+  padding: 18px; background: rgba(13, 34, 56, .45);
+}
+.ai-dialog {
+  width: min(560px, 100%); display: grid; gap: 14px; padding: 20px;
+  background: #fff; border-radius: 16px; box-shadow: 0 24px 60px rgba(13, 34, 56, .3);
+}
+.ai-dialog__head { display: flex; align-items: center; justify-content: space-between; }
+.ai-dialog__head h2 { margin: 0; font-size: 20px; }
+.ai-dialog__head button { border: 0; background: none; font-size: 22px; color: #506071; line-height: 1; }
+.ai-dialog > p { margin: 0; color: #526171; font-size: 14px; line-height: 1.45; }
+.ai-dialog .visual-control textarea { min-height: 150px; }
+.ai-dialog__summary { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: #314356; font-size: 14px; line-height: 1.4; }
+.ai-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.ai-dialog__actions button { min-height: 40px; padding: 0 16px; border: 1px solid var(--builder-line, #ddd3c4); border-radius: 9px; background: #fff; color: var(--builder-navy); font: inherit; cursor: pointer; }
+.ai-dialog__actions .publish-button { background: var(--builder-red); border-color: var(--builder-red); color: #fff; font-weight: 700; }
+.ai-dialog__actions button:disabled { opacity: .5; cursor: not-allowed; }
+
 .history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .history-row {
   display: flex; align-items: center; gap: 9px; padding: 9px 10px;
