@@ -1,5 +1,5 @@
 import { mergeContent } from "../../content/merge";
-import { getEditorContent, RevisionConflictError, saveDraft } from "../../content/store";
+import { getEditorContent, recordVersion, RevisionConflictError, saveDraft } from "../../content/store";
 import { getEditorUser } from "../../edit-auth";
 
 function unauthorized() {
@@ -25,12 +25,23 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!(await getEditorUser())) return unauthorized();
+  const user = await getEditorUser();
+  if (!user) return unauthorized();
   try {
     const payload = await request.json();
     const draft = mergeContent(payload.content ?? payload);
     const expectedRevision = Number(payload.expectedRevision ?? 0);
-    return Response.json(await saveDraft(draft, expectedRevision));
+    const result = await saveDraft(draft, expectedRevision);
+    // Only explicit saves become history entries — recording every autosave
+    // would bury the useful points under one row per second of typing.
+    if (payload.label) {
+      try {
+        await recordVersion("save", JSON.stringify(result.draft), result.revision, String(payload.label), user.email);
+      } catch {
+        // Best effort; the draft is already saved.
+      }
+    }
+    return Response.json(result);
   } catch (error) {
     if (error instanceof RevisionConflictError) return Response.json({ error: error.message, revision: error.currentRevision }, { status: 409 });
     return Response.json({ error: toErrorMessage(error) }, { status: 500 });

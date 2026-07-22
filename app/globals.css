@@ -524,7 +524,7 @@ h3 {
   line-height: 0.9;
 }
 
-.score-teaser__result strong span {
+.score-teaser__result strong > span.unit {
   font-size: 1.4rem;
   letter-spacing: -0.02em;
 }
@@ -541,7 +541,7 @@ h3 {
   border-top: 1px solid #c9dfcf;
 }
 
-.score-teaser__focus span {
+.score-teaser__focus > span {
   color: var(--red);
   font-size: 0.75rem;
   font-weight: 500;
@@ -678,7 +678,7 @@ h3 {
   color: var(--red);
 }
 
-.event-row--featured span {
+.event-row--featured > span {
   font-weight: 700;
 }
 
@@ -1045,7 +1045,7 @@ h3 {
   gap: 10px;
 }
 
-.check-list li span {
+.check-list li > span[aria-hidden] {
   display: grid;
   width: 24px;
   height: 24px;
@@ -1123,7 +1123,7 @@ h3 {
   line-height: 0.9;
 }
 
-.goal-summary strong span {
+.goal-summary strong > span.unit {
   font-size: 1.25rem;
   letter-spacing: -0.02em;
 }
@@ -1453,3 +1453,68 @@ h3 {
   }
   .freeform-item.freeform-absolute { top: var(--ff-desktop-y, 0); left: var(--ff-desktop-x, 0); transform: rotate(var(--ff-desktop-rotation, 0deg)); }
 }
+
+/* ---------------------------------------------------------------------------
+   Rich text (shared renderer)
+
+   These rules style the output of app/components/RichText.tsx and therefore
+   apply identically on the public newsletter, the draft preview and the editor
+   canvas. Inline formatting (colour, size, highlight) arrives as inline styles
+   from the document model, so nothing here may use !important — an author's
+   choice must always win.
+   --------------------------------------------------------------------------- */
+.rt { display: flow-root; }
+.rt > :first-child { margin-block-start: 0; }
+.rt > :last-child { margin-block-end: 0; }
+.rt-paragraph { margin: 0 0 0.85em; }
+.rt-heading { margin: 0 0 0.5em; line-height: 1.15; }
+.rt-list { margin: 0 0 0.85em; padding-inline-start: 1.4em; }
+.rt-list--number { list-style: decimal; }
+.rt-list--bullet { list-style: disc; }
+.rt-item { margin: 0 0 0.3em; }
+.rt-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.rt-link:hover { text-decoration-thickness: 2px; }
+/* Highlighted runs need a little breathing room or the colour clips the glyphs. */
+.rt span[style*="background-color"] { padding: 0.05em 0.16em; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* ---------------------------------------------------------------------------
+   Global text styles
+
+   Each class pulls its typography from the theme custom properties emitted by
+   ThemeStyles. Because these are plain class selectors (specificity 0,1,0) any
+   inline style the document carries still wins — which is exactly how an
+   element overrides one property while staying linked to the global style.
+   --------------------------------------------------------------------------- */
+.theme-root { display: contents; }
+
+.rt-style--mainTitle, .rt-style--pageTitle, .rt-style--sectionHeading,
+.rt-style--cardTitle, .rt-style--bodyLarge, .rt-style--body,
+.rt-style--smallText, .rt-style--eyebrow, .rt-style--deadline,
+.rt-style--buttonText, .rt-style--caption {
+  font-family: var(--style-family);
+  font-size: var(--style-size-mobile);
+  font-weight: var(--style-weight);
+  line-height: var(--style-line);
+  letter-spacing: var(--style-tracking);
+  color: var(--style-color);
+  text-transform: var(--style-transform);
+}
+@media (min-width: 640px) {
+  .rt-style--mainTitle, .rt-style--pageTitle, .rt-style--sectionHeading,
+  .rt-style--cardTitle, .rt-style--bodyLarge, .rt-style--body,
+  .rt-style--smallText, .rt-style--eyebrow, .rt-style--deadline,
+  .rt-style--buttonText, .rt-style--caption { font-size: var(--style-size); }
+}
+
+/* Bind each style class to its own slice of the theme variables. */
+.rt-style--mainTitle { --style-family: var(--text-mainTitle-family); --style-size: var(--text-mainTitle-size); --style-size-mobile: var(--text-mainTitle-size-mobile); --style-weight: var(--text-mainTitle-weight); --style-line: var(--text-mainTitle-line); --style-tracking: var(--text-mainTitle-tracking); --style-color: var(--text-mainTitle-color); --style-transform: var(--text-mainTitle-transform); }
+.rt-style--pageTitle { --style-family: var(--text-pageTitle-family); --style-size: var(--text-pageTitle-size); --style-size-mobile: var(--text-pageTitle-size-mobile); --style-weight: var(--text-pageTitle-weight); --style-line: var(--text-pageTitle-line); --style-tracking: var(--text-pageTitle-tracking); --style-color: var(--text-pageTitle-color); --style-transform: var(--text-pageTitle-transform); }
+.rt-style--sectionHeading { --style-family: var(--text-sectionHeading-family); --style-size: var(--text-sectionHeading-size); --style-size-mobile: var(--text-sectionHeading-size-mobile); --style-weight: var(--text-sectionHeading-weight); --style-line: var(--text-sectionHeading-line); --style-tracking: var(--text-sectionHeading-tracking); --style-color: var(--text-sectionHeading-color); --style-transform: var(--text-sectionHeading-transform); }
+.rt-style--cardTitle { --style-family: var(--text-cardTitle-family); --style-size: var(--text-cardTitle-size); --style-size-mobile: var(--text-cardTitle-size-mobile); --style-weight: var(--text-cardTitle-weight); --style-line: var(--text-cardTitle-line); --style-tracking: var(--text-cardTitle-tracking); --style-color: var(--text-cardTitle-color); --style-transform: var(--text-cardTitle-transform); }
+.rt-style--bodyLarge { --style-family: var(--text-bodyLarge-family); --style-size: var(--text-bodyLarge-size); --style-size-mobile: var(--text-bodyLarge-size-mobile); --style-weight: var(--text-bodyLarge-weight); --style-line: var(--text-bodyLarge-line); --style-tracking: var(--text-bodyLarge-tracking); --style-color: var(--text-bodyLarge-color); --style-transform: var(--text-bodyLarge-transform); }
+.rt-style--body { --style-family: var(--text-body-family); --style-size: var(--text-body-size); --style-size-mobile: var(--text-body-size-mobile); --style-weight: var(--text-body-weight); --style-line: var(--text-body-line); --style-tracking: var(--text-body-tracking); --style-color: var(--text-body-color); --style-transform: var(--text-body-transform); }
+.rt-style--smallText { --style-family: var(--text-smallText-family); --style-size: var(--text-smallText-size); --style-size-mobile: var(--text-smallText-size-mobile); --style-weight: var(--text-smallText-weight); --style-line: var(--text-smallText-line); --style-tracking: var(--text-smallText-tracking); --style-color: var(--text-smallText-color); --style-transform: var(--text-smallText-transform); }
+.rt-style--eyebrow { --style-family: var(--text-eyebrow-family); --style-size: var(--text-eyebrow-size); --style-size-mobile: var(--text-eyebrow-size-mobile); --style-weight: var(--text-eyebrow-weight); --style-line: var(--text-eyebrow-line); --style-tracking: var(--text-eyebrow-tracking); --style-color: var(--text-eyebrow-color); --style-transform: var(--text-eyebrow-transform); }
+.rt-style--deadline { --style-family: var(--text-deadline-family); --style-size: var(--text-deadline-size); --style-size-mobile: var(--text-deadline-size-mobile); --style-weight: var(--text-deadline-weight); --style-line: var(--text-deadline-line); --style-tracking: var(--text-deadline-tracking); --style-color: var(--text-deadline-color); --style-transform: var(--text-deadline-transform); }
+.rt-style--buttonText { --style-family: var(--text-buttonText-family); --style-size: var(--text-buttonText-size); --style-size-mobile: var(--text-buttonText-size-mobile); --style-weight: var(--text-buttonText-weight); --style-line: var(--text-buttonText-line); --style-tracking: var(--text-buttonText-tracking); --style-color: var(--text-buttonText-color); --style-transform: var(--text-buttonText-transform); }
+.rt-style--caption { --style-family: var(--text-caption-family); --style-size: var(--text-caption-size); --style-size-mobile: var(--text-caption-size-mobile); --style-weight: var(--text-caption-weight); --style-line: var(--text-caption-line); --style-tracking: var(--text-caption-tracking); --style-color: var(--text-caption-color); --style-transform: var(--text-caption-transform); }

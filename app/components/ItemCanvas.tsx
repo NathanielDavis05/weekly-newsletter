@@ -1,65 +1,89 @@
 "use client";
 
-import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, PointerEvent, ReactNode, RefObject } from "react";
+import type { ResizeHandle } from "../edit/canvas/useResize";
+import { RESIZE_HANDLES } from "../edit/canvas/useResize";
+import type { RichText } from "../content/richtext";
+import { isRichTextEmpty } from "../content/richtext";
 import type { NewsletterContent, ResponsiveLayout, VisualBlock, VisualPageId } from "../content/types";
 import { styleForBlock, visualDocument } from "../content/visual";
+import { RichTextView } from "./RichText";
+import { ThemeStyles } from "./ThemeStyles";
+
+/** Describes one editable rich-text field on a freeform block. */
+export interface TextFieldRequest {
+  itemId: string;
+  field: "richTitle" | "richBody";
+  doc: RichText | undefined;
+  className: string;
+  placeholder: string;
+  singleLine?: boolean;
+}
+
+/** One formattable field of the fixed newsletter copy. */
+export interface ContentFieldRequest {
+  /** Dotted path into NewsletterContent. */
+  path: string;
+  /** The plain string currently stored there. */
+  value: string;
+  /** Existing formatting for this field, if any. */
+  doc: RichText | undefined;
+  /** Block fields get paragraphs and lists; inline fields get spans only. */
+  block?: boolean;
+  className?: string;
+  placeholder?: string;
+}
 
 export interface CanvasEditorState {
+  /** Primary selection — kept for callers that only care about one item. */
   selectedId?: string | null;
+  /** Full selection, in click order. Shift-click extends it. */
+  selectedIds?: string[];
   device?: "phone" | "desktop";
-  onSelect?: (id: string) => void;
+  /** `additive` is true for shift-click, which extends the selection. */
+  onSelect?: (id: string, additive?: boolean) => void;
+  /** Clicking empty canvas clears the selection. */
+  onDeselect?: () => void;
+  /** Pointer-driven drag; supersedes the old HTML5 drag-and-drop. */
+  onStartDrag?: (event: PointerEvent<HTMLElement>, itemId: string) => void;
+  onStartResize?: (event: PointerEvent<HTMLElement>, itemId: string, handle: ResizeHandle) => void;
+  /** Overlay host for smart guides and the drop indicator. */
+  overlay?: ReactNode;
+  surfaceRef?: RefObject<HTMLElement | null>;
   onMoveItem?: (itemId: string, targetRowId: string, zone: "above" | "below" | "left" | "right") => void;
   onResizeItem?: (itemId: string, patch: Partial<ResponsiveLayout>) => void;
   onNudgeItem?: (itemId: string, dx: number, dy: number) => void;
   onFreeTextChange?: (itemId: string, patch: Partial<VisualBlock>) => void;
   onHeroTextChange?: (field: "title" | "kicker", value: string) => void;
+  /**
+   * Supplied by the editor shell so the rich-text editor (and its toolbar) never
+   * reach the public bundle. When absent the canvas renders read-only text with
+   * exactly the same markup the published page uses.
+   */
+  renderText?: (request: TextFieldRequest) => ReactNode;
+  /** The same, for formattable fields inside the native newsletter sections. */
+  renderField?: (request: ContentFieldRequest) => ReactNode;
 }
 
 function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorState }) {
-  const inline = (field: "title" | "body", value: string, className?: string) => editor ? (
-    <div
-      className={className}
-      contentEditable
-      suppressContentEditableWarning
-      onPointerDown={(event) => event.stopPropagation()}
-      onBlur={(event) => editor.onFreeTextChange?.(item.id, { [field]: event.currentTarget.textContent ?? "" })}
-    >{value}</div>
-  ) : <div className={className}>{value}</div>;
-  if (item.kind === "text") return <section className="free-block free-block--text">{item.title ? inline("title", item.title, "free-block__title") : null}{item.body ? inline("body", item.body, "free-block__body") : null}</section>;
+  const text = (
+    field: "richTitle" | "richBody",
+    className: string,
+    placeholder: string,
+    singleLine?: boolean,
+  ) => {
+    const doc = item[field];
+    if (editor?.renderText) {
+      return editor.renderText({ itemId: item.id, field, doc, className, placeholder, singleLine });
+    }
+    return isRichTextEmpty(doc) ? null : <RichTextView doc={doc} className={className} />;
+  };
+
+  if (item.kind === "text") return <section className="free-block free-block--text">{text("richTitle", "free-block__title", "Heading", true)}{text("richBody", "free-block__body", "Add your message here.")}</section>;
   if (item.kind === "image") return item.imageUrl ? <figure className="free-block free-block--image"><img src={item.imageUrl} alt={item.alt ?? ""} /></figure> : <div className="free-block free-block--placeholder">Add an image</div>;
   if (item.kind === "button") return <div className="free-block free-block--button"><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.title || "Button"}</a></div>;
   if (item.kind === "divider") return <hr className="free-block free-block--divider" />;
-  return <section className="free-block free-block--container">{item.title ? inline("title", item.title, "free-block__title") : null}{inline("body", item.body || "Container content", "free-block__body")}</section>;
-}
-
-function startResize(event: PointerEvent<HTMLButtonElement>, item: VisualBlock, axis: "x" | "y" | "both", onResize?: CanvasEditorState["onResizeItem"]) {
-  event.preventDefault(); event.stopPropagation();
-  const host = event.currentTarget.closest<HTMLElement>(".newsletter-item"); if (!host) return;
-  const row = host.parentElement; if (!row) return;
-  const badge = host.querySelector<HTMLElement>(".newsletter-item__dims");
-  const startX = event.clientX; const startY = event.clientY; const rect = host.getBoundingClientRect(); const startWidth = rect.width; const startHeight = rect.height; const rowWidth = row.getBoundingClientRect().width || 1;
-  host.classList.add("newsletter-item--resizing");
-  let widthPct = Math.round((startWidth / rowWidth) * 100); let minHeightPx = Math.round(startHeight);
-  const move = (next: globalThis.PointerEvent) => {
-    const patch: Partial<ResponsiveLayout> = {};
-    if (axis === "x" || axis === "both") {
-      let width = Math.max(10, Math.min(100, ((startWidth + next.clientX - startX) / rowWidth) * 100));
-      if (!next.altKey) {
-        if (Math.abs(width - 50) <= 2.5) width = 50;
-        if (Math.abs(width - 100) <= 2.5) width = 100;
-        const sibling = Array.from(row.children).find((node) => node !== host && (node as HTMLElement).classList.contains("newsletter-item")) as HTMLElement | undefined;
-        if (sibling) { const siblingWidth = sibling.getBoundingClientRect().width / rowWidth * 100; if (Math.abs(width - siblingWidth) <= 2.5) width = siblingWidth; }
-      }
-      widthPct = Math.round(width); patch.width = widthPct;
-    }
-    if (axis === "y" || axis === "both") {
-      minHeightPx = Math.max(0, Math.round(startHeight + next.clientY - startY)); patch.minHeight = minHeightPx;
-    }
-    if (badge) badge.textContent = [axis !== "y" ? `${widthPct}% wide` : null, axis !== "x" ? `${minHeightPx}px tall` : null].filter(Boolean).join(" · ");
-    onResize?.(item.id, patch);
-  };
-  const end = () => { host.classList.remove("newsletter-item--resizing"); globalThis.removeEventListener("pointermove", move); globalThis.removeEventListener("pointerup", end); };
-  globalThis.addEventListener("pointermove", move); globalThis.addEventListener("pointerup", end);
+  return <section className="free-block free-block--container">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</section>;
 }
 
 export function ItemCanvas({ content, page, native, editor }: {
@@ -75,23 +99,41 @@ export function ItemCanvas({ content, page, native, editor }: {
     "--page-padding-left": `${pageDocument.paddingLeft}px`, "--page-row-gap": `${pageDocument.rowGap}px`,
   } as CSSProperties;
 
-  const drop = (event: React.DragEvent, rowId: string, zone: "above" | "below" | "left" | "right") => {
-    const itemId = event.dataTransfer.getData("application/x-newsletter-item"); if (!itemId) return;
-    event.preventDefault(); event.stopPropagation(); editor?.onMoveItem?.(itemId, rowId, zone);
-  };
-  const allowDrop = (event: React.DragEvent) => { if (event.dataTransfer.types.includes("application/x-newsletter-item")) event.preventDefault(); };
+  // Selection is an array so shift-click can extend it; `selectedId` stays the
+  // primary (first) selection for callers that only handle one item.
+  const selectedIds = editor?.selectedIds ?? (editor?.selectedId ? [editor.selectedId] : []);
 
-  return <div className={`item-page item-page--${page}${editor ? " item-page--editing" : ""}`} style={pageVars}>
+  return <ThemeStyles theme={document.theme}><div
+    ref={editor?.surfaceRef as RefObject<HTMLDivElement> | undefined}
+    className={`item-page item-page--${page}${editor ? " item-page--editing" : ""}`}
+    style={pageVars}
+    // A click that reaches the page background means nothing was hit.
+    onPointerDown={editor ? (event) => { if (event.target === event.currentTarget) editor.onDeselect?.(); } : undefined}
+    // While editing, links are content to be edited rather than followed —
+    // clicking the "Cow Appreciation Day" card should put a caret in it, not
+    // jump the page down to the events section.
+    //
+    // Capture phase, not bubble: Next.js <Link> handles the click on the anchor
+    // itself, which would already have navigated by the time a bubbled handler
+    // here ran. Stopping it on the way down is the only reliable point.
+    onClickCapture={editor ? (event) => {
+      if ((event.target as HTMLElement).closest("a")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    } : undefined}
+  >
     <div className="item-page__content">
       {pageDocument.rows.map((row) => {
-        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => Boolean(item) && !item.style?.hidden);
+        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => item !== undefined && !item.style?.hidden);
         if (!items.length) return null;
         return <div className="item-row-shell" key={row.id} data-row-id={row.id}>
-          {editor ? <button className="item-drop item-drop--above" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "above")}>Place above</button> : null}
           <div className={`item-row${row.keepColumnsOnPhone ? " item-row--phone-columns" : ""}${items.length > 1 ? " item-row--paired" : ""}`} style={{ gap: `${row.gap}px`, alignItems: row.align }}>
-            {editor ? <button className="item-drop item-drop--side item-drop--left" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "left")}>Left</button> : null}
             {items.map((item) => {
-              const selected = editor?.selectedId === item.id; const inner = item.kind === "native" ? native[item.nativeId ?? item.id] : <FreeItem item={item} editor={editor} />;
+              const selectedIndex = selectedIds.indexOf(item.id);
+              const selected = selectedIndex >= 0;
+              const primary = selectedIndex === 0;
+              const inner = item.kind === "native" ? native[item.nativeId ?? item.id] : <FreeItem item={item} editor={editor} />;
               if (!inner) return null;
               const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
                 if (event.target !== event.currentTarget) return;
@@ -102,28 +144,44 @@ export function ItemCanvas({ content, page, native, editor }: {
                 if (event.key === "ArrowDown") { event.preventDefault(); editor?.onNudgeItem?.(item.id, 0, amount); }
               };
               return <div
-                key={item.id} data-item-id={item.id} draggable={Boolean(editor)} tabIndex={editor ? 0 : undefined}
-                className={`newsletter-item newsletter-item--${item.kind}${selected ? " newsletter-item--selected" : ""}`}
+                key={item.id} data-item-id={item.id} tabIndex={editor ? 0 : undefined}
+                className={`newsletter-item newsletter-item--${item.kind}${selected ? " newsletter-item--selected" : ""}${primary ? " newsletter-item--primary" : ""}`}
                 style={styleForBlock(item.style)}
-                onDragStart={editor ? (event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-newsletter-item", item.id); } : undefined}
-                onClick={editor ? (event) => { event.preventDefault(); event.stopPropagation(); editor.onSelect?.(item.id); } : undefined}
+                onPointerDown={editor ? (event) => {
+                  // Text editing owns its own pointer handling; don't steal it.
+                  if ((event.target as HTMLElement).closest(".rt-editable, .newsletter-item__resize")) return;
+                  event.stopPropagation();
+                  editor.onSelect?.(item.id, event.shiftKey);
+                } : undefined}
                 onKeyDown={editor ? keyboard : undefined}
               >
-                {editor ? <><span className="newsletter-item__grip" aria-label={`Drag ${item.label}`}>⋮⋮</span><span className="newsletter-item__label">{item.label}</span></> : null}
+                {editor ? <>
+                  <span
+                    className="newsletter-item__grip"
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={`Drag ${item.label}`}
+                    onPointerDown={(event) => { event.stopPropagation(); editor.onSelect?.(item.id, event.shiftKey); editor.onStartDrag?.(event, item.id); }}
+                  >⋮⋮</span>
+                  <span className="newsletter-item__label">{item.label}</span>
+                </> : null}
                 {inner}
                 {editor && selected ? <>
                   <span className="newsletter-item__dims" aria-hidden="true" />
-                  <button type="button" className="newsletter-item__resize newsletter-item__resize--x" aria-label={`Resize width of ${item.label}`} onPointerDown={(event) => startResize(event, item, "x", editor.onResizeItem)} />
-                  <button type="button" className="newsletter-item__resize newsletter-item__resize--y" aria-label={`Resize height of ${item.label}`} onPointerDown={(event) => startResize(event, item, "y", editor.onResizeItem)} />
-                  <button type="button" className="newsletter-item__resize newsletter-item__resize--xy" aria-label={`Resize ${item.label}`} onPointerDown={(event) => startResize(event, item, "both", editor.onResizeItem)} />
+                  {RESIZE_HANDLES.map((handle) => <button
+                    key={handle}
+                    type="button"
+                    className={`newsletter-item__resize newsletter-item__resize--${handle}`}
+                    aria-label={`Resize ${item.label} from ${handle}`}
+                    onPointerDown={(event) => { event.stopPropagation(); editor.onStartResize?.(event, item.id, handle); }}
+                  />)}
                 </> : null}
               </div>;
             })}
-            {editor ? <button className="item-drop item-drop--side item-drop--right" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "right")}>Right</button> : null}
           </div>
-          {editor ? <button className="item-drop item-drop--below" type="button" onDragOver={allowDrop} onDrop={(event) => drop(event, row.id, "below")}>Place below</button> : null}
         </div>;
       })}
     </div>
-  </div>;
+    {editor?.overlay ?? null}
+  </div></ThemeStyles>;
 }
