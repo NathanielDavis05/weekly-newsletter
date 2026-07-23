@@ -1,0 +1,46 @@
+import { env } from "cloudflare:workers";
+import { mergeAiContent } from "../../../content/merge";
+import { getEditorContent } from "../../../content/store";
+import { getEditorUser } from "../../../edit-auth";
+import { createNextIssue } from "../../../edit/publishing/nextIssue";
+import { visualDocument } from "../../../content/visual";
+
+function jsonFromResponse(body: Record<string, unknown>): string {
+  if (typeof body.output_text === "string") return body.output_text;
+  const output = Array.isArray(body.output) ? body.output : [];
+  for (const item of output) for (const part of Array.isArray((item as Record<string, unknown>).content) ? (item as Record<string, unknown>).content as unknown[] : []) {
+    const text = (part as Record<string, unknown>).text;
+    if (typeof text === "string") return text;
+  }
+  return "";
+}
+
+async function aiServiceError(response: Response): Promise<string> {
+  const body = await response.json().catch(() => ({})) as { error?: { code?: string } };
+  if (body.error?.code === "insufficient_quota") {
+    return "The AI account has no available API credit. Add billing or credits to the OpenAI API account, then try again.";
+  }
+  if (response.status === 401) return "The AI API key was not accepted. Replace the site's OPENAI_API_KEY secret, then try again.";
+  return "The AI service could not prepare this issue. Please try again.";
+}
+
+export async function POST(request: Request) {
+  if (!(await getEditorUser())) return Response.json({ error: "Not authorized" }, { status: 401 });
+  const notes = String((await request.json().catch(() => ({})) as { notes?: string }).notes ?? "").trim();
+  if (!notes) return Response.json({ error: "Add your weekly notes first." }, { status: 400 });
+  const apiKey = (env as Record<string, unknown>).OPENAI_API_KEY;
+  if (typeof apiKey !== "string" || !apiKey) return Response.json({ error: "AI is not configured yet. Add the OPENAI_API_KEY secret to this site, then try again." }, { status: 503 });
+  const { draft } = await getEditorContent();
+  const rolled = createNextIssue(draft, visualDocument(draft));
+  // Layout is editor-owned state, not editorial copy. Do not send it to the
+  // model, and restore it below even if a model response includes one.
+  const { visual: _visual, ...editorialDraft } = rolled.content;
+  const instructions = "You are the careful editorial assistant for a Chick-fil-A team newsletter. Return ONLY valid JSON with exactly {content, summary}. content must be the supplied editorial draft updated from the manager notes. Preserve its structure, links unless notes change them, and all unknown fields. Never include a visual field: layout, section visibility, placement, sizing, media, and styling are managed by the editor and must not change. Write concise, warm, practical copy. Update the shared scorecard when scores are supplied. Never invent dates, people, scores, links, or policy details; leave unclear fields unchanged. summary is an array of 3-8 short plain-English bullets describing only changes you made.";
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "gpt-5-mini", reasoning: { effort: "low" }, input: [{ role: "system", content: instructions }, { role: "user", content: `Manager notes:\n${notes}\n\nEditorial draft to update:\n${JSON.stringify(editorialDraft)}` }] }) });
+  if (!response.ok) return Response.json({ error: await aiServiceError(response) }, { status: response.status === 429 ? 429 : 502 });
+  try {
+    const payload = JSON.parse(jsonFromResponse(await response.json() as Record<string, unknown>)) as { content?: unknown; summary?: unknown };
+    if (!payload.content || !Array.isArray(payload.summary)) throw new Error("invalid response");
+    return Response.json({ content: mergeAiContent(rolled.content, payload.content), summary: payload.summary.filter((x): x is string => typeof x === "string").slice(0, 8), rollover: rolled.summary });
+  } catch { return Response.json({ error: "The AI returned an unusable draft. Please try again." }, { status: 502 }); }
+}

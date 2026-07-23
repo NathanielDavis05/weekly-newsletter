@@ -25,6 +25,28 @@ export const newsletterVersions = sqliteTable("newsletter_versions", {
   author: text("author"),
 });
 
+// One row per reader who signed the current issue. `issueKey` is derived from
+// the published issue's dated hero line, so each week's newsletter keeps its own
+// roster. The primary key folds in the lowercased name so re-signing updates the
+// timestamp instead of creating a duplicate.
+export const readerSignins = sqliteTable("reader_signins", {
+  id: text("id").primaryKey(),
+  issueKey: text("issue_key").notNull(),
+  name: text("name").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// One row per published issue (one per week, keyed the same way as
+// reader_signins). Content is denormalized here rather than referencing
+// newsletter_versions so the archive keeps working even if version history is
+// ever pruned. Re-publishing the same week overwrites its row in place.
+export const newsletterIssues = sqliteTable("newsletter_issues", {
+  issueKey: text("issue_key").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  publishedAt: text("published_at").notNull(),
+});
+
 // One row per uploaded file. The bytes live in R2 under `key`; this table is
 // what makes the media library searchable and lets alt text travel with the
 // image rather than being retyped at every use.

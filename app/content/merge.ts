@@ -29,6 +29,19 @@ function mergeValue(base: unknown, override: unknown): unknown {
 /** Merge parsed, possibly-partial stored content onto the canonical defaults. */
 export function mergeContent(stored: unknown): NewsletterContent {
   const merged = mergeValue(defaultContent, stored) as NewsletterContent;
+  // Older saved issues kept the compact home scorecard and detailed results
+  // table separately. Fold them into the shared source on first read so every
+  // existing issue keeps its current content while future edits stay linked.
+  if (isPlainObject(stored) && (!isPlainObject(stored.shared) || stored.shared.scorecard === undefined)) {
+    const home = isPlainObject(stored) && isPlainObject(stored.home) && isPlainObject(stored.home.scorecard) ? stored.home.scorecard : {};
+    const results = isPlainObject(stored) && isPlainObject(stored.results) ? stored.results : {};
+    const table = isPlainObject(results) && isPlainObject(results.scorecard) ? results.scorecard : {};
+    merged.shared.scorecard = {
+      ...merged.shared.scorecard,
+      ...home,
+      table: { ...merged.shared.scorecard.table, ...table },
+    };
+  }
   // `visual` is intentionally not part of the authored newsletter defaults.
   // Keep it explicitly when a saved draft is read back, otherwise the generic
   // default merge would drop every freeform position, size, and style setting.
@@ -36,6 +49,18 @@ export function mergeContent(stored: unknown): NewsletterContent {
     merged.visual = stored.visual as NewsletterContent["visual"];
   }
   return withVisualDocument(merged);
+}
+
+/**
+ * Applies copy proposed by the AI without granting it control of the editor's
+ * layout document. `visual` owns section visibility, placement, sizing, and
+ * media; treating model output as authoritative there can make sections appear
+ * to vanish even when the request was only to change copy.
+ */
+export function mergeAiContent(current: NewsletterContent, generated: unknown): NewsletterContent {
+  const merged = mergeContent(generated);
+  merged.visual = current.visual ? structuredClone(current.visual) : undefined;
+  return merged;
 }
 
 /** Safely parse a JSON content string, falling back to defaults on any error. */

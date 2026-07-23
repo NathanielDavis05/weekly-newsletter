@@ -2,10 +2,17 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { NewsletterContent, VisualPageId } from "../content/types";
 import { visualDocument } from "../content/visual";
+import { fluidFontClamp } from "../content/theme";
 import { SiteMenu } from "./SiteMenu";
 import type { CanvasEditorState } from "./ItemCanvas";
 
 type HeroVars = CSSProperties & Record<`--${string}`, string | number>;
+
+/** A clamp that eases a hero dimension from its phone value to its desktop value
+ *  across the viewport band, so the header scales up smoothly rather than
+ *  snapping at 640px. Reuses the shared font-clamp math (it is unit-agnostic px
+ *  interpolation). Authors still only set phone/desktop endpoints. */
+const heroFluid = (phone: number, desktop: number) => fluidFontClamp(phone, desktop);
 
 function colorWithOpacity(color: string, opacity: number) {
   const trimmed = color.trim();
@@ -80,6 +87,18 @@ export function SiteHero({
     "--hero-desktop-title-size": `${header.desktop.titleSize}px`,
     "--hero-desktop-kicker-size": `${header.desktop.kickerSize}px`,
     "--hero-desktop-menu-size": `${header.desktop.menuSize}px`,
+    // Pre-computed clamps so the hero eases phone -> desktop instead of snapping.
+    "--hero-fluid-min-height": heroFluid(header.phone.minHeight, header.desktop.minHeight),
+    "--hero-fluid-padding-top": heroFluid(header.phone.paddingTop, header.desktop.paddingTop),
+    "--hero-fluid-padding-right": heroFluid(header.phone.paddingRight, header.desktop.paddingRight),
+    "--hero-fluid-padding-bottom": heroFluid(header.phone.paddingBottom, header.desktop.paddingBottom),
+    "--hero-fluid-padding-left": heroFluid(header.phone.paddingLeft, header.desktop.paddingLeft),
+    "--hero-fluid-content-gap": heroFluid(header.phone.contentGap, header.desktop.contentGap),
+    "--hero-fluid-content-width": heroFluid(header.phone.contentWidth, header.desktop.contentWidth),
+    "--hero-fluid-brand-size": heroFluid(header.phone.brandSize, header.desktop.brandSize),
+    "--hero-fluid-title-size": heroFluid(header.phone.titleSize, header.desktop.titleSize),
+    "--hero-fluid-kicker-size": heroFluid(header.phone.kickerSize, header.desktop.kickerSize),
+    "--hero-fluid-menu-size": heroFluid(header.phone.menuSize, header.desktop.menuSize),
     "--hero-content-align": header.phone.textAlign,
     "--hero-content-justify": justify(header.phone.textAlign),
     "--hero-desktop-content-align": header.desktop.textAlign,

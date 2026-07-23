@@ -60,8 +60,6 @@ const PLACEHOLDER_TEXT = [
 /** Hrefs that look filled in but go nowhere. */
 const PLACEHOLDER_HREFS = ["", "#", "https://", "http://", "/#", "about:blank"];
 
-const PAGES: VisualPageId[] = ["home", "training", "results"];
-
 /** Trailing punctuation varies between templates, so it is ignored. */
 const isPlaceholderText = (value: string) =>
   PLACEHOLDER_TEXT.includes(value.trim().toLowerCase().replace(/[.!…]+$/, ""));
@@ -76,7 +74,7 @@ function fixedLinks(content: NewsletterContent): Array<{ path: string; label: st
     { path: "home.overview.actionCard.linkHref", label: "Action card link", href: home.overview.actionCard.linkHref, text: home.overview.actionCard.linkLabel },
     { path: "home.overview.eventCard.href", label: "Event card", href: home.overview.eventCard.href, text: home.overview.eventCard.title },
     { path: "home.overview.recognitionCard.href", label: "Recognition card", href: home.overview.recognitionCard.href, text: home.overview.recognitionCard.title },
-    { path: "home.scorecard.buttonHref", label: "Scorecard button", href: home.scorecard.buttonHref, text: home.scorecard.buttonLabel },
+    { path: "shared.scorecard.buttonHref", label: "Scorecard button", href: shared.scorecard.buttonHref, text: shared.scorecard.buttonLabel },
     { path: "home.grow.buttonHref", label: "Grow button", href: home.grow.buttonHref, text: home.grow.buttonLabel },
     { path: "training.primaryButton.href", label: "Training button", href: training.primaryButton.href, text: training.primaryButton.label },
     { path: "training.helpLink.href", label: "Training help link", href: training.helpLink.href, text: training.helpLink.label },
@@ -114,7 +112,7 @@ const MIN_MOBILE_FONT_PX = 12;
 
 function collectRichText(document: VisualDocument): Array<{ doc: RichText; label: string; page?: VisualPageId; path?: string; itemId?: string }> {
   const out: Array<{ doc: RichText; label: string; page?: VisualPageId; path?: string; itemId?: string }> = [];
-  for (const page of PAGES) {
+  for (const page of Object.keys(document.pages)) {
     for (const item of document.pages[page].items) {
       if (item.richTitle) out.push({ doc: item.richTitle, label: `${item.label} heading`, page, itemId: item.id });
       if (item.richBody) out.push({ doc: item.richBody, label: `${item.label} text`, page, itemId: item.id });
@@ -158,7 +156,7 @@ export function validateNewsletter(
   }
 
   // --- freeform elements ---------------------------------------------------
-  for (const page of PAGES) {
+  for (const page of Object.keys(document.pages)) {
     for (const item of document.pages[page].items) {
       if (item.kind === "button") {
         if (isPlaceholderHref(item.href)) {
@@ -238,7 +236,7 @@ export function validateNewsletter(
   issues.push(...validateTheme(document.theme, document.pages.home.background));
 
   // --- hidden sections ------------------------------------------------------
-  for (const page of PAGES) {
+  for (const page of Object.keys(document.pages)) {
     for (const item of document.pages[page].items) {
       if (item.kind === "native" && item.style?.hidden) {
         add({

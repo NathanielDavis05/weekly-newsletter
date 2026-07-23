@@ -12,6 +12,7 @@ const { getByPath, getStringByPath, setByPath } = await import("../app/content/p
 const { visualDocument, defaultVisualDocument } = await import("../app/content/visual.ts");
 const { parseRichText, richTextToPlain, richTextFromPlain } = await import("../app/content/richtext.ts");
 const { defaultContent } = await import("../app/content/defaults.ts");
+const { mergeAiContent, mergeContent } = await import("../app/content/merge.ts");
 
 // ---------------------------------------------------------------------------
 // Path access
@@ -48,6 +49,34 @@ test("writing into an array element works", () => {
   const draft = structuredClone(defaultContent);
   assert.equal(setByPath(draft, "training.statusRows.0.label", "New label"), true);
   assert.equal(draft.training.statusRows[0].label, "New label");
+});
+
+test("legacy scorecards migrate into one shared CMS source", () => {
+  const legacy = structuredClone(defaultContent);
+  delete legacy.shared.scorecard;
+  legacy.home.scorecard.heading = "Shared guest experience";
+  legacy.results.scorecard.rows[0].june = "91%";
+
+  const migrated = mergeContent(legacy);
+  assert.equal(migrated.shared.scorecard.heading, "Shared guest experience");
+  assert.equal(migrated.shared.scorecard.table.rows[0].june, "91%");
+});
+
+test("AI copy changes cannot modify the saved visual layout", () => {
+  const current = structuredClone(defaultContent);
+  const layout = defaultVisualDocument();
+  const overview = layout.pages.home.items.find((item) => item.id === "home-overview-intro");
+  assert.ok(overview, "the overview block exists in the default layout");
+  overview.style = { hidden: false, phone: { width: 100 }, desktop: { width: 75 } };
+  current.visual = layout;
+
+  const generated = structuredClone(current);
+  generated.home.recognition.feature.body = "Ava, Naomi, and Nathaniel were mentioned in guest surveys.";
+  generated.visual.pages.home.items.find((item) => item.id === "home-overview-intro").style.hidden = true;
+
+  const merged = mergeAiContent(current, generated);
+  assert.equal(merged.home.recognition.feature.body, "Ava, Naomi, and Nathaniel were mentioned in guest surveys.");
+  assert.deepEqual(merged.visual, current.visual, "AI output cannot hide, move, or resize editor sections");
 });
 
 test("writing a path that does not exist fails loudly rather than inventing one", () => {
