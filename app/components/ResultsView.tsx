@@ -67,7 +67,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
             <th>{f("shared.scorecard.table.headerJun", scorecard.table.headerJun)}</th>
           </tr></thead>
           <tbody>
-            {scorecard.table.rows.map((row, index) => <tr key={row.label}>
+            {scorecard.table.rows.map((row, index) => <tr key={index}>
               <th>{f(`shared.scorecard.table.rows.${index}.label`, row.label)}</th>
               <td>{f(`shared.scorecard.table.rows.${index}.goal`, row.goal)}</td>
               <td>{f(`shared.scorecard.table.rows.${index}.april`, row.april)}</td>

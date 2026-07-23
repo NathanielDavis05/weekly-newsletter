@@ -98,7 +98,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-anniversaries": <article className="mini-card">
       <p className="card-kicker">{f("home.recognition.anniversaries.kicker", home.recognition.anniversaries.kicker)}</p>
-      {home.recognition.anniversaries.entries.map((entry, index) => <Fragment key={`${entry.name}-${index}`}>
+      {home.recognition.anniversaries.entries.map((entry, index) => <Fragment key={index}>
         {index > 0 ? <hr /> : null}
         <h3>{f(`home.recognition.anniversaries.entries.${index}.name`, entry.name)}</h3>
         <p>{f(`home.recognition.anniversaries.entries.${index}.detail`, entry.detail)}</p>
@@ -110,7 +110,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
       <h2>{f("home.events.heading", home.events.heading)}</h2>
       <p className="section-intro">{f("home.events.intro", home.events.intro)}</p>
       <div className="event-list">
-        {home.events.items.map((event, index) => <div className={`event-row${event.featured ? " event-row--featured" : ""}`} key={`${event.date}-${event.name}`}>
+        {home.events.items.map((event, index) => <div className={`event-row${event.featured ? " event-row--featured" : ""}`} key={index}>
           <time>{f(`home.events.items.${index}.date`, event.date)}</time>
           <span>{f(`home.events.items.${index}.name`, event.name)}</span>
         </div>)}

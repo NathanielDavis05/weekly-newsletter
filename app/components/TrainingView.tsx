@@ -22,7 +22,7 @@ export function TrainingView({ content, editor }: { content: NewsletterContent; 
     </section>,
 
     "training-status": <section className="status-list" aria-label="Training deadlines">
-      {training.statusRows.map((row, index) => <div className="status-row" key={`${row.label}-${index}`}>
+      {training.statusRows.map((row, index) => <div className="status-row" key={index}>
         <span className={`status-token${row.tokenRed ? " status-token--red" : ""}`} aria-hidden="true">{row.token}</span>
         <div>
           <small>{f(`training.statusRows.${index}.label`, row.label)}</small>
@@ -50,7 +50,7 @@ export function TrainingView({ content, editor }: { content: NewsletterContent; 
       <p className="eyebrow">{f("training.covers.eyebrow", training.covers.eyebrow)}</p>
       <h2>{f("training.covers.heading", training.covers.heading)}</h2>
       <ul className="check-list">
-        {training.covers.items.map((item, index) => <li key={`${item}-${index}`}>
+        {training.covers.items.map((item, index) => <li key={index}>
           <span aria-hidden="true">✓</span>{f(`training.covers.items.${index}`, item)}
         </li>)}
       </ul>
