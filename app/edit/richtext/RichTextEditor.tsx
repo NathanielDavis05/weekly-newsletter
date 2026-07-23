@@ -151,9 +151,11 @@ export function RichTextEditor({
     const host = hostRef.current;
     if (!host) return;
     const next = domToRichText(host);
-    // No revision bump: the DOM already shows this, and remounting would move
-    // the caret to the wrong place mid-word.
-    setDoc(next);
+    // Keep React completely out of the editable subtree while the user types.
+    // Updating state here redraws the children of a contentEditable element;
+    // on inline fields that redraw can reset the caret and make the page jump
+    // to the selected item. The DOM is already the source of truth until blur.
+    docRef.current = next;
     onChange(next);
   }, [onChange]);
 
@@ -286,6 +288,9 @@ export function RichTextEditor({
         onBlur={(event) => {
           // Clicking a toolbar control must not count as leaving the field.
           if (event.relatedTarget instanceof Node && event.relatedTarget.closest?.(".rt-toolbar")) return;
+          // Once focus has left, it is safe for React's model to catch up with
+          // the DOM. Doing this during input is what displaced the caret.
+          setDoc(docRef.current);
           setFocused(false);
           setRect(null);
         }}
