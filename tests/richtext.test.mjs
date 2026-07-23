@@ -253,7 +253,7 @@ test("active format with no selection is inert", () => {
 test("the default visual document is at the current schema version", () => {
   // Bumped to 8 when the site theme was added; the migration tests below prove
   // documents saved at earlier versions still upgrade cleanly.
-  assert.equal(defaultVisualDocument().version, 9);
+  assert.equal(defaultVisualDocument().version, 10);
 });
 
 test("v6 freeform blocks gain rich text without losing their copy", () => {
@@ -276,7 +276,7 @@ test("v6 freeform blocks gain rich text without losing their copy", () => {
   };
 
   const migrated = visualDocument(legacy);
-  assert.equal(migrated.version, 9);
+  assert.equal(migrated.version, 10);
 
   const card = migrated.pages.home.items.find((item) => item.id === "legacy-card");
   assert.ok(card, "the existing block survives the migration");
@@ -318,7 +318,7 @@ test("native newsletter sections are left untouched by the rich-text migration",
 
 test("a document with no visual data falls back to the defaults", () => {
   const migrated = visualDocument({});
-  assert.equal(migrated.version, 9);
+  assert.equal(migrated.version, 10);
   assert.ok(migrated.pages.home.items.length > 0);
   assert.ok(migrated.pages.training.items.length > 0);
   assert.ok(migrated.pages.results.items.length > 0);

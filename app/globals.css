@@ -156,7 +156,10 @@ h3 {
 }
 
 .site-shell {
-  width: min(100%, 820px);
+  /* Presented as a website, not a fixed email column: the shell uses the screen
+     on desktop while each page's own content width (set in the editor) keeps the
+     reading measure comfortable inside it. */
+  width: min(100%, 1080px);
   min-height: 100vh;
   margin-inline: auto;
   overflow: clip;
@@ -1417,12 +1420,20 @@ h3 {
   }
 }
 
-/* Keep the public desktop presentation deliberately compact; older desktop rules
-   above are retained for legacy blocks but must not expand the new briefing. */
+/* Baseline desktop rhythm for the briefing sections. Wider screens open this up
+   further below so the page reads as a website rather than a narrow column. */
 @media (min-width: 640px) {
   .section { padding: 34px 34px; }
   .section--overview { padding-top: 20px; }
   .detail-main { padding: 30px 42px 52px; }
+}
+
+/* On large screens the shell widens to 1080px; give the sections more horizontal
+   breathing room so content uses the space instead of hugging a narrow gutter. */
+@media (min-width: 1000px) {
+  .section { padding: 44px 56px; }
+  .detail-main { padding: 40px 64px 64px; }
+  .site-footer { padding: 28px 56px 40px; }
 }
 
 /* Persisted freeform layout. Elements remain responsive but may be positioned,

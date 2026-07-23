@@ -294,14 +294,36 @@ export interface VisualPageDocument {
   rowGap: number;
 }
 
+/**
+ * A saved design preset: a full snapshot of the site theme under a name, so the
+ * whole newsletter's look can be swapped in one click. Applying a Look replaces
+ * `VisualDocument.theme` wholesale.
+ */
+export interface Look {
+  id: string;
+  name: string;
+  theme: SiteTheme;
+}
+
+/**
+ * A reusable block template. Stores a freeform block (with its style) so it can
+ * be dropped into any issue. The stored `block.id` is a template id; a fresh id
+ * is generated each time the block is inserted.
+ */
+export interface SavedBlock {
+  id: string;
+  name: string;
+  block: VisualBlock;
+}
+
 export interface VisualDocument {
   /**
-   * v7 introduced rich text on freeform blocks, v8 the site theme, and v9
-   * formatting overrides for the native sections. Older documents are upgraded
-   * on read by `visualDocument()` — nothing is rewritten in D1 until the next
-   * save.
+   * v7 introduced rich text on freeform blocks, v8 the site theme, v9
+   * formatting overrides for the native sections, and v10 saved Looks and
+   * reusable blocks. Older documents are upgraded on read by `visualDocument()`
+   * — nothing is rewritten in D1 until the next save.
    */
-  version: 9;
+  version: 10;
   pages: Record<VisualPageId, VisualPageDocument>;
   headers: Record<VisualPageId, HeaderStyle>;
   /** Brand palette and global text styles shared by every page. */
@@ -313,6 +335,12 @@ export interface VisualDocument {
    * this only adds formatting. Absent key = render the plain string.
    */
   richOverrides: Record<string, RichText>;
+  /** Saved design presets. Applying one swaps the whole site's look. */
+  looks: Look[];
+  /** The Look most recently applied, for highlighting in the design panel. */
+  activeLookId?: string;
+  /** Reusable block templates, insertable into any page. */
+  savedBlocks: SavedBlock[];
 }
 
 export interface VisualRow {

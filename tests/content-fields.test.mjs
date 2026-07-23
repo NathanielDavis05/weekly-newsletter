@@ -67,9 +67,9 @@ test("an array cannot be given a non-numeric key", () => {
 // Overrides in the document
 // ---------------------------------------------------------------------------
 
-test("the default document carries an empty override map at v9", () => {
+test("the default document carries an empty override map at v10", () => {
   const doc = defaultVisualDocument();
-  assert.equal(doc.version, 9);
+  assert.equal(doc.version, 10);
   assert.deepEqual(doc.richOverrides, {});
 });
 
@@ -88,7 +88,7 @@ test("a v8 document gains an empty override map without losing anything", () => 
     },
   };
   const migrated = visualDocument(legacy);
-  assert.equal(migrated.version, 9);
+  assert.equal(migrated.version, 10);
   assert.deepEqual(migrated.richOverrides, {});
   assert.equal(richTextToPlain(migrated.pages.home.items.find((i) => i.id === "card").richTitle), "Kept");
 });

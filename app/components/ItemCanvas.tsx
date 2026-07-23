@@ -80,7 +80,12 @@ function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorSt
   };
 
   if (item.kind === "text") return <section className="free-block free-block--text">{text("richTitle", "free-block__title", "Heading", true)}{text("richBody", "free-block__body", "Add your message here.")}</section>;
-  if (item.kind === "image") return item.imageUrl ? <figure className="free-block free-block--image"><img src={item.imageUrl} alt={item.alt ?? ""} /></figure> : <div className="free-block free-block--placeholder">Add an image</div>;
+  // Plain <img>, not next/image: sources are arbitrary author-supplied URLs
+  // (uploads and pasted links) rendered inside newsletter markup that must stay
+  // portable to email/static contexts, where the optimiser and its loader do not
+  // apply. Lazy loading is the safe perf win available here.
+  // eslint-disable-next-line @next/next/no-img-element
+  if (item.kind === "image") return item.imageUrl ? <figure className="free-block free-block--image"><img src={item.imageUrl} alt={item.alt ?? ""} loading="lazy" /></figure> : <div className="free-block free-block--placeholder">Add an image</div>;
   if (item.kind === "button") return <div className="free-block free-block--button"><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.title || "Button"}</a></div>;
   if (item.kind === "divider") return <hr className="free-block free-block--divider" />;
   return <section className="free-block free-block--container">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</section>;

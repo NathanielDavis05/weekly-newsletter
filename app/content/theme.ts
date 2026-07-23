@@ -11,6 +11,7 @@
 
 import { parseColor, rgbToHex } from "./color";
 import { FONT_STACKS } from "./richtext";
+import type { Look } from "./types";
 
 export type TextStyleId =
   | "mainTitle"
@@ -97,6 +98,29 @@ export function defaultTheme(): SiteTheme {
   return { version: 1, palette: DEFAULT_PALETTE.map((token) => ({ ...token })), textStyles: defaultTextStyles(), recentColors: [] };
 }
 
+/** A copy of the default palette with specific token values overridden. */
+function paletteWith(overrides: Record<string, string>): ColorToken[] {
+  return DEFAULT_PALETTE.map((token) => ({ ...token, value: overrides[token.id] ?? token.value }));
+}
+
+function themeWithPalette(overrides: Record<string, string>): SiteTheme {
+  return { ...defaultTheme(), palette: paletteWith(overrides) };
+}
+
+/**
+ * Starter design presets. "Standard" is the brand default; the others recolour
+ * the palette so applying one restyles every linked element at once. Managers
+ * can save their own Looks on top of these.
+ */
+export function defaultLooks(): Look[] {
+  return [
+    { id: "look-standard", name: "Standard", theme: defaultTheme() },
+    { id: "look-holiday", name: "Holiday", theme: themeWithPalette({ brand: "#0f7b3b", brandDark: "#0a5a2b", warning: "#c62828", sand: "#e7f0e4" }) },
+    { id: "look-summer", name: "Summer", theme: themeWithPalette({ brand: "#ef6c00", brandDark: "#c85400", success: "#2e7d32", cream: "#fff7ec", sand: "#fbe6cf" }) },
+    { id: "look-somber", name: "Somber", theme: themeWithPalette({ brand: "#3f4b5b", brandDark: "#2b333f", cream: "#f2f1ee", sand: "#e2ded6", inkSoft: "#5a6675" }) },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Resolution
 // ---------------------------------------------------------------------------
@@ -121,9 +145,26 @@ export const styleVar = (id: TextStyleId, property: string) => `--text-${id}-${p
  * Flattens the theme into custom properties for the page root. Both the editor
  * canvas and the published page mount these, which is what keeps them matching.
  */
+/**
+ * Legacy semantic globals (declared in globals.css `:root`) that the native
+ * newsletter sections still reference directly. Re-declaring them on the theme
+ * root — an ancestor of the whole page — from the palette makes those sections
+ * follow the active Look too, so a Look flips the entire design, not just linked
+ * rich text. Anything not listed keeps its globals.css fallback.
+ */
+const LEGACY_COLOR_MAP: Array<[cssName: string, tokenId: string]> = [
+  ["red", "brand"], ["red-dark", "brandDark"], ["navy", "ink"], ["navy-soft", "inkSoft"],
+  ["green", "success"], ["gold", "warning"], ["cream", "cream"], ["paper", "surface"],
+];
+
 export function themeToCssVars(theme: SiteTheme): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const token of theme.palette) vars[tokenVar(token.id)] = token.value;
+
+  for (const [cssName, tokenId] of LEGACY_COLOR_MAP) {
+    const token = theme.palette.find((entry) => entry.id === tokenId);
+    if (token) vars[`--${cssName}`] = token.value;
+  }
 
   for (const id of TEXT_STYLE_ORDER) {
     const style = theme.textStyles[id];

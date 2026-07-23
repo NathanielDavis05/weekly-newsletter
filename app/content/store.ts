@@ -22,7 +22,7 @@ async function snapshotLegacy(row: ContentRow) {
   const versionOf = (json: string | null) => { try { return (JSON.parse(json || "{}")?.visual?.version as number | undefined) ?? 0; } catch { return 0; } };
   // Bumped alongside VisualDocument.version so that each schema upgrade keeps
   // one pre-migration copy of the draft and published payloads in D1.
-  if (Math.max(versionOf(row.draft), versionOf(row.published)) >= 9) return;
+  if (Math.max(versionOf(row.draft), versionOf(row.published)) >= 10) return;
   const now = new Date().toISOString(); const db = binding();
   const statements = [];
   for (const [kind, content] of [["migration-draft", row.draft], ["migration-published", row.published]] as const) {

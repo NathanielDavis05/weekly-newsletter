@@ -1,12 +1,14 @@
 import type { CSSProperties } from "react";
 import { parseRichText, richTextToPlain, type RichText } from "./richtext";
-import { defaultTheme, parseTheme } from "./theme";
+import { defaultLooks, defaultTheme, parseTheme } from "./theme";
 import type {
   BlockStyle,
   HeaderDeviceStyle,
   HeaderStyle,
+  Look,
   NewsletterContent,
   ResponsiveLayout,
+  SavedBlock,
   VisualBlock,
   VisualDocument,
   VisualPageDocument,
@@ -93,18 +95,20 @@ function defaultPage(page: VisualPageId): VisualPageDocument {
   return {
     items: seed.items.map(([id, label]) => ({ id, kind: "native", nativeId: id, label })),
     rows: seed.rows.map((itemIds, index) => ({ id: `${page}-row-${index + 1}`, itemIds, gap: 16, align: "stretch", keepColumnsOnPhone: false })),
-    background: "#fbf7ef", contentWidth: page === "home" ? 760 : 720, minHeight: 0,
+    background: "#fbf7ef", contentWidth: page === "home" ? 900 : 860, minHeight: 0,
     paddingTop: 30, paddingRight: 22, paddingBottom: 46, paddingLeft: 22, rowGap: 22,
   };
 }
 
 export function defaultVisualDocument(): VisualDocument {
   return {
-    version: 9,
+    version: 10,
     pages: { home: defaultPage("home"), training: defaultPage("training"), results: defaultPage("results") },
     headers: { home: defaultHeader("home"), training: defaultHeader("training"), results: defaultHeader("results") },
     theme: defaultTheme(),
     richOverrides: {},
+    looks: defaultLooks(),
+    savedBlocks: [],
   };
 }
 
@@ -252,13 +256,37 @@ function parseRichOverrides(raw: unknown): Record<string, RichText> {
   return out;
 }
 
+/**
+ * Normalises saved Looks. An absent field means an older (pre-v10) document, so
+ * the starter Looks are injected; a present-but-empty array is honoured (the
+ * manager deleted them on purpose).
+ */
+function parseLooks(raw: unknown): Look[] {
+  if (raw === undefined) return defaultLooks();
+  if (!Array.isArray(raw)) return defaultLooks();
+  return raw
+    .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+    .map((entry) => ({ id: shortText(entry.id, crypto.randomUUID()), name: shortText(entry.name, "Look"), theme: parseTheme(entry.theme) }))
+    .slice(0, 40);
+}
+
+/** Normalises reusable block templates, dropping anything that is not a block. */
+function parseSavedBlocks(raw: unknown): SavedBlock[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object" && isBlock(entry.block) && entry.block.kind !== "native")
+    .map((entry) => ({ id: shortText(entry.id, crypto.randomUUID()), name: shortText(entry.name, "Saved block"), block: normaliseBlock(entry.block as VisualBlock) }))
+    .slice(0, 60);
+}
+
 export function visualDocument(content: NewsletterContent): VisualDocument {
   const fallback = defaultVisualDocument(); const candidate = content.visual as unknown as Record<string, unknown> | undefined;
   if (!candidate || !candidate.pages) return fallback;
   const pages = candidate.pages as Partial<Record<VisualPageId, unknown>>;
   const headers = candidate.headers as Partial<Record<VisualPageId, HeaderStyle>> | undefined;
+  const activeLookId = typeof candidate.activeLookId === "string" ? candidate.activeLookId : undefined;
   return {
-    version: 9,
+    version: 10,
     pages: { home: migratePage("home", pages.home, fallback.pages.home), training: migratePage("training", pages.training, fallback.pages.training), results: migratePage("results", pages.results, fallback.pages.results) },
     headers: { home: normaliseHeader(headers?.home, fallback.headers.home), training: normaliseHeader(headers?.training, fallback.headers.training), results: normaliseHeader(headers?.results, fallback.headers.results) },
     // v7 -> v8: documents saved before the theme existed adopt the brand
@@ -267,6 +295,11 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
     // v8 -> v9: documents without overrides simply have none, and every native
     // field keeps rendering its plain string until someone formats it.
     richOverrides: parseRichOverrides(candidate.richOverrides),
+    // v9 -> v10: pre-v10 documents gain the starter Looks and an empty block
+    // library on read; nothing is lost.
+    looks: parseLooks(candidate.looks),
+    savedBlocks: parseSavedBlocks(candidate.savedBlocks),
+    ...(activeLookId ? { activeLookId } : {}),
   };
 }
 

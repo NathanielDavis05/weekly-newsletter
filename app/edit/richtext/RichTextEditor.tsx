@@ -92,7 +92,14 @@ export function RichTextEditor({
   // without clobbering in-progress typing.
   useEffect(() => {
     const incoming = parseRichText(value);
-    if (JSON.stringify(incoming) === JSON.stringify(docRef.current)) return;
+    // Compare against the *normalised* live model, not the raw one. The store
+    // round-trips every edit through parseRichText (rich overrides and block
+    // copy are both re-parsed on save), so the value prop that comes back after
+    // our own keystroke is the parsed form of what we already have. Comparing it
+    // against the raw DOM-derived model would mismatch on every input and remount
+    // the field mid-word — stealing the caret, dropping the selection, and
+    // scrolling the canvas to the top.
+    if (JSON.stringify(incoming) === JSON.stringify(parseRichText(docRef.current))) return;
     setDoc(incoming);
     setRevision((current) => current + 1);
   }, [value]);

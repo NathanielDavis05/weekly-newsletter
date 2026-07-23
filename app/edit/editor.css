@@ -8,6 +8,18 @@ button { cursor:pointer; }
 .builder-toolbar button,.builder-toolbar select,.toolbar-link { min-height:42px; border:1px solid #ccd3db; border-radius:10px; background:#fff; color:var(--builder-navy); padding:8px 13px; text-decoration:none; white-space:nowrap; }
 .builder-toolbar button:hover,.toolbar-link:hover,.builder-toolbar .is-active { border-color:#9aaabd; background:#f4f7fa; }
 .builder-toolbar .publish-button { background:var(--builder-red); border-color:var(--builder-red); color:white; font-weight:700; }
+/* Logical clusters (content actions, undo/redo) read as one unit and are set off
+   from neighbours by a hairline divider rather than raw spacing. */
+.toolbar-group { display:flex; align-items:center; gap:6px; }
+.toolbar-group + .device-switch, .device-switch + .toolbar-group, .toolbar-group + .toolbar-group, .device-switch + .device-switch { margin-left:6px; padding-left:12px; border-left:1px solid var(--builder-line); }
+/* Below ~1024px the row gets tight; tighten padding so clusters stay on one line
+   longer before the toolbar has to scroll. */
+@media (max-width:1024px) {
+  .builder-toolbar { gap:6px; }
+  .builder-toolbar button, .builder-toolbar select, .toolbar-link { padding:8px 10px; }
+  .toolbar-group { gap:4px; }
+  .toolbar-group + .device-switch, .device-switch + .toolbar-group, .toolbar-group + .toolbar-group, .device-switch + .device-switch { margin-left:4px; padding-left:8px; }
+}
 .builder-brand { display:grid; min-width:155px; margin-right:4px; }.builder-brand strong{font-size:15px}.builder-brand span{font-size:11px;color:#687687;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .device-switch { display:flex; border:1px solid #ccd3db; border-radius:10px; padding:2px; background:#f2f4f6; }.device-switch button{border:0;min-height:36px;padding:6px 10px;background:transparent}.device-switch .is-active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .save-state { margin-left:auto; font-size:12px; color:#506071; min-width:125px; }.save-state small{display:block;color:#8995a1}.save-state--error{color:#b10c2f}
@@ -95,7 +107,9 @@ button { cursor:pointer; }
   .builder-stage{padding:12px 10px max(76px,calc(66px + env(safe-area-inset-bottom)))}
   .builder-brand span{display:none}
   .builder-toolbar{min-height:58px}
-  .builder-drawer{top:58px;height:calc(100vh - 58px);padding-bottom:max(78px,calc(68px + env(safe-area-inset-bottom)))}
+  /* Full-width sheet on phones: a 320px panel left a dead sliver of canvas
+     showing through on the right, which read as unfinished. */
+  .builder-drawer{top:58px;right:0;width:auto;height:calc(100vh - 58px);padding-bottom:max(78px,calc(68px + env(safe-area-inset-bottom)))}
   .save-state{display:none}
   /* Precision tools stay available but move out of the primary flow. */
   .mode-switch{order:2}
@@ -537,6 +551,41 @@ button { cursor:pointer; }
 @media (max-width: 780px) {
   .rt-toolbar--compact { bottom: max(56px, calc(48px + env(safe-area-inset-bottom))); }
 }
+
+/* ---------------------------------------------------------------------------
+   Command palette (⌘K)
+   --------------------------------------------------------------------------- */
+.toolbar-cmdk { font-weight: 700; letter-spacing: .04em; color: #506071; }
+.cmdk-backdrop { position: fixed; inset: 0; z-index: 10500; display: grid; align-items: start; justify-items: center; padding: 12vh 16px 16px; background: rgba(13, 34, 56, .4); }
+.cmdk { width: min(560px, 100%); max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: 16px; box-shadow: 0 30px 80px rgba(13, 34, 56, .4); }
+.cmdk-input { border: 0; border-bottom: 1px solid var(--builder-line); padding: 18px 20px; font-size: 17px; color: var(--builder-navy); outline: none; }
+.cmdk-input::placeholder { color: #9aa4b0; }
+.cmdk-list { overflow-y: auto; padding: 6px; }
+.cmdk-empty { margin: 0; padding: 20px; text-align: center; color: #8995a1; font-size: 14px; }
+.cmdk-group { margin: 8px 10px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #9aa4b0; }
+.cmdk-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; border: 0; border-radius: 9px; background: transparent; text-align: left; color: var(--builder-navy); cursor: pointer; }
+.cmdk-item.is-active { background: #f0f5fb; box-shadow: inset 0 0 0 1px #cfe0f2; }
+.cmdk-item__label { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmdk-item__hint { flex: 0 0 auto; font-size: 11px; color: #9aa4b0; }
+.cmdk-foot { padding: 8px 14px; border-top: 1px solid var(--builder-line); font-size: 11px; color: #8995a1; }
+.cmdk-foot kbd { padding: 1px 5px; border: 1px solid var(--builder-line); border-radius: 5px; background: #f6f8fa; font: inherit; font-size: 10px; }
+
+/* ---------------------------------------------------------------------------
+   Looks (design presets)
+   --------------------------------------------------------------------------- */
+.look-list { display: grid; gap: 7px; margin-top: 10px; }
+.look-row { display: flex; align-items: stretch; gap: 5px; border: 1px solid #d8dde2; border-radius: 11px; background: #fff; overflow: hidden; }
+.look-row.is-active { border-color: var(--builder-red); box-shadow: 0 0 0 2px rgba(201, 14, 53, .12); }
+.look-row__apply { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 9px 11px; border: 0; background: none; text-align: left; font: inherit; cursor: pointer; color: var(--builder-navy); }
+.look-swatches { display: inline-flex; flex: 0 0 auto; border-radius: 5px; overflow: hidden; box-shadow: 0 0 0 1px rgba(13, 34, 56, .12); }
+.look-swatch { width: 14px; height: 22px; }
+.look-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 13px; }
+.look-row__name-input { min-width: 0; flex: 1; min-height: 32px; border: 1px solid #ccd3db; border-radius: 8px; padding: 4px 8px; font: inherit; font-size: 13px; }
+.look-row__tools { display: flex; align-items: center; padding-right: 5px; }
+.look-row__tools button { min-width: 30px; min-height: 30px; border: 0; background: none; color: #7a8794; font-size: 13px; border-radius: 7px; cursor: pointer; }
+.look-row__tools button:hover { background: #f2ece2; color: var(--builder-navy); }
+.look-row__tools .danger:hover { background: #fdeaee; color: #aa0c2d; }
+.saved-block__name { font-size: 14px; }
 
 /* ---------------------------------------------------------------------------
    Media library

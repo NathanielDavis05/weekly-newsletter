@@ -172,11 +172,13 @@ test("document colours include the palette and every style colour", () => {
 // Migration v7 -> v8
 // ---------------------------------------------------------------------------
 
-test("the default document is at v8 and carries a theme", () => {
+test("the default document is at v10 and carries a theme and starter Looks", () => {
   const doc = defaultVisualDocument();
-  assert.equal(doc.version, 9);
+  assert.equal(doc.version, 10);
   assert.ok(doc.theme);
   assert.equal(doc.theme.palette.length, theme.DEFAULT_PALETTE.length);
+  assert.ok(doc.looks.length >= 4, "starter Looks are present");
+  assert.equal(doc.looks[0].name, "Standard");
 });
 
 test("a v7 document gains the brand theme without losing its content", () => {
@@ -195,8 +197,10 @@ test("a v7 document gains the brand theme without losing its content", () => {
   };
 
   const migrated = visualDocument(legacy);
-  assert.equal(migrated.version, 9);
+  assert.equal(migrated.version, 10);
   assert.equal(migrated.theme.textStyles.body.fontSize, 16, "brand defaults are adopted");
+  assert.ok(migrated.looks.length >= 4, "a pre-v10 document gains the starter Looks");
+  assert.deepEqual(migrated.savedBlocks, [], "and an empty block library");
 
   const card = migrated.pages.home.items.find((item) => item.id === "card");
   assert.ok(card, "existing content survives the theme migration");

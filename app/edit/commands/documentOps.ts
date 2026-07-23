@@ -10,6 +10,7 @@
 // rather than producing documents that would be silently trimmed on read.
 
 import type {
+  Look,
   ResponsiveLayout,
   VisualBlock,
   VisualDocument,
@@ -167,6 +168,32 @@ export function insertItem(doc: VisualDocument, page: VisualPageId, item: Visual
     if (index >= 0) target.rows.splice(index + 1, 0, row);
     else target.rows.push(row);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Design presets (Looks) and reusable blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * Swaps the whole site's look. The theme is replaced wholesale and the applied
+ * Look is remembered so the design panel can show which one is active. Applied
+ * through a single history entry, so one click is one undo step.
+ */
+export function applyLook(doc: VisualDocument, look: Look): VisualDocument {
+  const next = clone(doc);
+  next.theme = clone(look.theme);
+  next.activeLookId = look.id;
+  return next;
+}
+
+/**
+ * A fresh, insertable instance of a saved block. The template's id is a stable
+ * library id; every insertion gets a new id so copies stay independent.
+ */
+export function makeBlockInstance(block: VisualBlock): VisualBlock {
+  const copy = clone(block);
+  copy.id = uid();
+  return copy;
 }
 
 // ---------------------------------------------------------------------------

@@ -357,3 +357,71 @@ test("auto-scroll accelerates near an edge and rests in the middle", () => {
     "closer to the edge is faster",
   );
 });
+
+// ---------------------------------------------------------------------------
+// Looks (design presets) and reusable blocks
+// ---------------------------------------------------------------------------
+
+const { defaultLooks } = await import("../app/content/theme.ts");
+const { visualDocument } = await import("../app/content/visual.ts");
+
+test("applying a Look swaps the whole theme and records the active id", () => {
+  const doc = defaultVisualDocument();
+  const summer = defaultLooks().find((look) => look.name === "Summer");
+  const applied = ops.applyLook(doc, summer);
+
+  assert.equal(applied.activeLookId, summer.id);
+  assert.equal(
+    applied.theme.palette.find((token) => token.id === "brand").value,
+    summer.theme.palette.find((token) => token.id === "brand").value,
+    "the brand colour comes from the Look",
+  );
+  // The source document is untouched — the op is pure, so history holds a clean
+  // before/after pair and undo is exact.
+  assert.notEqual(doc.theme.palette.find((t) => t.id === "brand").value, applied.theme.palette.find((t) => t.id === "brand").value);
+});
+
+test("apply-look then undo is a single, exact step via the history before/after", () => {
+  const before = defaultVisualDocument();
+  const holiday = defaultLooks().find((look) => look.name === "Holiday");
+  const after = ops.applyLook(before, holiday);
+
+  const history = new History();
+  history.record(before, after, { label: `Apply look: ${holiday.name}` });
+  assert.equal(history.snapshot().depth, 1, "one click is one undo entry");
+  assert.deepEqual(history.undo(), before, "undo restores the exact prior document");
+});
+
+test("a saved block inserts a fresh, independent instance", () => {
+  const doc = defaultVisualDocument();
+  const template = { id: "block-template", kind: "container", label: "Promo card", title: "Hi", style: { background: "#fff" } };
+
+  const instance = ops.makeBlockInstance(template);
+  assert.notEqual(instance.id, template.id, "each insertion gets a new id");
+  assert.equal(instance.label, template.label);
+
+  const before = doc.pages.home.items.length;
+  const inserted = ops.insertItem(doc, "home", instance);
+  assert.equal(inserted.pages.home.items.length, before + 1);
+  assert.ok(inserted.pages.home.rows.some((row) => row.itemIds.includes(instance.id)), "it lands in a row");
+});
+
+test("saved blocks and looks round-trip through the document normaliser", () => {
+  const doc = defaultVisualDocument();
+  doc.savedBlocks = [{ id: "b1", name: "My card", block: { id: "x", kind: "container", label: "Card", title: "Kept" } }];
+  const summer = defaultLooks().find((look) => look.name === "Summer");
+  doc.looks = [...doc.looks, { id: "custom", name: "My look", theme: summer.theme }];
+
+  const reread = visualDocument({ visual: doc });
+  assert.equal(reread.savedBlocks.length, 1);
+  assert.equal(reread.savedBlocks[0].name, "My card");
+  assert.equal(reread.savedBlocks[0].block.title, "Kept");
+  assert.ok(reread.looks.some((look) => look.name === "My look"), "custom looks survive");
+});
+
+test("a present-but-empty looks array is honoured, not repopulated", () => {
+  const doc = defaultVisualDocument();
+  doc.looks = [];
+  const reread = visualDocument({ visual: doc });
+  assert.equal(reread.looks.length, 0, "deleting every Look sticks");
+});

@@ -17,6 +17,7 @@ import {
   type TextStyleDef,
   type TextStyleId,
 } from "../../content/theme";
+import type { Look } from "../../content/types";
 import { ColorPicker } from "./ColorPicker";
 
 export interface SiteDesignPanelProps {
@@ -28,6 +29,71 @@ export interface SiteDesignPanelProps {
   onClose: () => void;
   /** How many blocks currently link to each style. */
   usage: Record<string, number>;
+  /** Saved design presets and the operations on them. */
+  looks: Look[];
+  activeLookId?: string;
+  onApplyLook: (look: Look) => void;
+  onSaveLook: (name: string) => void;
+  onRenameLook: (id: string, name: string) => void;
+  onDuplicateLook: (id: string) => void;
+  onDeleteLook: (id: string) => void;
+}
+
+/** A small swatch row previewing a Look's key palette colours. */
+function LookSwatches({ look }: { look: Look }) {
+  const ids = ["brand", "ink", "success", "warning", "cream"];
+  return (
+    <span className="look-swatches" aria-hidden="true">
+      {ids.map((id) => {
+        const token = look.theme.palette.find((entry) => entry.id === id);
+        return <span key={id} className="look-swatch" style={{ background: token?.value ?? "#ccc" }} />;
+      })}
+    </span>
+  );
+}
+
+function LooksTab({ looks, activeLookId, onApply, onSave, onRename, onDuplicate, onDelete }: {
+  looks: Look[];
+  activeLookId?: string;
+  onApply: (look: Look) => void;
+  onSave: (name: string) => void;
+  onRename: (id: string, name: string) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null);
+  return (
+    <div className="design-list">
+      <p className="inspector-note">A Look is a saved snapshot of the whole design. Apply one to restyle every page in one step — then fine-tune anything.</p>
+      <button type="button" className="list-add" onClick={() => onSave("New look")}>+ Save current design as a Look</button>
+      <div className="look-list">
+        {looks.map((look) => (
+          <div className={`look-row${look.id === activeLookId ? " is-active" : ""}`} key={look.id}>
+            <button type="button" className="look-row__apply" onClick={() => onApply(look)}>
+              <LookSwatches look={look} />
+              {editing === look.id ? (
+                <input
+                  autoFocus
+                  className="look-row__name-input"
+                  value={look.name}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={(event) => onRename(look.id, event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") setEditing(null); }}
+                />
+              ) : (
+                <span className="look-row__name">{look.name}{look.id === activeLookId ? " · active" : ""}</span>
+              )}
+            </button>
+            <span className="look-row__tools">
+              <button type="button" onClick={() => setEditing(editing === look.id ? null : look.id)} aria-label={`Rename ${look.name}`} title="Rename">✎</button>
+              <button type="button" onClick={() => onDuplicate(look.id)} aria-label={`Duplicate ${look.name}`} title="Duplicate">⧉</button>
+              <button type="button" className="danger" onClick={() => onDelete(look.id)} aria-label={`Delete ${look.name}`} title="Delete">✕</button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function StyleRow({
@@ -166,8 +232,15 @@ export function SiteDesignPanel({
   onResetTheme,
   onClose,
   usage,
+  looks,
+  activeLookId,
+  onApplyLook,
+  onSaveLook,
+  onRenameLook,
+  onDuplicateLook,
+  onDeleteLook,
 }: SiteDesignPanelProps) {
-  const [tab, setTab] = useState<"text" | "colour">("text");
+  const [tab, setTab] = useState<"looks" | "text" | "colour">("looks");
   const [editingToken, setEditingToken] = useState<string | null>(null);
 
   return (
@@ -178,11 +251,22 @@ export function SiteDesignPanel({
       </div>
 
       <div className="design-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "looks"} className={tab === "looks" ? "is-active" : ""} onClick={() => setTab("looks")}>Looks</button>
         <button type="button" role="tab" aria-selected={tab === "text"} className={tab === "text" ? "is-active" : ""} onClick={() => setTab("text")}>Text styles</button>
         <button type="button" role="tab" aria-selected={tab === "colour"} className={tab === "colour" ? "is-active" : ""} onClick={() => setTab("colour")}>Colour theme</button>
       </div>
 
-      {tab === "text" ? (
+      {tab === "looks" ? (
+        <LooksTab
+          looks={looks}
+          activeLookId={activeLookId}
+          onApply={onApplyLook}
+          onSave={onSaveLook}
+          onRename={onRenameLook}
+          onDuplicate={onDuplicateLook}
+          onDelete={onDeleteLook}
+        />
+      ) : tab === "text" ? (
         <div className="design-list">
           <p className="inspector-note">Changing a style updates every linked element across the newsletter. Elements that override a property keep their override.</p>
           {TEXT_STYLE_ORDER.map((id) => (
