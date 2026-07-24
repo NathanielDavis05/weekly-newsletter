@@ -39,12 +39,12 @@ export const defaultContent: NewsletterContent = {
         headerMay: "May",
         headerJun: "Jun",
         rows: [
-          { label: "Overall satisfaction", april: "85%", may: "84%", june: "84%", goal: "83%" },
-          { label: "Taste of food", april: "84%", may: "84%", june: "86%", goal: "83%" },
-          { label: "Speed of service CEM", april: "78%", may: "77%", june: "79%", goal: "78%" },
-          { label: "Speed of service time", april: "3:12", may: "3:10", june: "3:10", goal: "3:08" },
-          { label: "Attentive / friendly", april: "83%", may: "86%", june: "84%", goal: "84%" },
-          { label: "Order accuracy", april: "97%", may: "96%", june: "97%", goal: "96%" },
+          { label: "Overall satisfaction", april: "85%", may: "84%", june: "84%", goal: "83%", tone: "green" },
+          { label: "Taste of food", april: "84%", may: "84%", june: "86%", goal: "83%", tone: "green" },
+          { label: "Speed of service CEM", april: "78%", may: "77%", june: "79%", goal: "78%", tone: "green" },
+          { label: "Speed of service time", april: "3:12", may: "3:10", june: "3:10", goal: "3:08", tone: "red" },
+          { label: "Attentive / friendly", april: "83%", may: "86%", june: "84%", goal: "84%", tone: "green" },
+          { label: "Order accuracy", april: "97%", may: "96%", june: "97%", goal: "96%", tone: "green" },
         ],
       },
     },
@@ -225,6 +225,7 @@ export const defaultContent: NewsletterContent = {
     summaryValue: "5",
     summaryUnit: "of 6",
     summaryLabel: "goals met",
+    summaryTone: "green",
     headlineMetrics: [
       {
         label: "Overall satisfaction",
@@ -232,6 +233,7 @@ export const defaultContent: NewsletterContent = {
         goal: "Goal 83%",
         status: "On track",
         positive: true,
+        tone: "green",
       },
       {
         label: "Taste of food",
@@ -239,6 +241,7 @@ export const defaultContent: NewsletterContent = {
         goal: "Goal 83%",
         status: "On track",
         positive: true,
+        tone: "green",
       },
       {
         label: "Speed of service",
@@ -246,6 +249,7 @@ export const defaultContent: NewsletterContent = {
         goal: "Goal 3:08",
         status: "Needs focus",
         positive: false,
+        tone: "red",
       },
     ],
     focus: {
@@ -273,6 +277,7 @@ export const defaultContent: NewsletterContent = {
     momentum: {
       heading: "Great work, team.",
       body: "Five goals met is worth celebrating. Let’s keep the momentum going.",
+      tone: "celebrate",
     },
   },
 };

@@ -17,14 +17,17 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
   const metric = (index: number) => {
     const value = results.headlineMetrics[index];
     if (!value) return null;
-    return <article className="metric-card">
+    // Older drafts only have `positive`; retain their existing appearance while
+    // new drafts can choose an explicit green, red, or neutral row treatment.
+    const tone = value.tone ?? (value.positive ? "green" : "red");
+    return <article className={`metric-card metric-card--${tone}`}>
       <div>
         <h2>{f(`results.headlineMetrics.${index}.label`, value.label)}</h2>
         <p>{f(`results.headlineMetrics.${index}.goal`, value.goal)}</p>
       </div>
       <div className="metric-card__score">
         <strong>{f(`results.headlineMetrics.${index}.value`, value.value)}</strong>
-        <span className={value.positive ? "status status--good" : "status status--focus"}>
+        <span className={`status status--${tone}`}>
           {f(`results.headlineMetrics.${index}.status`, value.status)}
         </span>
       </div>
@@ -38,7 +41,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
       <p className="detail-lead">{f("results.lead", results.lead)}</p>
     </section>,
 
-    "results-summary": <section className="goal-summary" aria-label={results.summaryAria}>
+    "results-summary": <section className={`goal-summary goal-summary--${results.summaryTone ?? "green"}`} aria-label={results.summaryAria}>
       <span className="goal-summary__mark" aria-hidden="true">★</span>
       <div>
         <strong>{f("results.summaryValue", results.summaryValue)} <span className="unit">{f("results.summaryUnit", results.summaryUnit)}</span></strong>
@@ -67,7 +70,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
             <th>{f("shared.scorecard.table.headerJun", scorecard.table.headerJun)}</th>
           </tr></thead>
           <tbody>
-            {scorecard.table.rows.map((row, index) => <tr key={index}>
+            {scorecard.table.rows.map((row, index) => <tr key={index} className={`metrics-table__row--${row.tone ?? "yellow"}`}>
               <th>{f(`shared.scorecard.table.rows.${index}.label`, row.label)}</th>
               <td>{f(`shared.scorecard.table.rows.${index}.goal`, row.goal)}</td>
               <td>{f(`shared.scorecard.table.rows.${index}.april`, row.april)}</td>
@@ -79,7 +82,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
       </div>
     </section>,
 
-    "results-momentum": <section className="momentum-note">
+    "results-momentum": <section className={`momentum-note momentum-note--${results.momentum.tone ?? "celebrate"}`}>
       <span aria-hidden="true">★</span>
       <div>
         <h2>{f("results.momentum.heading", results.momentum.heading)}</h2>

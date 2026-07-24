@@ -58,6 +58,12 @@ test("public results page renders default metrics", async () => {
   assert.match(html, /Three-month scorecard/);
   assert.match(html, /Win back two seconds/);
   assert.match(html, /data-item-id="results-metric-2"/);
+  assert.match(html, /goal-summary--green/);
+  assert.match(html, /metric-card--green/);
+  assert.match(html, /metric-card--red/);
+  assert.match(html, /momentum-note--celebrate/);
+  assert.match(html, /metrics-table__row--green/);
+  assert.match(html, /metrics-table__row--red/);
 });
 
 test("editor page redirects anonymous visitors to sign in", async () => {

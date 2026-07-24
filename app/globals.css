@@ -1136,6 +1136,26 @@ h3 {
   font-weight: 500;
 }
 
+.goal-summary--red {
+  color: var(--red-dark);
+  border-color: #efc9c9;
+  background: var(--red-soft);
+}
+
+.goal-summary--red .goal-summary__mark {
+  background: var(--red);
+}
+
+.goal-summary--yellow {
+  color: #8d6114;
+  border-color: #ead39f;
+  background: var(--gold-soft);
+}
+
+.goal-summary--yellow .goal-summary__mark {
+  background: var(--gold);
+}
+
 .metric-list {
   display: grid;
   max-width: 600px;
@@ -1179,6 +1199,36 @@ h3 {
   line-height: 1;
 }
 
+/* Result-row emphasis is author controlled in the editor. White keeps the
+   standard neutral card; green and red make clear wins and gaps visible at a
+   glance without reducing readability. */
+.metric-card--green {
+  border-color: #acd6b8;
+  background: var(--green-soft);
+}
+
+.metric-card--green .metric-card__score > strong {
+  color: var(--green);
+}
+
+.metric-card--red {
+  border-color: #efc9c9;
+  background: var(--red-soft);
+}
+
+.metric-card--red .metric-card__score > strong {
+  color: var(--red-dark);
+}
+
+.metric-card--yellow {
+  border-color: #ead39f;
+  background: var(--gold-soft);
+}
+
+.metric-card--yellow .metric-card__score > strong {
+  color: #8d6114;
+}
+
 .status {
   display: inline-flex;
   min-height: 26px;
@@ -1198,6 +1248,26 @@ h3 {
 .status--focus {
   color: var(--red-dark);
   background: var(--red-soft);
+}
+
+.status--green {
+  color: var(--green);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.status--red {
+  color: var(--red-dark);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.status--yellow {
+  color: #8d6114;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.status--white {
+  color: #506071;
+  background: #f2ece3;
 }
 
 .focus-callout {
@@ -1261,6 +1331,22 @@ h3 {
   border-bottom: 0;
 }
 
+.metrics-table tbody tr.metrics-table__row--green > * {
+  background: var(--green-soft);
+}
+
+.metrics-table tbody tr.metrics-table__row--yellow > * {
+  background: var(--gold-soft);
+}
+
+.metrics-table tbody tr.metrics-table__row--red > * {
+  background: var(--red-soft);
+}
+
+.metrics-table tbody tr.metrics-table__row--green > *:last-child { color: var(--green); }
+.metrics-table tbody tr.metrics-table__row--yellow > *:last-child { color: #8d6114; }
+.metrics-table tbody tr.metrics-table__row--red > *:last-child { color: var(--red-dark); }
+
 .momentum-note {
   display: flex;
   margin-top: 32px;
@@ -1283,6 +1369,15 @@ h3 {
 
 .momentum-note p {
   margin-bottom: 0;
+}
+
+.momentum-note--needs-work {
+  border: 1px solid #efc9c9;
+  background: var(--red-soft);
+}
+
+.momentum-note--needs-work > span {
+  color: var(--red);
 }
 
 @media (min-width: 640px) {

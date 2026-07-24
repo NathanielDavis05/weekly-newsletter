@@ -144,12 +144,16 @@ export interface TrainingContent {
   };
 }
 
+export type ResultTone = "green" | "yellow" | "red" | "white";
+
 export interface HeadlineMetric {
   label: string;
   value: string;
   goal: string;
   status: string;
   positive: boolean;
+  /** Controls the visual emphasis of this Guest experience result row. */
+  tone?: ResultTone;
 }
 
 export interface ScorecardRow {
@@ -158,6 +162,8 @@ export interface ScorecardRow {
   april: string;
   may: string;
   june: string;
+  /** Green, yellow, or red visual assessment for this scorecard result. */
+  tone?: ResultTone;
 }
 
 export interface ResultsContent {
@@ -168,6 +174,8 @@ export interface ResultsContent {
   summaryValue: string;
   summaryUnit: string;
   summaryLabel: string;
+  /** Green, red, or yellow treatment for the goals-met summary. */
+  summaryTone?: "green" | "red" | "yellow";
   headlineMetrics: HeadlineMetric[];
   focus: {
     label: string;
@@ -187,6 +195,8 @@ export interface ResultsContent {
   momentum: {
     heading: string;
     body: string;
+    /** Selects the encouraging or needs-more-work callout treatment. */
+    tone?: "celebrate" | "needs-work";
   };
 }
 
@@ -196,6 +206,29 @@ export interface SharedContent {
   navHeading: string;
   navLinks: LinkContent[];
   detailBackLabel: string;
+  scorecard: {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    resultAria: string;
+    resultValue: string;
+    resultUnit: string;
+    resultLabel: string;
+    focusLabel: string;
+    focusValue: string;
+    buttonLabel: string;
+    buttonHref: string;
+    table: {
+      eyebrow: string;
+      heading: string;
+      headerMeasure: string;
+      headerGoal: string;
+      headerApr: string;
+      headerMay: string;
+      headerJun: string;
+      rows: ScorecardRow[];
+    };
+  };
 }
 
 export interface NewsletterContent {
