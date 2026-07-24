@@ -207,6 +207,8 @@ export interface SharedContent {
   navLinks: LinkContent[];
   detailBackLabel: string;
   scorecard: {
+    /** Overall status treatment for the Guest experience card on the home page. */
+    homeTone?: "green" | "yellow" | "red";
     eyebrow: string;
     heading: string;
     intro: string;

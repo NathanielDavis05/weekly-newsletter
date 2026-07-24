@@ -551,6 +551,23 @@ h3 {
   text-transform: uppercase;
 }
 
+.score-teaser--yellow {
+  border-color: #ead39f;
+  background: linear-gradient(145deg, #fffdf7, var(--gold-soft));
+}
+
+.score-teaser--yellow .score-teaser__result { color: #8d6114; }
+.score-teaser--yellow .score-teaser__focus { border-color: #ead39f; }
+.score-teaser--yellow .score-teaser__focus span { color: #8d6114; }
+
+.score-teaser--red {
+  border-color: #efc9c9;
+  background: linear-gradient(145deg, #fffafa, var(--red-soft));
+}
+
+.score-teaser--red .score-teaser__result { color: var(--red-dark); }
+.score-teaser--red .score-teaser__focus { border-color: #efc9c9; }
+
 .button {
   display: inline-flex;
   min-height: 50px;

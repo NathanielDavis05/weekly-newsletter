@@ -60,7 +60,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
       <span className="card-arrow" aria-hidden="true">→</span>
     </Link>,
 
-    "home-scorecard": <section className="score-teaser">
+    "home-scorecard": <section className={`score-teaser score-teaser--${scorecard.homeTone ?? "green"}`}>
       <div>
         <p className="eyebrow eyebrow--green">{f("shared.scorecard.eyebrow", scorecard.eyebrow)}</p>
         <h2>{f("shared.scorecard.heading", scorecard.heading)}</h2>

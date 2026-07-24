@@ -19,6 +19,7 @@ export const defaultContent: NewsletterContent = {
     ],
     detailBackLabel: "This week",
     scorecard: {
+      homeTone: "green",
       eyebrow: "June scorecard",
       heading: "Guest experience",
       intro: "Strong month, with one clear focus for the team.",
