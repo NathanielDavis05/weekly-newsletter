@@ -570,6 +570,23 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // --- Saved blocks (reusable across issues) ------------------------------
   const saveBlock = useCallback((name: string) => { if (!selected || selected.kind === "native") return; const block = structuredClone(selected); updateVisual((doc) => { doc.savedBlocks = [...doc.savedBlocks, { id: uid(), name: name || selected.label, block }]; }, { label: "Save block" }); setStatus("Block saved to library"); }, [selected, updateVisual]);
   const insertSavedBlock = useCallback((entry: SavedBlock) => { const instance = ops.makeBlockInstance(entry.block); applyOp("Insert block", (doc) => ops.insertItem(doc, page, instance, selected?.id)); setSelectedIds([instance.id]); setInspectorOpen(true); setStatus(`Inserted “${entry.name}”`); }, [applyOp, page, selected]);
+  const attachSubsection = useCallback(() => {
+    if (!selected || selected.id === `hero-${page}`) return;
+    const template = templates.find((entry) => entry.id === "subsection");
+    if (!template) return;
+    const item = { ...makeItem(template), attachedTo: selected.id };
+    updateVisual((doc) => {
+      const target = doc.pages[page];
+      target.items.push(item);
+      const rowIndex = target.rows.findIndex((row) => row.itemIds.includes(selected.id));
+      target.rows.splice(rowIndex >= 0 ? rowIndex + 1 : target.rows.length, 0, { id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 0, align: "stretch", keepColumnsOnPhone: false });
+    }, { label: "Attach subsection" });
+    setSelectedIds([item.id]);
+    setSelectedTextFrame(null);
+    setDrawer(null);
+    setInspectorOpen(true);
+    setStatus("Subsection bar attached below selected block");
+  }, [page, selected, updateVisual]);
   const renameSavedBlock = useCallback((id: string, name: string) => updateVisual((doc) => { const block = doc.savedBlocks.find((entry) => entry.id === id); if (block) block.name = name; }, { label: "Rename block", coalesceKey: `block-name:${id}` }), [updateVisual]);
   const deleteSavedBlock = useCallback((id: string) => updateVisual((doc) => { doc.savedBlocks = doc.savedBlocks.filter((entry) => entry.id !== id); }, { label: "Delete block" }), [updateVisual]);
 
@@ -801,6 +818,8 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         onInsert={insertSavedBlock}
         onRename={renameSavedBlock}
         onDelete={deleteSavedBlock}
+        canAttachSubsection={Boolean(selected && selectedId !== `hero-${page}`)}
+        onAttachSubsection={attachSubsection}
         onClose={() => setDrawer(null)}
       /> : drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); setDrawer(null); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id, index, ids) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <div className={`layer-row${selectedIds.includes(id) ? " is-active" : ""}`} key={id}><button type="button" className="layer-row__select" onClick={(event) => { select(id, event.shiftKey); revealOnCanvas(id); }}>{item.label}{item.style?.hidden ? <em> · hidden</em> : null}</button><button type="button" className="layer-row__move" onClick={() => (item.style?.hidden ? applyOp("Show", (doc) => ops.setHidden(doc, page, id, false)) : hideItem(id))} aria-label={item.style?.hidden ? `Show ${item.label}` : `Hide ${item.label}`} title={item.style?.hidden ? "Show" : "Hide"}>{item.style?.hidden ? "◌" : "◉"}</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, -1)} disabled={index === 0} aria-label="Move up">↑</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, 1)} disabled={index === ids.length - 1} aria-label="Move down">↓</button></div> : null; })}</>}</aside> : null}
       <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>

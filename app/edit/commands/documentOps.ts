@@ -152,11 +152,13 @@ export function duplicateItem(
 export function removeItem(doc: VisualDocument, page: VisualPageId, id: string): VisualDocument {
   const item = findItem(doc, page, id);
   if (item?.kind === "native") return setHidden(doc, page, id, true);
+  const removedIds = new Set([id]);
+  for (const candidate of doc.pages[page].items) if (candidate.attachedTo === id) removedIds.add(candidate.id);
   const next = withPage(doc, page, (target) => {
-    target.items = target.items.filter((candidate) => candidate.id !== id);
-    for (const row of target.rows) row.itemIds = row.itemIds.filter((itemId) => itemId !== id);
+    target.items = target.items.filter((candidate) => !removedIds.has(candidate.id));
+    for (const row of target.rows) row.itemIds = row.itemIds.filter((itemId) => !removedIds.has(itemId));
   });
-  for (const key of Object.keys(next.textFrames)) if (key.startsWith(`${id}:`)) delete next.textFrames[key];
+  for (const key of Object.keys(next.textFrames)) if ([...removedIds].some((removedId) => key.startsWith(`${removedId}:`))) delete next.textFrames[key];
   return next;
 }
 

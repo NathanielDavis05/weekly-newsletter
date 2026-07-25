@@ -232,9 +232,14 @@ export function ItemCanvas({ content, page, native, editor }: {
   >
     <div className="item-page__content">
       {pageDocument.rows.map((row) => {
-        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => item !== undefined && !item.style?.hidden);
+        const items = row.itemIds.map((id) => itemMap.get(id)).filter((item): item is VisualBlock => {
+          if (!item || item.style?.hidden) return false;
+          const parent = item.attachedTo ? itemMap.get(item.attachedTo) : undefined;
+          return !item.attachedTo || Boolean(parent && !parent.style?.hidden);
+        });
         if (!items.length) return null;
-        return <div className="item-row-shell" key={row.id} data-row-id={row.id}>
+        const attached = items.length === 1 && items[0].kind === "subsection" && Boolean(items[0].attachedTo);
+        return <div className={`item-row-shell${attached ? " item-row-shell--attached-subsection" : ""}`} key={row.id} data-row-id={row.id}>
           <div className={`item-row${row.keepColumnsOnPhone ? " item-row--phone-columns" : ""}${items.length > 1 ? " item-row--paired" : ""}`} style={{ gap: `${row.gap}px`, alignItems: row.align }}>
             {items.map((item) => {
               const selectedIndex = selectedIds.indexOf(item.id);

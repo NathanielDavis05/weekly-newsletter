@@ -18,10 +18,13 @@ export interface SavedBlocksPanelProps {
   onInsert: (block: SavedBlock) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  /** Adds the built-in subsection tab directly beneath the selected block. */
+  canAttachSubsection: boolean;
+  onAttachSubsection: () => void;
   onClose: () => void;
 }
 
-export function SavedBlocksPanel({ blocks, canSaveSelection, onSaveSelection, onInsert, onRename, onDelete, onClose }: SavedBlocksPanelProps) {
+export function SavedBlocksPanel({ blocks, canSaveSelection, onSaveSelection, onInsert, onRename, onDelete, canAttachSubsection, onAttachSubsection, onClose }: SavedBlocksPanelProps) {
   const [editing, setEditing] = useState<string | null>(null);
 
   return (
@@ -43,6 +46,15 @@ export function SavedBlocksPanel({ blocks, canSaveSelection, onSaveSelection, on
       >
         {canSaveSelection ? "+ Save current selection" : "Select an item to save"}
       </button>
+
+      <section className="saved-block__quick" aria-labelledby="quick-blocks-heading">
+        <p className="visual-kicker" id="quick-blocks-heading">Quick block</p>
+        <strong>Attached subsection bar</strong>
+        <p className="inspector-note">Adds a rounded, editable bar directly to the bottom of the selected section.</p>
+        <button type="button" className="list-add" disabled={!canAttachSubsection} onClick={onAttachSubsection}>
+          {canAttachSubsection ? "+ Add below selected block" : "Select a block first"}
+        </button>
+      </section>
 
       {blocks.length === 0 ? (
         <p className="inspector-note">Nothing saved yet.</p>

@@ -61,3 +61,18 @@ test("duplicating and deleting a free block carries and cleans its text frames",
   const removed = ops.removeItem(duplicate.doc, "home", duplicate.newId);
   assert.equal(removed.textFrames[`${duplicate.newId}:richTitle`], undefined);
 });
+
+test("attached subsection bars keep a valid parent and are removed with a freeform parent", () => {
+  const doc = defaultVisualDocument();
+  const parent = { id: "parent", kind: "text", label: "Parent", title: "Parent" };
+  const bar = { id: "bar", kind: "subsection", label: "Bonus", title: "Bonus", attachedTo: "parent" };
+  doc.pages.home.items.push(parent, bar);
+  doc.pages.home.rows.push(
+    { id: "parent-row", itemIds: [parent.id], gap: 16, align: "stretch", keepColumnsOnPhone: false },
+    { id: "bar-row", itemIds: [bar.id], gap: 0, align: "stretch", keepColumnsOnPhone: false },
+  );
+
+  const roundTripped = visualDocument({ visual: doc });
+  assert.equal(roundTripped.pages.home.items.find((item) => item.id === "bar").attachedTo, "parent");
+  assert.equal(ops.removeItem(roundTripped, "home", "parent").pages.home.items.some((item) => item.id === "bar"), false);
+});

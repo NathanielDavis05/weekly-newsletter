@@ -355,6 +355,8 @@ export interface VisualBlock {
   tableData?: { columns: string[]; rows: TableRow[] };
   statusItems?: TrainingStatusRow[];
   highlight?: { value: string; unit: string; label: string; tone: "navy" | "green" | "red" | "gold" };
+  /** A subsection bar can be pinned directly beneath another block. */
+  attachedTo?: string;
 }
 
 export interface VisualPageDocument {

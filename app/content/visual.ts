@@ -283,6 +283,9 @@ function migratePage(page: VisualPageId, incoming: unknown, fallback: VisualPage
   const items = fallback.items.map((seed) => normaliseBlock({ ...seed, ...(currentNative.get(seed.nativeId ?? seed.id)?.style ? { style: currentNative.get(seed.nativeId ?? seed.id)?.style } : {}) }));
   for (const block of rawItems.filter((item) => item.kind !== "native")) items.push(normaliseBlock(block));
   const validIds = new Set(items.map((item) => item.id));
+  for (const item of items) {
+    if (item.kind !== "subsection" || !item.attachedTo || !validIds.has(item.attachedTo) || item.attachedTo === item.id) delete item.attachedTo;
+  }
   const rawRows = Array.isArray(source.rows) ? source.rows as VisualRow[] : [];
   let rows = rawRows.map((row, index) => normaliseRow(row, validIds, `${page}-row-${index + 1}`)).filter((row): row is VisualRow => Boolean(row));
   if (!rows.length) rows = fallback.rows.map((row) => ({ ...row, itemIds: [...row.itemIds] }));
