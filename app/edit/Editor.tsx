@@ -182,7 +182,7 @@ function TextFrameInspector({ label, frameKey, style, layout, device, patch, pat
   const rawLabel = frameKey.includes(":") ? frameKey.split(":").at(-1) : frameKey.split(".").at(-1);
   const fieldLabel = (rawLabel ?? "text").replace(/^rich/, "").replace(/([A-Z])/g, " $1").trim();
   return <div className="editor-inspector-form text-frame-inspector">
-    <div className="inspector-heading"><p className="visual-kicker">Text frame · {device}</p><h2>{fieldLabel}</h2><p className="inspector-note">Inside {label}. Drag ✥ to move; drag the corner to reshape.</p></div>
+    <div className="inspector-heading"><p className="visual-kicker">Text frame · {device}</p><h2>{fieldLabel}</h2><p className="inspector-note">Inside {label}. Drag the blue six-dot handle to move, use Move X/Y for exact placement, or drag the corner to reshape.</p></div>
     <div className="inspector-actions"><button type="button" onClick={back}>← Whole block</button><button type="button" onClick={reset}>Reset frame</button></div>
     <details className="inspector-section" open><summary>Position &amp; shape</summary>
       <div className="segmented" role="group" aria-label="Text frame width"><button type="button" onClick={() => patchLayout({ width: 100 })}>Full</button><button type="button" onClick={() => patchLayout({ width: 50 })}>Half</button><button type="button" onClick={() => patchLayout({ width: undefined })}>Auto</button></div>

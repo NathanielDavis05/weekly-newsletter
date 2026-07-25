@@ -346,15 +346,16 @@ button { cursor:pointer; }
   touch-action: none;
 }
 .text-frame__grip {
-  top: -17px;
-  left: -17px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  cursor: move;
-  font-size: 12px;
+  top: -19px;
+  left: -19px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  cursor: grab;
+  font-size: 16px;
   line-height: 1;
 }
+.text-frame__grip:active { cursor: grabbing; }
 .text-frame__resize {
   right: -8px;
   bottom: -8px;

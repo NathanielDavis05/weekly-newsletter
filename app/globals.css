@@ -819,6 +819,12 @@ h3 {
   text-align: center;
 }
 
+.referral-note__content .text-frame,
+.referral-note__content .rt-view,
+.referral-note__content .rt-editable {
+  text-align: center;
+}
+
 .referral-note strong {
   display: block;
   margin-bottom: 10px;

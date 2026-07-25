@@ -97,13 +97,14 @@ export function TextFrame({ frameKey, children, editor, style, block = false }: 
       <span
         className="text-frame__grip"
         role="button"
-        aria-label="Move text"
+        aria-label="Drag text to move it"
+        title="Drag to move text"
         onPointerDown={(event) => {
           event.preventDefault(); event.stopPropagation();
           const itemId = event.currentTarget.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
           if (itemId) editor.onStartTextFrameDrag?.(event, frameKey, itemId);
         }}
-      >✥</span>
+      >⠿</span>
       <span
         className="text-frame__resize"
         role="button"
