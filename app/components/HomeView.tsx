@@ -26,7 +26,9 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
     </section>,
 
     "home-action": <article className="card priority-card priority-card--action">
-      <div className="card-icon card-icon--red" aria-hidden="true">{home.overview.actionCard.icon}</div>
+      <div className="card-icon card-icon--art card-icon--training" aria-hidden="true">
+        <img src="/images/commercepoint-training-icon.png" alt="" />
+      </div>
       <div className="card-body">
         <p className="urgent-label">{f("home.overview.actionCard.label", home.overview.actionCard.label)}</p>
         <h3>{f("home.overview.actionCard.heading", home.overview.actionCard.heading)}</h3>
@@ -42,7 +44,9 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
     </article>,
 
     "home-event": <Link className="card priority-card priority-card--link" href={home.overview.eventCard.href}>
-      <span className="card-icon card-icon--date" aria-hidden="true">{home.overview.eventCard.icon}</span>
+      <span className="card-icon card-icon--art card-icon--events" aria-hidden="true">
+        <img src="/images/weekly-events-icon.png" alt="" />
+      </span>
       <span className="card-body">
         <span className="card-kicker">{f("home.overview.eventCard.kicker", home.overview.eventCard.kicker)}</span>
         <strong>{f("home.overview.eventCard.title", home.overview.eventCard.title)}</strong>

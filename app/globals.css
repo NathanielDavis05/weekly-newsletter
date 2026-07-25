@@ -481,6 +481,26 @@ h3 {
   background: var(--red);
 }
 
+.card-icon--art {
+  overflow: visible;
+}
+
+.card-icon--art img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.card-icon--training {
+  background: #fff1f0;
+}
+
+.card-icon--events {
+  background: #fff7f5;
+  border: 1px solid #efc9c9;
+}
+
 .card-icon--date {
   border: 1px solid #efc9c9;
   font-size: 1.05rem;
