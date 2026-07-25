@@ -296,6 +296,8 @@ export interface ResponsiveLayout {
   align?: "left" | "center" | "right" | "stretch";
   nudgeX?: number;
   nudgeY?: number;
+  /** Stack order for overlapping items at this breakpoint. */
+  zIndex?: number;
 }
 
 /** Independent styling and geometry for one piece of text inside a block. */

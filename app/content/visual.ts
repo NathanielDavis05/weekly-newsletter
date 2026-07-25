@@ -190,6 +190,7 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
     align: value.align === "left" || value.align === "center" || value.align === "right" || value.align === "stretch" ? value.align : undefined,
     nudgeX: typeof value.nudgeX === "number" ? numberIn(value.nudgeX, 0, -2000, 2000) : undefined,
     nudgeY: typeof value.nudgeY === "number" ? numberIn(value.nudgeY, 0, -2000, 2000) : undefined,
+    zIndex: typeof value.zIndex === "number" ? numberIn(value.zIndex, 0, -1000, 1000) : undefined,
   };
 }
 
@@ -410,6 +411,7 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--item-desktop-margin-top": px(style.desktop?.marginTop ?? style.marginTop), "--item-desktop-margin-bottom": px(style.desktop?.marginBottom ?? style.marginBottom),
     "--item-phone-nudge-x": px(style.phone?.nudgeX), "--item-phone-nudge-y": px(style.phone?.nudgeY),
     "--item-desktop-nudge-x": px(style.desktop?.nudgeX), "--item-desktop-nudge-y": px(style.desktop?.nudgeY),
+    "--item-phone-z-index": style.phone?.zIndex ?? 0, "--item-desktop-z-index": style.desktop?.zIndex ?? style.phone?.zIndex ?? 0,
   } as CSSProperties;
 }
 

@@ -94,6 +94,7 @@ body {
   margin-top: var(--item-phone-margin-top, 0);
   margin-bottom: var(--item-phone-margin-bottom, 0);
   translate: var(--item-phone-nudge-x, 0) var(--item-phone-nudge-y, 0);
+  z-index: var(--item-phone-z-index, 0);
 }
 .newsletter-item > :first-child { width: 100%; }
 .newsletter-item .section { padding: 0; }
@@ -144,6 +145,7 @@ body {
     margin-top: var(--item-desktop-margin-top, var(--item-phone-margin-top, 0));
     margin-bottom: var(--item-desktop-margin-bottom, var(--item-phone-margin-bottom, 0));
     translate: var(--item-desktop-nudge-x, 0) var(--item-desktop-nudge-y, 0);
+    z-index: var(--item-desktop-z-index, var(--item-phone-z-index, 0));
   }
   .text-frame {
     width: var(--text-desktop-width, var(--text-phone-width, auto));
