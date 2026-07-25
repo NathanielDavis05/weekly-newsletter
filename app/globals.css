@@ -1106,7 +1106,9 @@ h3 {
   gap: 10px;
 }
 
-.check-list li span {
+/* Rich text fields are wrapped in a span for editing. Restrict the red badge
+   treatment to the actual checkmark so list copy keeps its normal layout. */
+.check-list li > span[aria-hidden="true"] {
   display: grid;
   width: 24px;
   height: 24px;
