@@ -283,7 +283,19 @@ function migratePage(page: VisualPageId, incoming: unknown, fallback: VisualPage
   const rawItems = Array.isArray(source.items) ? source.items.filter(isBlock) : Array.isArray(source.blocks) ? source.blocks.filter(isBlock) : [];
   const currentNative = new Map(rawItems.filter((item) => item.kind === "native").map((item) => [item.nativeId ?? item.id, item]));
   const items = fallback.items.map((seed) => normaliseBlock({ ...seed, ...(currentNative.get(seed.nativeId ?? seed.id)?.style ? { style: currentNative.get(seed.nativeId ?? seed.id)?.style } : {}) }));
-  for (const block of rawItems.filter((item) => item.kind !== "native")) items.push(normaliseBlock(block));
+  for (const block of rawItems.filter((item) => item.kind !== "native")) {
+    const item = normaliseBlock(block);
+    // The original referral callout was created as a lime "Bonus" subsection
+    // directly below the leadership card. The dedicated referral section now
+    // replaces it, so remove only that old default bar while preserving any
+    // newer subsections the editor owner has added.
+    const isLegacyReferralBar = page === "home"
+      && item.kind === "subsection"
+      && item.attachedTo === "home-grow"
+      && item.title?.trim().toLowerCase() === "bonus"
+      && item.style?.background?.trim().toLowerCase() === "#91d255";
+    if (!isLegacyReferralBar) items.push(item);
+  }
   const validIds = new Set(items.map((item) => item.id));
   for (const item of items) {
     if (item.kind !== "subsection" || !item.attachedTo || !validIds.has(item.attachedTo) || item.attachedTo === item.id) delete item.attachedTo;
