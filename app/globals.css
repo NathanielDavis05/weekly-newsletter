@@ -482,13 +482,16 @@ h3 {
 }
 
 .card-icon--art {
+  width: 72px;
+  height: 72px;
   overflow: visible;
+  align-self: center;
 }
 
 .card-icon--art img {
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 68px;
+  height: 68px;
   object-fit: contain;
 }
 
