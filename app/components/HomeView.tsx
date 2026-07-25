@@ -127,9 +127,13 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
       </div>
     </section>,
 
-    "home-referral": <p className="referral-note">
-      <strong>{f("home.grow.referralStrong", home.grow.referralStrong)}</strong> {f("home.grow.referralRest", home.grow.referralRest)}
-    </p>,
+    "home-referral": <section className="referral-note" aria-label="Referral bonus opportunity">
+      <span className="referral-note__badge" aria-hidden="true">🎁</span>
+      <div className="referral-note__content">
+        <strong>{f("home.grow.referralStrong", home.grow.referralStrong)}</strong>
+        <p>{f("home.grow.referralRest", home.grow.referralRest)}</p>
+      </div>
+    </section>,
 
     "home-footer": <footer className="site-footer">
       <strong>{f("home.footer.brand", home.footer.brand)}</strong>
