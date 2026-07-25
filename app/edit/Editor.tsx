@@ -206,6 +206,30 @@ function TextFrameInspector({ label, frameKey, style, layout, device, patch, pat
   </div>;
 }
 
+function AttachedSubsectionControls({ bar, device, onToggle, patchItem, patchLayout, onSelect }: {
+  bar: VisualBlock | null;
+  device: "phone" | "desktop";
+  onToggle: (enabled: boolean) => void;
+  patchItem: (id: string, patch: Partial<VisualBlock>) => void;
+  patchLayout: (id: string, patch: Partial<ResponsiveLayout>) => void;
+  onSelect: (id: string) => void;
+}) {
+  const style = bar?.style ?? {};
+  const layout = style[device] ?? {};
+  return <details className="inspector-section attached-subsection-controls" open>
+    <summary>Subsection bar</summary>
+    <ToggleField label="Show a bar below this block" checked={Boolean(bar)} onChange={onToggle} />
+    {bar ? <>
+      <TextField label="Bar text" value={bar.title ?? ""} onChange={(value) => patchItem(bar.id, { title: value })} />
+      <div className="inspector-grid"><ColorField label="Bar color" value={style.background} onChange={(value) => patchItem(bar.id, { style: { ...style, background: value } })} /><ColorField label="Text color" value={style.color} onChange={(value) => patchItem(bar.id, { style: { ...style, color: value } })} /></div>
+      <div className="inspector-grid"><NumberField label={`Bar width % (${device})`} value={layout.width} min={10} max={120} onCommit={(value) => patchLayout(bar.id, { width: value })} /><NumberField label={`Bar height (${device})`} value={layout.minHeight} min={0} max={800} onCommit={(value) => patchLayout(bar.id, { minHeight: value })} /></div>
+      <NumberField label="Text size" value={style.fontSize} min={8} max={160} onCommit={(value) => patchItem(bar.id, { style: { ...style, fontSize: value } })} />
+      <div className="inspector-actions"><button type="button" onClick={() => onSelect(bar.id)}>Select bar to drag &amp; resize</button></div>
+      <p className="inspector-device-note">The bar stays directly under this block. Select it to use its blue resize handles or edit its text frame.</p>
+    </> : <p className="inspector-note">Turn this on to add a connected, editable subsection bar at the bottom of this block.</p>}
+  </details>;
+}
+
 export function Editor({ initialDraft, initialPublished, initialRevision, userEmail }: { initialDraft: NewsletterContent; initialPublished: NewsletterContent; initialRevision: number; userEmail: string }) {
   const normalized = (value: NewsletterContent) => ({ ...value, visual: visualDocument(value) });
   const [content, setContent] = useState<NewsletterContent>(() => normalized(initialDraft)); const [saved, setSaved] = useState<NewsletterContent>(() => normalized(initialDraft)); const [, setPublished] = useState<NewsletterContent>(() => normalized(initialPublished));
@@ -253,6 +277,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const guidesRef = useRef<GuideLayerHandle | null>(null);
   const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme; const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
+  const attachedSubsection = selected && !selected.attachedTo ? pageDocument.items.find((item) => item.kind === "subsection" && item.attachedTo === selected.id) ?? null : null;
   const dirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(saved), [content, saved]);
 
   // Every mutation runs through here. Computing the next document outside the
@@ -275,7 +300,13 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   }, [edit]);
   const beginGesture = useCallback((label: string) => history.begin(contentRef.current, label), [history]);
   const endGesture = useCallback(() => history.commit(contentRef.current), [history]);
-  const patchItem = useCallback((id: string, patch: Partial<VisualBlock>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (item) Object.assign(item, patch); }), [page, updateVisual]);
+  const patchItem = useCallback((id: string, patch: Partial<VisualBlock>) => updateVisual((doc) => {
+    const item = doc.pages[page].items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    Object.assign(item, patch);
+    if ((item.kind === "text" || item.kind === "container" || item.kind === "subsection") && "title" in patch && !("richTitle" in patch)) item.richTitle = richTextFromPlain(patch.title ?? "");
+    if ((item.kind === "text" || item.kind === "container") && "body" in patch && !("richBody" in patch)) item.richBody = richTextFromPlain(patch.body ?? "");
+  }), [page, updateVisual]);
   const patchLayout = useCallback((id: string, patch: Partial<ResponsiveLayout>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (!item) return; const style = item.style ?? {}; const target = device; item.style = { ...style, [target]: { ...style[target], ...patch } }; if (style.linkedDevices) item.style[target === "phone" ? "desktop" : "phone"] = { ...style[target === "phone" ? "desktop" : "phone"], ...patch }; }), [device, page, updateVisual]);
   const patchTextFrame = useCallback((key: string, patch: Partial<TextFrameStyle>) => updateVisual((doc) => {
     doc.textFrames[key] = { ...(doc.textFrames[key] ?? {}), ...patch };
@@ -570,23 +601,30 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // --- Saved blocks (reusable across issues) ------------------------------
   const saveBlock = useCallback((name: string) => { if (!selected || selected.kind === "native") return; const block = structuredClone(selected); updateVisual((doc) => { doc.savedBlocks = [...doc.savedBlocks, { id: uid(), name: name || selected.label, block }]; }, { label: "Save block" }); setStatus("Block saved to library"); }, [selected, updateVisual]);
   const insertSavedBlock = useCallback((entry: SavedBlock) => { const instance = ops.makeBlockInstance(entry.block); applyOp("Insert block", (doc) => ops.insertItem(doc, page, instance, selected?.id)); setSelectedIds([instance.id]); setInspectorOpen(true); setStatus(`Inserted “${entry.name}”`); }, [applyOp, page, selected]);
-  const attachSubsection = useCallback(() => {
-    if (!selected || selected.id === `hero-${page}`) return;
+  const createAttachedSubsection = useCallback((parentId: string, focusNew = true) => {
     const template = templates.find((entry) => entry.id === "subsection");
     if (!template) return;
-    const item = { ...makeItem(template), attachedTo: selected.id };
+    const item = { ...makeItem(template), attachedTo: parentId };
     updateVisual((doc) => {
       const target = doc.pages[page];
       target.items.push(item);
-      const rowIndex = target.rows.findIndex((row) => row.itemIds.includes(selected.id));
+      const rowIndex = target.rows.findIndex((row) => row.itemIds.includes(parentId));
       target.rows.splice(rowIndex >= 0 ? rowIndex + 1 : target.rows.length, 0, { id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 0, align: "stretch", keepColumnsOnPhone: false });
     }, { label: "Attach subsection" });
-    setSelectedIds([item.id]);
-    setSelectedTextFrame(null);
-    setDrawer(null);
+    if (focusNew) { setSelectedIds([item.id]); setSelectedTextFrame(null); setDrawer(null); }
     setInspectorOpen(true);
     setStatus("Subsection bar attached below selected block");
-  }, [page, selected, updateVisual]);
+  }, [page, updateVisual]);
+  const attachSubsection = useCallback(() => {
+    if (!selected || selected.id === `hero-${page}` || selected.attachedTo) return;
+    createAttachedSubsection(selected.id);
+  }, [createAttachedSubsection, page, selected]);
+  const removeAttachedSubsection = useCallback((parentId: string, barId: string) => {
+    applyOp("Remove attached subsection", (doc) => ops.removeItem(doc, page, barId));
+    setSelectedIds([parentId]);
+    setSelectedTextFrame(null);
+    setStatus("Subsection bar removed");
+  }, [applyOp, page]);
   const renameSavedBlock = useCallback((id: string, name: string) => updateVisual((doc) => { const block = doc.savedBlocks.find((entry) => entry.id === id); if (block) block.name = name; }, { label: "Rename block", coalesceKey: `block-name:${id}` }), [updateVisual]);
   const deleteSavedBlock = useCallback((id: string) => updateVisual((doc) => { doc.savedBlocks = doc.savedBlocks.filter((entry) => entry.id !== id); }, { label: "Delete block" }), [updateVisual]);
 
