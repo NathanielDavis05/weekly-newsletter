@@ -191,6 +191,9 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
     nudgeX: typeof value.nudgeX === "number" ? numberIn(value.nudgeX, 0, -2000, 2000) : undefined,
     nudgeY: typeof value.nudgeY === "number" ? numberIn(value.nudgeY, 0, -2000, 2000) : undefined,
     zIndex: typeof value.zIndex === "number" ? numberIn(value.zIndex, 0, -1000, 1000) : undefined,
+    iconX: typeof value.iconX === "number" ? numberIn(value.iconX, 0, -80, 80) : undefined,
+    iconY: typeof value.iconY === "number" ? numberIn(value.iconY, 0, -80, 80) : undefined,
+    iconScale: typeof value.iconScale === "number" ? numberIn(value.iconScale, 100, 40, 180) : undefined,
   };
 }
 
@@ -407,6 +410,7 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
 
 export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
   if (!style) return undefined; const px = (value: number | undefined) => typeof value === "number" ? `${value}px` : undefined;
+  const scale = (value: number | undefined) => typeof value === "number" ? `${value / 100}` : undefined;
   return {
     backgroundColor: safeStyleColor(style.background), color: safeStyleColor(style.color), borderColor: safeStyleColor(style.borderColor),
     borderWidth: px(style.borderWidth), borderStyle: style.borderWidth ? "solid" : undefined, borderRadius: px(style.borderRadius),
@@ -424,6 +428,8 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--item-phone-nudge-x": px(style.phone?.nudgeX), "--item-phone-nudge-y": px(style.phone?.nudgeY),
     "--item-desktop-nudge-x": px(style.desktop?.nudgeX), "--item-desktop-nudge-y": px(style.desktop?.nudgeY),
     "--item-phone-z-index": style.phone?.zIndex ?? 0, "--item-desktop-z-index": style.desktop?.zIndex ?? style.phone?.zIndex ?? 0,
+    "--referral-icon-phone-x": px(style.phone?.iconX), "--referral-icon-phone-y": px(style.phone?.iconY), "--referral-icon-phone-scale": scale(style.phone?.iconScale),
+    "--referral-icon-desktop-x": px(style.desktop?.iconX), "--referral-icon-desktop-y": px(style.desktop?.iconY), "--referral-icon-desktop-scale": scale(style.desktop?.iconScale),
   } as CSSProperties;
 }
 

@@ -95,6 +95,9 @@ body {
   margin-bottom: var(--item-phone-margin-bottom, 0);
   translate: var(--item-phone-nudge-x, 0) var(--item-phone-nudge-y, 0);
   z-index: var(--item-phone-z-index, 0);
+  --referral-icon-x: var(--referral-icon-phone-x, 0px);
+  --referral-icon-y: var(--referral-icon-phone-y, 0px);
+  --referral-icon-scale: var(--referral-icon-phone-scale, 1);
 }
 .newsletter-item > :first-child { width: 100%; }
 .newsletter-item .section { padding: 0; }
@@ -146,6 +149,9 @@ body {
     margin-bottom: var(--item-desktop-margin-bottom, var(--item-phone-margin-bottom, 0));
     translate: var(--item-desktop-nudge-x, 0) var(--item-desktop-nudge-y, 0);
     z-index: var(--item-desktop-z-index, var(--item-phone-z-index, 0));
+    --referral-icon-x: var(--referral-icon-desktop-x, var(--referral-icon-phone-x, 0px));
+    --referral-icon-y: var(--referral-icon-desktop-y, var(--referral-icon-phone-y, 0px));
+    --referral-icon-scale: var(--referral-icon-desktop-scale, var(--referral-icon-phone-scale, 1));
   }
   .text-frame {
     width: var(--text-desktop-width, var(--text-phone-width, auto));
@@ -796,30 +802,62 @@ h3 {
   transform: translateX(-50%);
 }
 
-/* A compact gift mark drawn in CSS keeps the reward badge crisp and avoids
-   device-specific emoji artwork. */
-.referral-note__badge::before {
+/* The box, bow, and ribbons are CSS shapes so the editor can move and scale
+   the whole gift freely inside the fixed circular badge. */
+.referral-note__gift {
   position: absolute;
-  top: 23px;
-  left: 17px;
-  width: 24px;
-  height: 20px;
-  content: "";
-  border-radius: 3px;
-  background: linear-gradient(90deg, #fff7e8 0 42%, #d80d37 42% 58%, #fff7e8 58% 100%);
-  box-shadow: inset 0 -3px 0 rgba(13, 34, 56, 0.12);
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 38px;
+  transform: translate(-50%, -50%) translate(var(--referral-icon-x), var(--referral-icon-y)) scale(var(--referral-icon-scale));
+  transform-origin: center;
 }
 
-.referral-note__badge::after {
+.referral-note__gift::before {
   position: absolute;
-  top: 14px;
-  left: 19px;
-  width: 20px;
-  height: 12px;
+  right: 1px;
+  bottom: 0;
+  left: 1px;
+  height: 23px;
   content: "";
-  border: 3px solid #fff7e8;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent 0 43%, #d80d37 43% 57%, transparent 57% 100%), linear-gradient(0deg, transparent 0 43%, #d80d37 43% 57%, transparent 57% 100%), #fff7e8;
+  box-shadow: inset 0 -2px 0 rgba(13, 34, 56, 0.1);
+}
+
+.referral-note__bow {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 6px;
+  height: 7px;
+  border-radius: 2px 2px 0 0;
+  background: #fff7e8;
+  transform: translateX(-50%);
+}
+
+.referral-note__bow::before,
+.referral-note__bow::after {
+  position: absolute;
+  top: -8px;
+  width: 13px;
+  height: 11px;
+  content: "";
+  border: 4px solid #fff7e8;
   border-bottom: 0;
-  border-radius: 11px 11px 0 0;
+}
+
+.referral-note__bow::before {
+  right: 2px;
+  border-radius: 12px 12px 0 0;
+  transform: rotate(-17deg);
+}
+
+.referral-note__bow::after {
+  left: 2px;
+  border-radius: 12px 12px 0 0;
+  transform: rotate(17deg);
 }
 
 .referral-note__content {

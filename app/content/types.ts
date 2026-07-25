@@ -298,6 +298,10 @@ export interface ResponsiveLayout {
   nudgeY?: number;
   /** Stack order for overlapping items at this breakpoint. */
   zIndex?: number;
+  /** Fine placement controls for the referral reward icon within its badge. */
+  iconX?: number;
+  iconY?: number;
+  iconScale?: number;
 }
 
 /** Independent styling and geometry for one piece of text inside a block. */
