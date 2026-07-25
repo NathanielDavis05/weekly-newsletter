@@ -258,7 +258,8 @@ export function patchLayout(
   });
 }
 
-export const NUDGE_LIMIT = 48;
+/** A generous canvas-safe range so free positioning is useful on long pages. */
+export const NUDGE_LIMIT = 2000;
 
 export function nudgeItem(
   doc: VisualDocument,

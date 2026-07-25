@@ -23,6 +23,8 @@ const SIDE_ZONE = 0.3;
 export interface DragCallbacks {
   onBegin: () => void;
   onDrop: (itemId: string, targetRowId: string, zone: DropZone) => void;
+  /** Places an item freely when the user drags without holding Shift. */
+  onFreeMove: (itemId: string, dx: number, dy: number) => void;
   onEnd: (dropped: boolean) => void;
   guides: React.RefObject<GuideLayerHandle | null>;
   surface: React.RefObject<HTMLElement | null>;
@@ -38,7 +40,7 @@ interface Target {
   rect: DOMRect;
 }
 
-export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroller, canPair }: DragCallbacks) {
+export function useDragReorder({ onBegin, onDrop, onFreeMove, onEnd, guides, surface, scroller, canPair }: DragCallbacks) {
   const dragging = useRef(false);
 
   return useCallback(
@@ -50,8 +52,11 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
       const startX = event.clientX;
       const startY = event.clientY;
       let started = false;
+      let reorder = false;
       let target: Target | null = null;
       let frame = 0;
+      let lastX = startX;
+      let lastY = startY;
 
       const findTarget = (clientX: number, clientY: number): Target | null => {
         const rows = Array.from(
@@ -82,9 +87,22 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
       };
 
       const paint = (clientX: number, clientY: number) => {
+        lastX = clientX;
+        lastY = clientY;
         host.style.setProperty("--item-drag-x", `${clientX - startX}px`);
         host.style.setProperty("--item-drag-y", `${clientY - startY}px`);
 
+        if (!reorder) {
+          const surfaceRect = surface.current?.getBoundingClientRect();
+          if (surfaceRect) {
+            guides.current?.setReadout({
+              left: clientX - surfaceRect.left + 14,
+              top: clientY - surfaceRect.top + 14,
+              text: `X ${Math.round(clientX - startX)} · Y ${Math.round(clientY - startY)}`,
+            });
+          }
+          return;
+        }
         target = findTarget(clientX, clientY);
         const surfaceRect = surface.current?.getBoundingClientRect();
         if (!target || !surfaceRect) {
@@ -140,6 +158,9 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
         if (!started) {
           if (Math.hypot(next.clientX - startX, next.clientY - startY) < DRAG_THRESHOLD) return;
           started = true;
+          // Free positioning is the normal canvas gesture. Hold Shift when a
+          // structural reorder (above/below/beside another item) is intended.
+          reorder = next.shiftKey;
           dragging.current = true;
           onBegin();
           host.classList.add("newsletter-item--dragging");
@@ -147,7 +168,7 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
         }
         next.preventDefault();
         paint(next.clientX, next.clientY);
-        tick(next.clientY);
+        if (reorder) tick(next.clientY);
       };
 
       const end = () => {
@@ -162,8 +183,9 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
         surface.current?.classList.remove("item-page--drag-active");
         guides.current?.clear();
 
-        const dropped = Boolean(started && target);
-        if (started && target) onDrop(itemId, target.rowId, target.zone);
+        const dropped = Boolean(started && (reorder ? target : true));
+        if (started && reorder && target) onDrop(itemId, target.rowId, target.zone);
+        if (started && !reorder) onFreeMove(itemId, Math.round(lastX - startX), Math.round(lastY - startY));
         if (started) onEnd(dropped);
         dragging.current = false;
       };
@@ -172,6 +194,6 @@ export function useDragReorder({ onBegin, onDrop, onEnd, guides, surface, scroll
       globalThis.addEventListener("pointerup", end);
       globalThis.addEventListener("pointercancel", end);
     },
-    [canPair, guides, onBegin, onDrop, onEnd, scroller, surface],
+    [canPair, guides, onBegin, onDrop, onEnd, onFreeMove, scroller, surface],
   );
 }

@@ -255,7 +255,7 @@ test("nudging accumulates and stays inside its bounds", () => {
   next = ops.nudgeItem(next, page, id, "phone", 5, 0);
   assert.equal(ops.findItem(next, page, id).style.phone.nudgeX, 10);
 
-  for (let i = 0; i < 50; i += 1) next = ops.nudgeItem(next, page, id, "phone", 10, 0);
+  for (let i = 0; i <= ops.NUDGE_LIMIT / 10; i += 1) next = ops.nudgeItem(next, page, id, "phone", 10, 0);
   assert.equal(ops.findItem(next, page, id).style.phone.nudgeX, ops.NUDGE_LIMIT, "clamped, not runaway");
 });
 

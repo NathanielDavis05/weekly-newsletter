@@ -79,7 +79,10 @@ body {
 }
 
 .item-row-shell { position: relative; }
-.item-row-shell--attached-subsection { z-index: 2; margin-top: calc(-1 * var(--page-row-gap, 22px) - 8px); }
+/* Attached subsection bars remain in normal document flow.  They used to pull
+   themselves upward with a negative margin, which could cover the next item
+   whenever the parent contained more than one line of text. */
+.item-row-shell--attached-subsection { z-index: 2; }
 .item-row { display: flex; justify-content: center; width: 100%; position: relative; }
 .newsletter-item {
   position: relative;
