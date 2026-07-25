@@ -128,7 +128,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
     </section>,
 
     "home-referral": <section className="referral-note" aria-label="Referral bonus opportunity">
-      <span className="referral-note__badge" aria-hidden="true">🎁</span>
+      <span className="referral-note__badge" aria-hidden="true" />
       <div className="referral-note__content">
         <strong>{f("home.grow.referralStrong", home.grow.referralStrong)}</strong>
         <p>{f("home.grow.referralRest", home.grow.referralRest)}</p>
