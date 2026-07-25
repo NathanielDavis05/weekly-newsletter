@@ -125,10 +125,11 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
         <p>{f("home.grow.body", home.grow.body)}</p>
         <a className="button button--cream" href={home.grow.buttonHref} target="_blank" rel="noreferrer">{f("home.grow.buttonLabel", home.grow.buttonLabel)}</a>
       </div>
-      <p className="referral-note">
-        <strong>{f("home.grow.referralStrong", home.grow.referralStrong)}</strong> {f("home.grow.referralRest", home.grow.referralRest)}
-      </p>
     </section>,
+
+    "home-referral": <p className="referral-note">
+      <strong>{f("home.grow.referralStrong", home.grow.referralStrong)}</strong> {f("home.grow.referralRest", home.grow.referralRest)}
+    </p>,
 
     "home-footer": <footer className="site-footer">
       <strong>{f("home.footer.brand", home.footer.brand)}</strong>

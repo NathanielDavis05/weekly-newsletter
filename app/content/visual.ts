@@ -35,12 +35,13 @@ const pageSeeds: Record<VisualPageId, { items: SeedItem[]; rows: string[][] }> =
       ["home-anniversaries", "Anniversaries"],
       ["home-events", "Nearby events"],
       ["home-grow", "Grow with us"],
+      ["home-referral", "Referral bonus"],
       ["home-footer", "Footer"],
     ],
     rows: [
       ["home-overview-intro"], ["home-action"], ["home-event", "home-recognition-link"],
       ["home-scorecard"], ["home-recognition-heading"], ["home-recognition-feature"],
-      ["home-birthday", "home-anniversaries"], ["home-events"], ["home-grow"], ["home-footer"],
+      ["home-birthday", "home-anniversaries"], ["home-events"], ["home-grow"], ["home-referral"], ["home-footer"],
     ],
   },
   training: {
@@ -187,8 +188,8 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
     marginTop: typeof value.marginTop === "number" ? numberIn(value.marginTop, 0, -80, 240) : undefined,
     marginBottom: typeof value.marginBottom === "number" ? numberIn(value.marginBottom, 0, -80, 240) : undefined,
     align: value.align === "left" || value.align === "center" || value.align === "right" || value.align === "stretch" ? value.align : undefined,
-    nudgeX: typeof value.nudgeX === "number" ? numberIn(value.nudgeX, 0, -48, 48) : undefined,
-    nudgeY: typeof value.nudgeY === "number" ? numberIn(value.nudgeY, 0, -48, 48) : undefined,
+    nudgeX: typeof value.nudgeX === "number" ? numberIn(value.nudgeX, 0, -2000, 2000) : undefined,
+    nudgeY: typeof value.nudgeY === "number" ? numberIn(value.nudgeY, 0, -2000, 2000) : undefined,
   };
 }
 
@@ -290,7 +291,36 @@ function migratePage(page: VisualPageId, incoming: unknown, fallback: VisualPage
   let rows = rawRows.map((row, index) => normaliseRow(row, validIds, `${page}-row-${index + 1}`)).filter((row): row is VisualRow => Boolean(row));
   if (!rows.length) rows = fallback.rows.map((row) => ({ ...row, itemIds: [...row.itemIds] }));
   const placed = new Set(rows.flatMap((row) => row.itemIds));
+  // New built-in items are added at their intended location, even when an
+  // older saved layout already has custom row order.
+  for (const fallbackRow of fallback.rows) {
+    const missing = fallbackRow.itemIds.filter((id) => !placed.has(id));
+    if (!missing.length) continue;
+    const previousIds = fallback.rows.slice(0, fallback.rows.indexOf(fallbackRow)).flatMap((row) => row.itemIds);
+    const previousIndex = Math.max(...previousIds.map((id) => rows.findIndex((row) => row.itemIds.includes(id))), -1);
+    rows.splice(previousIndex + 1, 0, { id: `${page}-row-${rows.length + 1}-${missing.join("-")}`, itemIds: missing, gap: fallbackRow.gap, align: fallbackRow.align, keepColumnsOnPhone: fallbackRow.keepColumnsOnPhone });
+    for (const id of missing) placed.add(id);
+  }
   for (const item of items) if (!placed.has(item.id)) rows.push({ id: `${page}-row-${rows.length + 1}-${item.id}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false });
+
+  // A subsection is a child of its selected block, not a free-standing row.
+  // Keep it immediately beneath that parent even after a user reorders either
+  // section, preventing it from drifting into unrelated content.
+  const attachedCount = new Map<string, number>();
+  for (const item of items.filter((candidate) => candidate.kind === "subsection" && candidate.attachedTo)) {
+    let childRow: VisualRow | undefined;
+    rows = rows.flatMap((row) => {
+      if (!row.itemIds.includes(item.id)) return [row];
+      childRow = row;
+      const remaining = row.itemIds.filter((id) => id !== item.id);
+      return remaining.length ? [{ ...row, itemIds: remaining }] : [];
+    });
+    const parentIndex = rows.findIndex((row) => row.itemIds.includes(item.attachedTo!));
+    if (parentIndex < 0) continue;
+    const offset = attachedCount.get(item.attachedTo!) ?? 0;
+    rows.splice(parentIndex + 1 + offset, 0, { ...(childRow ?? { id: `${page}-row-${item.id}`, gap: 0, align: "stretch", keepColumnsOnPhone: false }), itemIds: [item.id] });
+    attachedCount.set(item.attachedTo!, offset + 1);
+  }
   return {
     items, rows, background: shortText(source.background, fallback.background),
     contentWidth: numberIn(source.contentWidth, fallback.contentWidth, 320, 1400), minHeight: numberIn(source.minHeight, fallback.minHeight, 0, 12000),
