@@ -8,10 +8,11 @@ export function TrainingView({ content, editor }: { content: NewsletterContent; 
   const { training } = content;
   // Formatting overrides for the fixed copy, keyed by content path. Resolved
   // once per render rather than once per field.
-  const overrides = visualDocument(content).richOverrides;
+  const visual = visualDocument(content);
+  const overrides = visual.richOverrides;
   /** A formattable field. Inline by default so surrounding markup is untouched. */
   const f = (path: string, value: string, block?: boolean) => (
-    <RichField path={path} value={value} overrides={overrides} editor={editor} block={block} />
+    <RichField path={path} value={value} overrides={overrides} frames={visual.textFrames} editor={editor} block={block} />
   );
 
   const native = {

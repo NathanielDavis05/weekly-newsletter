@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { parseRichText, richTextToPlain, type RichText } from "./richtext";
 import { defaultLooks, defaultTheme, parseTheme } from "./theme";
+import { BOX_SHADOWS, safeStyleColor } from "../edit/panels/blockStyles";
 import type {
   BlockStyle,
   HeaderDeviceStyle,
@@ -9,6 +10,8 @@ import type {
   NewsletterContent,
   ResponsiveLayout,
   SavedBlock,
+  TextFrameLayout,
+  TextFrameStyle,
   VisualBlock,
   VisualDocument,
   VisualPageDocument,
@@ -109,6 +112,7 @@ export function defaultVisualDocument(): VisualDocument {
     richOverrides: {},
     looks: defaultLooks(),
     savedBlocks: [],
+    textFrames: {},
   };
 }
 
@@ -188,6 +192,49 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
   };
 }
 
+function normaliseTextFrameLayout(value: TextFrameLayout | undefined): TextFrameLayout | undefined {
+  if (!value) return undefined;
+  return {
+    width: typeof value.width === "number" ? numberIn(value.width, 100, 10, 200) : undefined,
+    minHeight: typeof value.minHeight === "number" ? numberIn(value.minHeight, 0, 0, 1600) : undefined,
+    x: typeof value.x === "number" ? numberIn(value.x, 0, -800, 800) : undefined,
+    y: typeof value.y === "number" ? numberIn(value.y, 0, -800, 800) : undefined,
+  };
+}
+
+function normaliseTextFrame(value: TextFrameStyle): TextFrameStyle {
+  const number = (input: unknown, min: number, max: number) =>
+    typeof input === "number" && Number.isFinite(input) ? Math.max(min, Math.min(max, input)) : undefined;
+  return {
+    background: safeStyleColor(value.background),
+    color: safeStyleColor(value.color),
+    borderColor: safeStyleColor(value.borderColor),
+    borderWidth: number(value.borderWidth, 0, 20),
+    borderRadius: number(value.borderRadius, 0, 200),
+    paddingTop: number(value.paddingTop, 0, 240),
+    paddingRight: number(value.paddingRight, 0, 240),
+    paddingBottom: number(value.paddingBottom, 0, 240),
+    paddingLeft: number(value.paddingLeft, 0, 240),
+    fontSize: number(value.fontSize, 8, 200),
+    fontWeight: number(value.fontWeight, 100, 900),
+    textAlign: value.textAlign === "left" || value.textAlign === "center" || value.textAlign === "right" ? value.textAlign : undefined,
+    rotation: number(value.rotation, -180, 180),
+    phone: normaliseTextFrameLayout(value.phone),
+    desktop: normaliseTextFrameLayout(value.desktop),
+    linkedDevices: Boolean(value.linkedDevices),
+  };
+}
+
+function parseTextFrames(raw: unknown): Record<string, TextFrameStyle> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const frames: Record<string, TextFrameStyle> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^[a-zA-Z0-9_.:-]{1,180}$/.test(key) || !value || typeof value !== "object" || Array.isArray(value)) continue;
+    frames[key] = normaliseTextFrame(value as TextFrameStyle);
+  }
+  return frames;
+}
+
 /**
  * v6 -> v7: freeform blocks stored `title`/`body` as plain strings. Rich text is
  * derived from those strings the first time a v6 document is read, so existing
@@ -211,7 +258,15 @@ function withRichText(block: VisualBlock): VisualBlock {
 }
 
 function normaliseBlock(block: VisualBlock): VisualBlock {
-  const style = block.style ? { ...block.style, phone: normaliseLayout(block.style.phone), desktop: normaliseLayout(block.style.desktop) } : undefined;
+  const style = block.style ? {
+    ...block.style,
+    background: safeStyleColor(block.style.background),
+    color: safeStyleColor(block.style.color),
+    borderColor: safeStyleColor(block.style.borderColor),
+    shadow: block.style.shadow && BOX_SHADOWS[block.style.shadow] ? block.style.shadow : undefined,
+    phone: normaliseLayout(block.style.phone),
+    desktop: normaliseLayout(block.style.desktop),
+  } : undefined;
   return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
 }
 
@@ -299,6 +354,7 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
     // library on read; nothing is lost.
     looks: parseLooks(candidate.looks),
     savedBlocks: parseSavedBlocks(candidate.savedBlocks),
+    textFrames: parseTextFrames(candidate.textFrames),
     ...(activeLookId ? { activeLookId } : {}),
   };
 }
@@ -306,8 +362,9 @@ export function visualDocument(content: NewsletterContent): VisualDocument {
 export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
   if (!style) return undefined; const px = (value: number | undefined) => typeof value === "number" ? `${value}px` : undefined;
   return {
-    backgroundColor: style.background || undefined, color: style.color || undefined, borderColor: style.borderColor || undefined,
+    backgroundColor: safeStyleColor(style.background), color: safeStyleColor(style.color), borderColor: safeStyleColor(style.borderColor),
     borderWidth: px(style.borderWidth), borderStyle: style.borderWidth ? "solid" : undefined, borderRadius: px(style.borderRadius),
+    boxShadow: style.shadow ? BOX_SHADOWS[style.shadow] : undefined,
     fontSize: px(style.fontSize), fontWeight: style.fontWeight, textAlign: style.textAlign, maxWidth: px(style.maxWidth), display: style.hidden ? "none" : undefined,
     "--item-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
     "--item-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
@@ -320,6 +377,33 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--item-desktop-margin-top": px(style.desktop?.marginTop ?? style.marginTop), "--item-desktop-margin-bottom": px(style.desktop?.marginBottom ?? style.marginBottom),
     "--item-phone-nudge-x": px(style.phone?.nudgeX), "--item-phone-nudge-y": px(style.phone?.nudgeY),
     "--item-desktop-nudge-x": px(style.desktop?.nudgeX), "--item-desktop-nudge-y": px(style.desktop?.nudgeY),
+  } as CSSProperties;
+}
+
+/** CSS variables let the same text frame respond inside phone, desktop and published canvases. */
+export function styleForTextFrame(style?: TextFrameStyle): CSSProperties | undefined {
+  if (!style) return undefined;
+  const px = (value: number | undefined) => typeof value === "number" ? `${value}px` : undefined;
+  return {
+    backgroundColor: safeStyleColor(style.background),
+    color: safeStyleColor(style.color),
+    borderColor: safeStyleColor(style.borderColor),
+    borderWidth: px(style.borderWidth),
+    borderStyle: style.borderWidth ? "solid" : undefined,
+    borderRadius: px(style.borderRadius),
+    padding: `${style.paddingTop ?? 0}px ${style.paddingRight ?? 0}px ${style.paddingBottom ?? 0}px ${style.paddingLeft ?? 0}px`,
+    fontSize: px(style.fontSize),
+    fontWeight: style.fontWeight,
+    textAlign: style.textAlign,
+    "--text-rotation": `${style.rotation ?? 0}deg`,
+    "--text-phone-width": style.phone?.width ? `${style.phone.width}%` : undefined,
+    "--text-desktop-width": style.desktop?.width ? `${style.desktop.width}%` : undefined,
+    "--text-phone-min-height": px(style.phone?.minHeight),
+    "--text-desktop-min-height": px(style.desktop?.minHeight),
+    "--text-phone-x": px(style.phone?.x),
+    "--text-phone-y": px(style.phone?.y),
+    "--text-desktop-x": px(style.desktop?.x),
+    "--text-desktop-y": px(style.desktop?.y),
   } as CSSProperties;
 }
 

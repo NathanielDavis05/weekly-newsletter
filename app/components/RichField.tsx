@@ -9,9 +9,10 @@
 // everywhere else this renders exactly what the published page renders.
 
 import { isRichTextEmpty, type RichText } from "../content/richtext";
+import type { TextFrameStyle } from "../content/types";
 import type { ContentPath } from "../content/paths";
 import { RichTextInline, RichTextView } from "./RichText";
-import type { CanvasEditorState } from "./ItemCanvas";
+import { TextFrame, type CanvasEditorState } from "./ItemCanvas";
 
 export interface RichFieldProps {
   /** Dotted path into NewsletterContent, e.g. "training.heading". */
@@ -19,6 +20,7 @@ export interface RichFieldProps {
   /** The plain string currently stored at that path. */
   value: string;
   overrides?: Record<string, RichText>;
+  frames?: Record<string, TextFrameStyle>;
   editor?: CanvasEditorState;
   /**
    * Inline fields render spans only, keeping the surrounding heading/label
@@ -29,14 +31,18 @@ export interface RichFieldProps {
   placeholder?: string;
 }
 
-export function RichField({ path, value, overrides, editor, block, className, placeholder }: RichFieldProps) {
+export function RichField({ path, value, overrides, frames, editor, block, className, placeholder }: RichFieldProps) {
   const doc = overrides?.[path];
 
   if (editor?.renderField) {
-    return editor.renderField({ path, value, doc, block, className, placeholder: placeholder ?? value });
+    return <TextFrame frameKey={path} style={frames?.[path]} editor={editor} block={block}>
+      {editor.renderField({ path, value, doc, block, className, placeholder: placeholder ?? value })}
+    </TextFrame>;
   }
   // No override yet — render the plain string exactly as before, so a field
   // that has never been formatted produces byte-identical markup.
-  if (!doc || isRichTextEmpty(doc)) return <>{value}</>;
-  return block ? <RichTextView doc={doc} className={className} /> : <RichTextInline doc={doc} />;
+  const rendered = !doc || isRichTextEmpty(doc)
+    ? value
+    : block ? <RichTextView doc={doc} className={className} /> : <RichTextInline doc={doc} />;
+  return <TextFrame frameKey={path} style={frames?.[path]} block={block}>{rendered}</TextFrame>;
 }

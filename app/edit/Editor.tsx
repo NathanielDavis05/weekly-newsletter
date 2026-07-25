@@ -6,7 +6,7 @@ import { HomeView } from "../components/HomeView";
 import type { CanvasEditorState, ContentFieldRequest, TextFieldRequest } from "../components/ItemCanvas";
 import { ResultsView } from "../components/ResultsView";
 import { TrainingView } from "../components/TrainingView";
-import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, Look, NewsletterContent, ResponsiveLayout, ResultTone, SavedBlock, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
+import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, Look, NewsletterContent, ResponsiveLayout, ResultTone, SavedBlock, TextFrameLayout, TextFrameStyle, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
 import { richTextFromPlain, richTextToPlain } from "../content/richtext";
 import { setByPath } from "../content/paths";
 import { defaultTheme, defaultTextStyles, withRecentColor, type ColorToken, type SiteTheme, type TextStyleDef, type TextStyleId } from "../content/theme";
@@ -32,6 +32,7 @@ type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: s
 const templates: Template[] = [
   { id: "heading", kind: "text", label: "Heading", icon: "T", title: "New heading", style: { fontSize: 34, fontWeight: 700, phone: { width: 100 }, desktop: { width: 80 } } },
   { id: "paragraph", kind: "text", label: "Paragraph", icon: "¶", body: "Add your message here.", style: { fontSize: 16, phone: { width: 100 }, desktop: { width: 80 } } },
+  { id: "subsection", kind: "subsection", label: "Subsection bar", icon: "↔", title: "Bonus", style: { background: "#91d255", color: "#102a1d", borderColor: "#5e9e31", borderWidth: 3, borderRadius: 999, fontSize: 18, fontWeight: 700, textAlign: "center", paddingTop: 7, paddingRight: 18, paddingBottom: 7, paddingLeft: 18, phone: { width: 100 }, desktop: { width: 100 } } },
   { id: "button", kind: "button", label: "Primary button", icon: "↗", title: "Learn more", href: "https://", style: { phone: { width: 100 }, desktop: { width: 42 } } },
   { id: "card", kind: "container", label: "Info card", icon: "▣", title: "Important update", body: "Add supporting details here.", style: { background: "#fffdf8", borderColor: "#ddd3c4", borderWidth: 1, borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 70 } } },
   { id: "recognition", kind: "container", label: "Recognition", icon: "★", title: "Team shout-out", body: "Celebrate a team member here.", style: { background: "#fff4d9", borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 60 } } },
@@ -50,7 +51,17 @@ function DeferredNumber({ value, onCommit, min, max }: { value?: number; onCommi
   return <input type="number" value={draft} min={min} max={max} onFocus={() => { editing.current = true; }} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(shown); event.currentTarget.blur(); } }} />;
 }
 function NumberField(props: { label: string; value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) { return <label className="visual-control"><span>{props.label}</span><DeferredNumber {...props} /></label>; }
-function ColorField({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) { return <label className="visual-control"><span>{label}</span><span className="visual-color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(value ?? "") ? value : "#ffffff"} onChange={(event) => onChange(event.target.value)} /><input value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></span></label>; }
+function ColorField({ label, value, onChange }: { label: string; value?: string; onChange: (value: string) => void }) {
+  const shown = value ?? "";
+  const [draft, setDraft] = useState(shown);
+  const editing = useRef(false);
+  useEffect(() => { if (!editing.current) setDraft(shown); }, [shown]);
+  const commit = () => { editing.current = false; onChange(draft.trim()); };
+  return <label className="visual-control"><span>{label}</span><span className="visual-color">
+    <input type="color" value={/^#[0-9a-f]{6}$/i.test(value ?? "") ? value : "#ffffff"} onChange={(event) => { setDraft(event.target.value); onChange(event.target.value); }} />
+    <input value={draft} onFocus={() => { editing.current = true; }} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(shown); event.currentTarget.blur(); } }} />
+  </span></label>;
+}
 
 function TextField({ label, value, onChange, area = false, placeholder }: { label: string; value: string; onChange: (value: string) => void; area?: boolean; placeholder?: string }) {
   return <label className="visual-control"><span>{label}</span>{area
@@ -163,6 +174,38 @@ function HeroInspector({ page, header, content, patch, patchDevice, upload, chan
   </div>;
 }
 
+function TextFrameInspector({ label, frameKey, style, layout, device, patch, patchLayout, reset, back }: {
+  label: string; frameKey: string; style: TextFrameStyle; layout: TextFrameLayout; device: "phone" | "desktop";
+  patch: (patch: Partial<TextFrameStyle>) => void; patchLayout: (patch: Partial<TextFrameLayout>) => void; reset: () => void; back: () => void;
+}) {
+  const rawLabel = frameKey.includes(":") ? frameKey.split(":").at(-1) : frameKey.split(".").at(-1);
+  const fieldLabel = (rawLabel ?? "text").replace(/^rich/, "").replace(/([A-Z])/g, " $1").trim();
+  return <div className="editor-inspector-form text-frame-inspector">
+    <div className="inspector-heading"><p className="visual-kicker">Text frame · {device}</p><h2>{fieldLabel}</h2><p className="inspector-note">Inside {label}. Drag ✥ to move; drag the corner to reshape.</p></div>
+    <div className="inspector-actions"><button type="button" onClick={back}>← Whole block</button><button type="button" onClick={reset}>Reset frame</button></div>
+    <details className="inspector-section" open><summary>Position &amp; shape</summary>
+      <div className="segmented" role="group" aria-label="Text frame width"><button type="button" onClick={() => patchLayout({ width: 100 })}>Full</button><button type="button" onClick={() => patchLayout({ width: 50 })}>Half</button><button type="button" onClick={() => patchLayout({ width: undefined })}>Auto</button></div>
+      <div className="inspector-grid"><NumberField label="Width %" value={layout.width} min={10} max={200} onCommit={(value) => patchLayout({ width: value })} /><NumberField label="Min height" value={layout.minHeight} min={0} max={1600} onCommit={(value) => patchLayout({ minHeight: value })} /></div>
+      <div className="inspector-grid"><NumberField label="Move X" value={layout.x} min={-800} max={800} onCommit={(value) => patchLayout({ x: value })} /><NumberField label="Move Y" value={layout.y} min={-800} max={800} onCommit={(value) => patchLayout({ y: value })} /></div>
+      <NumberField label="Rotate °" value={style.rotation} min={-180} max={180} onCommit={(value) => patch({ rotation: value })} />
+    </details>
+    <details className="inspector-section" open><summary>Text</summary>
+      <div className="alignment-buttons"><button type="button" onClick={() => patch({ textAlign: "left" })}>Left</button><button type="button" onClick={() => patch({ textAlign: "center" })}>Middle</button><button type="button" onClick={() => patch({ textAlign: "right" })}>Right</button></div>
+      <ColorField label="Text color" value={style.color} onChange={(value) => patch({ color: value })} />
+      <div className="inspector-grid"><NumberField label="Font size" value={style.fontSize} min={8} max={200} onCommit={(value) => patch({ fontSize: value })} /><NumberField label="Weight" value={style.fontWeight} min={100} max={900} onCommit={(value) => patch({ fontWeight: value })} /></div>
+    </details>
+    <details className="inspector-section"><summary>Frame appearance</summary>
+      <ColorField label="Fill color" value={style.background} onChange={(value) => patch({ background: value })} />
+      <div className="inspector-grid"><ColorField label="Border color" value={style.borderColor} onChange={(value) => patch({ borderColor: value })} /><NumberField label="Border width" value={style.borderWidth} min={0} max={20} onCommit={(value) => patch({ borderWidth: value })} /></div>
+      <NumberField label="Corner radius" value={style.borderRadius} min={0} max={200} onCommit={(value) => patch({ borderRadius: value })} />
+      <p className="inspector-device-note">Inner padding</p>
+      <div className="inspector-grid"><NumberField label="Top" value={style.paddingTop} min={0} max={240} onCommit={(value) => patch({ paddingTop: value })} /><NumberField label="Bottom" value={style.paddingBottom} min={0} max={240} onCommit={(value) => patch({ paddingBottom: value })} /><NumberField label="Left" value={style.paddingLeft} min={0} max={240} onCommit={(value) => patch({ paddingLeft: value })} /><NumberField label="Right" value={style.paddingRight} min={0} max={240} onCommit={(value) => patch({ paddingRight: value })} /></div>
+    </details>
+    <ToggleField label="Keep phone & desktop frame in sync" checked={style.linkedDevices ?? false} onChange={(checked) => patch({ linkedDevices: checked })} />
+    <p className="inspector-note">Double-click the words on the canvas to edit them. These controls change only this piece of text.</p>
+  </div>;
+}
+
 export function Editor({ initialDraft, initialPublished, initialRevision, userEmail }: { initialDraft: NewsletterContent; initialPublished: NewsletterContent; initialRevision: number; userEmail: string }) {
   const normalized = (value: NewsletterContent) => ({ ...value, visual: visualDocument(value) });
   const [content, setContent] = useState<NewsletterContent>(() => normalized(initialDraft)); const [saved, setSaved] = useState<NewsletterContent>(() => normalized(initialDraft)); const [, setPublished] = useState<NewsletterContent>(() => normalized(initialPublished));
@@ -171,6 +214,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // Selection is an array so shift-click can extend it. The first entry is the
   // primary selection and drives the inspector.
   const [selectedIds, setSelectedIds] = useState<string[]>([]); const selectedId = selectedIds[0] ?? null;
+  const [selectedTextFrame, setSelectedTextFrame] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<"add" | "layers" | "design" | "weekly" | "history" | "media" | "blocks" | null>("weekly");
   // The ⌘K command palette is a modal overlay, independent of the drawers.
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -233,23 +277,41 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const endGesture = useCallback(() => history.commit(contentRef.current), [history]);
   const patchItem = useCallback((id: string, patch: Partial<VisualBlock>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (item) Object.assign(item, patch); }), [page, updateVisual]);
   const patchLayout = useCallback((id: string, patch: Partial<ResponsiveLayout>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (!item) return; const style = item.style ?? {}; const target = device; item.style = { ...style, [target]: { ...style[target], ...patch } }; if (style.linkedDevices) item.style[target === "phone" ? "desktop" : "phone"] = { ...style[target === "phone" ? "desktop" : "phone"], ...patch }; }), [device, page, updateVisual]);
+  const patchTextFrame = useCallback((key: string, patch: Partial<TextFrameStyle>) => updateVisual((doc) => {
+    doc.textFrames[key] = { ...(doc.textFrames[key] ?? {}), ...patch };
+  }, { label: "Text frame", coalesceKey: `text-frame:${key}` }), [updateVisual]);
+  const patchTextFrameLayout = useCallback((key: string, patch: Partial<TextFrameLayout>) => updateVisual((doc) => {
+    const frame = doc.textFrames[key] ?? {};
+    const target = device;
+    doc.textFrames[key] = { ...frame, [target]: { ...frame[target], ...patch } };
+    if (frame.linkedDevices) {
+      const other = target === "phone" ? "desktop" : "phone";
+      doc.textFrames[key][other] = { ...frame[other], ...patch };
+    }
+  }, { label: "Text frame layout", coalesceKey: `text-frame-layout:${key}` }), [device, updateVisual]);
+  const resetTextFrame = useCallback((key: string) => updateVisual((doc) => {
+    const next = { ...doc.textFrames };
+    delete next[key];
+    doc.textFrames = next;
+  }, { label: "Reset text frame" }), [updateVisual]);
   const patchPage = (patch: Partial<typeof pageDocument>) => updateVisual((doc) => Object.assign(doc.pages[page], patch));
 
   const moveItem = useCallback((itemId: string, targetRowId: string, zone: ops.DropZone) => applyOp("Move item", (doc) => ops.moveItem(doc, page, itemId, targetRowId, zone)), [applyOp, page]);
   // Arrow-key nudges coalesce: holding a key is one undo step, not forty.
   const nudge = useCallback((id: string, dx: number, dy: number) => edit((draft) => { draft.visual = ops.nudgeItem(visualDocument(draft), page, id, device, dx, dy); }, { label: "Nudge", coalesceKey: `nudge:${id}` }), [device, edit, page]);
 
-  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedIds([item.id]); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
+  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedIds([item.id]); setSelectedTextFrame(null); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
   const duplicate = useCallback((id: string) => {
     const result = ops.duplicateItem(visualDocument(contentRef.current), page, id);
     if (!result.newId) return;
     applyOp("Duplicate", () => result.doc);
     setSelectedIds([result.newId]);
+    setSelectedTextFrame(null);
   }, [applyOp, page]);
   // Native newsletter sections are hidden rather than deleted — their copy lives
   // in NewsletterContent and must survive.
-  const remove = useCallback((id: string) => { applyOp("Delete", (doc) => ops.removeItem(doc, page, id)); setSelectedIds([]); }, [applyOp, page]);
-  const hideItem = useCallback((id: string) => { applyOp("Hide", (doc) => ops.setHidden(doc, page, id, true)); setSelectedIds([]); }, [applyOp, page]);
+  const remove = useCallback((id: string) => { applyOp("Delete", (doc) => ops.removeItem(doc, page, id)); setSelectedIds([]); setSelectedTextFrame(null); }, [applyOp, page]);
+  const hideItem = useCallback((id: string) => { applyOp("Hide", (doc) => ops.setHidden(doc, page, id, true)); setSelectedIds([]); setSelectedTextFrame(null); }, [applyOp, page]);
   const removeSelected = useCallback((item: VisualBlock) => remove(item.id), [remove]);
 
   // --- multi-selection commands -------------------------------------------
@@ -285,7 +347,12 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       const key = event.key.toLowerCase();
 
       if (mod && key === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); return; }
-      if (event.key === "Escape") { event.preventDefault(); setSelectedIds([]); return; }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (selectedTextFrame) setSelectedTextFrame(null);
+        else setSelectedIds([]);
+        return;
+      }
 
       if (mod && key === "g" && selectedIds.length > 1) {
         event.preventDefault();
@@ -305,6 +372,17 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       if (selected && (event.key === "Backspace" || event.key === "Delete")) { event.preventDefault(); removeSelected(selected); return; }
 
       // Arrow keys nudge; shift makes it ten pixels.
+      if (selectedTextFrame && event.key.startsWith("Arrow")) {
+        const amount = event.shiftKey ? 10 : 1;
+        const deltas: Record<string, [number, number]> = { ArrowLeft: [-amount, 0], ArrowRight: [amount, 0], ArrowUp: [0, -amount], ArrowDown: [0, amount] };
+        const delta = deltas[event.key];
+        if (delta) {
+          event.preventDefault();
+          const layout = visualDocument(contentRef.current).textFrames[selectedTextFrame]?.[device] ?? {};
+          patchTextFrameLayout(selectedTextFrame, { x: (layout.x ?? 0) + delta[0], y: (layout.y ?? 0) + delta[1] });
+        }
+        return;
+      }
       if (selected && event.key.startsWith("Arrow")) {
         const amount = event.shiftKey ? 10 : 1;
         const deltas: Record<string, [number, number]> = { ArrowLeft: [-amount, 0], ArrowRight: [amount, 0], ArrowUp: [0, -amount], ArrowDown: [0, amount] };
@@ -314,7 +392,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     };
     globalThis.addEventListener("keydown", keys);
     return () => globalThis.removeEventListener("keydown", keys);
-  }, [applyOp, duplicate, groupSelected, nudge, page, redo, removeSelected, selected, selectedIds.length, undo, ungroupSelected]);
+  }, [applyOp, device, duplicate, groupSelected, nudge, page, patchTextFrameLayout, redo, removeSelected, selected, selectedIds.length, selectedTextFrame, undo, ungroupSelected]);
 
   const moveRow = useCallback((itemId: string, dir: number) => updateVisual((doc) => { const rows = doc.pages[page].rows; const index = rows.findIndex((row) => row.itemIds.includes(itemId)); if (index < 0) return; const next = index + dir; if (next < 0 || next >= rows.length) return; const [row] = rows.splice(index, 1); rows.splice(next, 0, row); }), [page, updateVisual]);
   const setHeroText = useCallback((field: "title" | "kicker", value: string) => edit((draft) => {
@@ -340,6 +418,87 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       })}
     />
   ), [patchItem, theme]);
+
+  const selectTextFrame = useCallback((frameKey: string, itemId: string) => {
+    setSelectedIds([itemId]);
+    setSelectedTextFrame(frameKey);
+    setInspectorOpen(true);
+    if (isMobile) setSheetOpen(true);
+  }, [isMobile]);
+
+  const startTextFrameDrag = useCallback((event: React.PointerEvent<HTMLElement>, frameKey: string, itemId: string) => {
+    if (event.button !== 0) return;
+    const frame = event.currentTarget.closest<HTMLElement>(".text-frame");
+    if (!frame) return;
+    selectTextFrame(frameKey, itemId);
+    beginGesture("Move text");
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const layout = visualDocument(contentRef.current).textFrames[frameKey]?.[device] ?? {};
+    const originX = layout.x ?? 0;
+    const originY = layout.y ?? 0;
+    let x = originX;
+    let y = originY;
+    let changed = false;
+    frame.classList.add("text-frame--moving");
+    const move = (next: globalThis.PointerEvent) => {
+      x = Math.max(-800, Math.min(800, Math.round(originX + next.clientX - startX)));
+      y = Math.max(-800, Math.min(800, Math.round(originY + next.clientY - startY)));
+      frame.style.setProperty("--text-live-x", `${x}px`);
+      frame.style.setProperty("--text-live-y", `${y}px`);
+      changed = true;
+    };
+    const end = () => {
+      globalThis.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointerup", end);
+      globalThis.removeEventListener("pointercancel", end);
+      frame.classList.remove("text-frame--moving");
+      frame.style.removeProperty("--text-live-x");
+      frame.style.removeProperty("--text-live-y");
+      if (changed) patchTextFrameLayout(frameKey, { x, y });
+      endGesture();
+    };
+    globalThis.addEventListener("pointermove", move);
+    globalThis.addEventListener("pointerup", end);
+    globalThis.addEventListener("pointercancel", end);
+  }, [beginGesture, device, endGesture, patchTextFrameLayout, selectTextFrame]);
+
+  const startTextFrameResize = useCallback((event: React.PointerEvent<HTMLElement>, frameKey: string, itemId: string) => {
+    if (event.button !== 0) return;
+    const frame = event.currentTarget.closest<HTMLElement>(".text-frame");
+    const item = frame?.closest<HTMLElement>(".newsletter-item");
+    if (!frame || !item) return;
+    selectTextFrame(frameKey, itemId);
+    beginGesture("Resize text");
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const rect = frame.getBoundingClientRect();
+    const itemWidth = item.getBoundingClientRect().width || 1;
+    let width = Math.max(10, Math.min(200, (rect.width / itemWidth) * 100));
+    let minHeight = rect.height;
+    let changed = false;
+    frame.classList.add("text-frame--resizing");
+    const move = (next: globalThis.PointerEvent) => {
+      width = Math.max(10, Math.min(200, ((rect.width + next.clientX - startX) / itemWidth) * 100));
+      minHeight = Math.max(0, Math.min(1600, rect.height + next.clientY - startY));
+      frame.style.setProperty("--text-live-width", `${width}%`);
+      frame.style.setProperty("--text-live-min-height", `${minHeight}px`);
+      changed = true;
+    };
+    const end = () => {
+      globalThis.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointerup", end);
+      globalThis.removeEventListener("pointercancel", end);
+      frame.classList.remove("text-frame--resizing");
+      frame.style.removeProperty("--text-live-width");
+      frame.style.removeProperty("--text-live-min-height");
+      if (changed) patchTextFrameLayout(frameKey, { width: Math.round(width), minHeight: Math.round(minHeight) });
+      endGesture();
+    };
+    globalThis.addEventListener("pointermove", move);
+    globalThis.addEventListener("pointerup", end);
+    globalThis.addEventListener("pointercancel", end);
+  }, [beginGesture, endGesture, patchTextFrameLayout, selectTextFrame]);
 
   // Gestures write to the DOM while the pointer is down and commit once on
   // release, wrapped in a history transaction.
@@ -430,6 +589,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   }, [document]);
 
   const select = useCallback((id: string, additive?: boolean) => {
+    setSelectedTextFrame(null);
     setSelectedIds((previous) => {
       if (!additive) return [id];
       return previous.includes(id) ? previous.filter((candidate) => candidate !== id) : [...previous, id];
@@ -519,10 +679,14 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   }, [edit]);
 
   const editor: CanvasEditorState = { selectedId, selectedIds, device,
+    selectedTextFrame, textFrames: document.textFrames,
     renderField,
-    onDeselect: () => setSelectedIds([]),
+    onDeselect: () => { setSelectedIds([]); setSelectedTextFrame(null); },
     onStartDrag: startDrag,
     onStartResize: startResize,
+    onSelectTextFrame: selectTextFrame,
+    onStartTextFrameDrag: startTextFrameDrag,
+    onStartTextFrameResize: startTextFrameResize,
     surfaceRef,
     overlay: <GuideLayer ref={guidesRef} />, onSelect: select, onMoveItem: moveItem, onResizeItem: (id, patch) => patchLayout(id, patch), onNudgeItem: nudge, onFreeTextChange: patchItem, onHeroTextChange: setHeroText, renderText };
   const filteredTemplates = templates.filter((item) => `${item.label} ${item.kind}`.toLowerCase().includes(query.toLowerCase()));
@@ -571,11 +735,14 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   }, [addTemplate, applyLook, insertSavedBlock, revealOnCanvas, select]);
   const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => { const id = event.dataTransfer.getData("application/x-newsletter-template"); if (id) { event.preventDefault(); addTemplate(id); } };
   const selectedStyle = selected?.style ?? {}; const currentLayout = selectedStyle[device] ?? {}; const heroSelected = selectedId === `hero-${page}`;
+  const selectedFrameStyle = selectedTextFrame ? document.textFrames[selectedTextFrame] ?? {} : {};
+  const selectedFrameLayout = selectedFrameStyle[device] ?? {};
   const previewHref = page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
   const changePage = (nextPage: VisualPageId) => {
     if (nextPage === page) return;
     setPage(nextPage);
     setSelectedIds([]);
+    setSelectedTextFrame(null);
     setDrawer(null);
     setSheetOpen(false);
   };
@@ -680,7 +847,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
           <button type="button" onClick={distributeSelected}>Distribute widths</button>
         </div>
         <p className="inspector-note">Sizes apply to the <strong>{device}</strong> layout. Shift-click on the canvas or in Items to change the selection.</p>
-      </div> : heroSelected ? <HeroInspector page={page} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
+      </div> : selectedTextFrame ? <TextFrameInspector label={heroSelected ? "Hero" : selected?.label ?? "Text"} frameKey={selectedTextFrame} style={selectedFrameStyle} layout={selectedFrameLayout} device={device} patch={(patch) => patchTextFrame(selectedTextFrame, patch)} patchLayout={(patch) => patchTextFrameLayout(selectedTextFrame, patch)} reset={() => resetTextFrame(selectedTextFrame)} back={() => setSelectedTextFrame(null)} /> : heroSelected ? <HeroInspector page={page} header={document.headers[page]} content={content} patch={patchHeader} patchDevice={patchHeaderDevice} upload={(file) => void upload(file, true)} change={edit} /> : selected ? <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Selected item</p><h2>{selected.label}</h2></div>{selected.kind !== "native" ? <><label className="visual-control"><span>Label</span><input value={selected.label} onChange={(event) => patchItem(selected.id, { label: event.target.value })} /></label>{selected.kind === "text" || selected.kind === "container" || selected.kind === "button" || selected.kind === "subsection" ? <label className="visual-control"><span>{selected.kind === "button" ? "Button text" : selected.kind === "subsection" ? "Subsection text" : "Heading"}</span><input value={selected.title ?? ""} onChange={(event) => patchItem(selected.id, { title: event.target.value })} /></label> : null}{selected.kind === "text" || selected.kind === "container" ? <label className="visual-control"><span>Text</span><textarea value={selected.body ?? ""} onChange={(event) => patchItem(selected.id, { body: event.target.value })} /></label> : null}{selected.kind === "button" ? <label className="visual-control"><span>Link</span><input value={selected.href ?? ""} onChange={(event) => patchItem(selected.id, { href: event.target.value })} /></label> : null}{selected.kind === "image" ? <><label className="visual-control"><span>Image URL</span><input value={selected.imageUrl ?? ""} onChange={(event) => patchItem(selected.id, { imageUrl: event.target.value })} /></label><label className="visual-upload"><span>Upload image</span><input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label></> : null}</> : <p className="inspector-note">This newsletter item keeps its existing structured copy. Its layout and appearance use the same renderer on the canvas and live site.</p>}
         {selected.kind === "native" ? <NativeEditor id={selected.nativeId ?? selected.id} content={content} change={edit} /> : null}
         <details className="inspector-section" open><summary>Size · {device}</summary>
           <div className="segmented" role="group" aria-label="Width"><button type="button" onClick={() => patchLayout(selected.id, { width: 100 })}>Full</button><button type="button" onClick={() => patchLayout(selected.id, { width: 50 })}>Half</button><button type="button" onClick={() => patchLayout(selected.id, { width: undefined })}>Auto</button></div>

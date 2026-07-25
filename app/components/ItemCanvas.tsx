@@ -5,8 +5,8 @@ import type { ResizeHandle } from "../edit/canvas/useResize";
 import { RESIZE_HANDLES } from "../edit/canvas/useResize";
 import type { RichText } from "../content/richtext";
 import { isRichTextEmpty } from "../content/richtext";
-import type { NewsletterContent, ResponsiveLayout, VisualBlock, VisualPageId } from "../content/types";
-import { styleForBlock, visualDocument } from "../content/visual";
+import type { NewsletterContent, ResponsiveLayout, TextFrameStyle, VisualBlock, VisualPageId } from "../content/types";
+import { styleForBlock, styleForTextFrame, visualDocument } from "../content/visual";
 import { RichTextView } from "./RichText";
 import { ThemeStyles } from "./ThemeStyles";
 
@@ -53,6 +53,12 @@ export interface CanvasEditorState {
   onMoveItem?: (itemId: string, targetRowId: string, zone: "above" | "below" | "left" | "right") => void;
   onResizeItem?: (itemId: string, patch: Partial<ResponsiveLayout>) => void;
   onNudgeItem?: (itemId: string, dx: number, dy: number) => void;
+  /** The currently focused piece of text inside the selected block. */
+  selectedTextFrame?: string | null;
+  textFrames?: Record<string, TextFrameStyle>;
+  onSelectTextFrame?: (frameKey: string, itemId: string) => void;
+  onStartTextFrameDrag?: (event: PointerEvent<HTMLElement>, frameKey: string, itemId: string) => void;
+  onStartTextFrameResize?: (event: PointerEvent<HTMLElement>, frameKey: string, itemId: string) => void;
   onFreeTextChange?: (itemId: string, patch: Partial<VisualBlock>) => void;
   onHeroTextChange?: (field: "title" | "kicker", value: string) => void;
   /**
@@ -65,7 +71,54 @@ export interface CanvasEditorState {
   renderField?: (request: ContentFieldRequest) => ReactNode;
 }
 
-function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorState }) {
+/** Shared by native and freeform text so every visible string gets the same frame controls. */
+export function TextFrame({ frameKey, children, editor, style, block = false }: {
+  frameKey: string;
+  children: ReactNode;
+  editor?: CanvasEditorState;
+  style?: TextFrameStyle;
+  block?: boolean;
+}) {
+  const selected = editor?.selectedTextFrame === frameKey;
+  const select = (event: PointerEvent<HTMLElement>) => {
+    if (!editor) return;
+    event.stopPropagation();
+    const itemId = event.currentTarget.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
+    if (itemId) editor.onSelectTextFrame?.(frameKey, itemId);
+  };
+  return <span
+    className={`text-frame${block ? " text-frame--block" : ""}${selected ? " text-frame--selected" : ""}`}
+    data-text-frame-key={frameKey}
+    style={styleForTextFrame(style)}
+    onPointerDown={editor ? select : undefined}
+  >
+    {children}
+    {editor && selected ? <>
+      <span
+        className="text-frame__grip"
+        role="button"
+        aria-label="Move text"
+        onPointerDown={(event) => {
+          event.preventDefault(); event.stopPropagation();
+          const itemId = event.currentTarget.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
+          if (itemId) editor.onStartTextFrameDrag?.(event, frameKey, itemId);
+        }}
+      >✥</span>
+      <span
+        className="text-frame__resize"
+        role="button"
+        aria-label="Resize text frame"
+        onPointerDown={(event) => {
+          event.preventDefault(); event.stopPropagation();
+          const itemId = event.currentTarget.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
+          if (itemId) editor.onStartTextFrameResize?.(event, frameKey, itemId);
+        }}
+      />
+    </> : null}
+  </span>;
+}
+
+function FreeItem({ item, editor, textFrames }: { item: VisualBlock; editor?: CanvasEditorState; textFrames: Record<string, TextFrameStyle> }) {
   const text = (
     field: "richTitle" | "richBody",
     className: string,
@@ -73,20 +126,26 @@ function FreeItem({ item, editor }: { item: VisualBlock; editor?: CanvasEditorSt
     singleLine?: boolean,
   ) => {
     const doc = item[field];
-    if (editor?.renderText) {
-      return editor.renderText({ itemId: item.id, field, doc, className, placeholder, singleLine });
-    }
-    return isRichTextEmpty(doc) ? null : <RichTextView doc={doc} className={className} />;
+    const frameKey = `${item.id}:${field}`;
+    const inner = editor?.renderText
+      ? editor.renderText({ itemId: item.id, field, doc, className, placeholder, singleLine })
+      : isRichTextEmpty(doc) ? null : <RichTextView doc={doc} className={className} />;
+    if (!inner) return null;
+    return <TextFrame frameKey={frameKey} style={textFrames[frameKey]} editor={editor} block={!singleLine}>{inner}</TextFrame>;
   };
 
   if (item.kind === "text") return <section className="free-block free-block--text">{text("richTitle", "free-block__title", "Heading", true)}{text("richBody", "free-block__body", "Add your message here.")}</section>;
+  if (item.kind === "subsection") return <section className="free-block free-block--subsection">{text("richTitle", "free-block__subsection-title", "Subsection title", true)}</section>;
   // Plain <img>, not next/image: sources are arbitrary author-supplied URLs
   // (uploads and pasted links) rendered inside newsletter markup that must stay
   // portable to email/static contexts, where the optimiser and its loader do not
   // apply. Lazy loading is the safe perf win available here.
   // eslint-disable-next-line @next/next/no-img-element
   if (item.kind === "image") return item.imageUrl ? <figure className="free-block free-block--image"><img src={item.imageUrl} alt={item.alt ?? ""} loading="lazy" /></figure> : <div className="free-block free-block--placeholder">Add an image</div>;
-  if (item.kind === "button") return <div className="free-block free-block--button"><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.title || "Button"}</a></div>;
+  if (item.kind === "button") {
+    const frameKey = `${item.id}:button`;
+    return <div className="free-block free-block--button"><TextFrame frameKey={frameKey} style={textFrames[frameKey]} editor={editor}><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.title || "Button"}</a></TextFrame></div>;
+  }
   if (item.kind === "divider") return <hr className="free-block free-block--divider" />;
 
   if (item.kind === "table") {
@@ -181,7 +240,7 @@ export function ItemCanvas({ content, page, native, editor }: {
               const selectedIndex = selectedIds.indexOf(item.id);
               const selected = selectedIndex >= 0;
               const primary = selectedIndex === 0;
-              const inner = item.kind === "native" ? native[item.nativeId ?? item.id] : <FreeItem item={item} editor={editor} />;
+              const inner = item.kind === "native" ? native[item.nativeId ?? item.id] : <FreeItem item={item} editor={editor} textFrames={document.textFrames} />;
               if (!inner) return null;
               const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
                 if (event.target !== event.currentTarget) return;
@@ -197,7 +256,7 @@ export function ItemCanvas({ content, page, native, editor }: {
                 style={styleForBlock(item.style)}
                 onPointerDown={editor ? (event) => {
                   // Text editing owns its own pointer handling; don't steal it.
-                  if ((event.target as HTMLElement).closest(".rt-editable, .newsletter-item__resize")) return;
+                  if ((event.target as HTMLElement).closest(".rt-editable, .newsletter-item__resize, .text-frame")) return;
                   event.stopPropagation();
                   editor.onSelect?.(item.id, event.shiftKey);
                 } : undefined}

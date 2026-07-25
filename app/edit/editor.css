@@ -312,6 +312,64 @@ button { cursor:pointer; }
 .newsletter-item--primary { outline-offset: 2px; }
 .newsletter-item--selected:not(.newsletter-item--primary) { outline: 2px dashed #1672d4; outline-offset: 2px; }
 
+/* Independent text frames: click words to focus, then drag/resize just that text. */
+.item-page--editing .text-frame { cursor: text; outline: 1px dashed transparent; outline-offset: 2px; }
+.item-page--editing .text-frame:hover { outline-color: rgba(22, 114, 212, .55); }
+.item-page--editing .text-frame--selected {
+  z-index: 80;
+  outline: 2px solid #1672d4;
+  outline-offset: 3px;
+}
+.builder-canvas--phone .text-frame {
+  width: var(--text-phone-width, auto);
+  min-height: var(--text-phone-min-height, 0);
+  transform: translate(var(--text-live-x, var(--text-phone-x, 0)), var(--text-live-y, var(--text-phone-y, 0))) rotate(var(--text-rotation, 0deg));
+}
+.builder-canvas--desktop .text-frame {
+  width: var(--text-desktop-width, var(--text-phone-width, auto));
+  min-height: var(--text-desktop-min-height, var(--text-phone-min-height, 0));
+  transform: translate(var(--text-live-x, var(--text-desktop-x, var(--text-phone-x, 0))), var(--text-live-y, var(--text-desktop-y, var(--text-phone-y, 0)))) rotate(var(--text-rotation, 0deg));
+}
+.text-frame[style*="--text-live-width"] { width: var(--text-live-width) !important; }
+.text-frame[style*="--text-live-min-height"] { min-height: var(--text-live-min-height) !important; }
+.text-frame__grip,
+.text-frame__resize {
+  position: absolute;
+  z-index: 100;
+  display: grid;
+  border: 2px solid #fff;
+  background: #1672d4;
+  color: #fff;
+  box-shadow: 0 1px 5px rgba(0,0,0,.28);
+  place-items: center;
+  user-select: none;
+  touch-action: none;
+}
+.text-frame__grip {
+  top: -17px;
+  left: -17px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: move;
+  font-size: 12px;
+  line-height: 1;
+}
+.text-frame__resize {
+  right: -8px;
+  bottom: -8px;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  cursor: nwse-resize;
+}
+.text-frame--moving,
+.text-frame--resizing { cursor: move; outline-color: #1672d4 !important; }
+@media (pointer: coarse) {
+  .text-frame__grip { top: -23px; left: -23px; width: 34px; height: 34px; }
+  .text-frame__resize { right: -13px; bottom: -13px; width: 26px; height: 26px; }
+}
+
 .guide-layer { position: absolute; inset: 0; z-index: 300; pointer-events: none; }
 .guide { position: absolute; background: #ff3d8b; }
 .guide--vertical { width: 1px; }

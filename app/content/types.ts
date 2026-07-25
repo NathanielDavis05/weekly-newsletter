@@ -251,10 +251,14 @@ export type VisualPageId = "home" | "training" | "results";
 export type VisualBlockKind =
   | "native"
   | "text"
+  | "subsection"
   | "image"
   | "button"
   | "divider"
-  | "container";
+  | "container"
+  | "table"
+  | "status-list"
+  | "highlight";
 
 export interface BlockStyle {
   paddingTop?: number;
@@ -272,6 +276,7 @@ export interface BlockStyle {
   fontWeight?: number;
   textAlign?: "left" | "center" | "right";
   maxWidth?: number;
+  shadow?: "soft" | "medium" | "strong" | "inset";
   /** Responsive visual sizing, persisted for both the canvas and public page. */
   phone?: ResponsiveLayout;
   desktop?: ResponsiveLayout;
@@ -291,6 +296,39 @@ export interface ResponsiveLayout {
   align?: "left" | "center" | "right" | "stretch";
   nudgeX?: number;
   nudgeY?: number;
+}
+
+/** Independent styling and geometry for one piece of text inside a block. */
+export interface TextFrameStyle {
+  background?: string;
+  color?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  fontSize?: number;
+  fontWeight?: number;
+  textAlign?: "left" | "center" | "right";
+  rotation?: number;
+  phone?: TextFrameLayout;
+  desktop?: TextFrameLayout;
+  linkedDevices?: boolean;
+}
+
+/** Per-device text-frame position and dimensions. Width is a percentage of its block. */
+export interface TextFrameLayout {
+  width?: number;
+  minHeight?: number;
+  x?: number;
+  y?: number;
+}
+
+export interface TableRow {
+  label: string;
+  values: string[];
 }
 
 export interface VisualBlock {
@@ -314,6 +352,9 @@ export interface VisualBlock {
   href?: string;
   imageUrl?: string;
   alt?: string;
+  tableData?: { columns: string[]; rows: TableRow[] };
+  statusItems?: TrainingStatusRow[];
+  highlight?: { value: string; unit: string; label: string; tone: "navy" | "green" | "red" | "gold" };
 }
 
 export interface VisualPageDocument {
@@ -376,6 +417,11 @@ export interface VisualDocument {
   activeLookId?: string;
   /** Reusable block templates, insertable into any page. */
   savedBlocks: SavedBlock[];
+  /**
+   * Independent frames for every editable string. Native fields use their
+   * dotted content path; freeform fields use `<block id>:<rich field>`.
+   */
+  textFrames: Record<string, TextFrameStyle>;
 }
 
 export interface VisualRow {

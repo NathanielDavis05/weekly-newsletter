@@ -96,6 +96,34 @@ body {
 .newsletter-item .detail-section { margin: 0; }
 .newsletter-item .site-footer { margin: 0; }
 
+/* Every visible string can become an independent, responsive frame. */
+.text-frame {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: var(--text-phone-width, auto);
+  min-height: var(--text-phone-min-height, 0);
+  max-width: none;
+  vertical-align: baseline;
+  transform: translate(var(--text-phone-x, 0), var(--text-phone-y, 0)) rotate(var(--text-rotation, 0deg));
+  transform-origin: center;
+}
+.text-frame--block { display: block; }
+.text-frame > .rt-view,
+.text-frame > .rt-editable { width: 100%; }
+
+.free-block { min-width: 0; }
+.free-block--text,
+.free-block--container { display: grid; gap: 10px; }
+.free-block__title,
+.free-block__subsection-title { margin: 0; }
+.free-block__body { margin: 0; }
+.free-block--button { display: flex; }
+.free-block--image img { display: block; width: 100%; height: auto; border-radius: inherit; }
+.free-block--placeholder { min-height: 140px; display: grid; place-items: center; border: 2px dashed #cbd3dc; border-radius: 14px; color: #647381; }
+.free-block--divider { width: 100%; margin: 0; border: 0; border-top: 2px solid currentColor; }
+.free-block--subsection { display: flex; min-height: 28px; align-items: center; justify-content: center; line-height: 1.1; }
+
 @media (max-width: 639px) {
   .item-row--paired:not(.item-row--phone-columns) { flex-direction: column; }
   .item-row--paired:not(.item-row--phone-columns) > .newsletter-item { width: 100%; flex-basis: 100%; }
@@ -110,6 +138,11 @@ body {
     margin-top: var(--item-desktop-margin-top, var(--item-phone-margin-top, 0));
     margin-bottom: var(--item-desktop-margin-bottom, var(--item-phone-margin-bottom, 0));
     translate: var(--item-desktop-nudge-x, 0) var(--item-desktop-nudge-y, 0);
+  }
+  .text-frame {
+    width: var(--text-desktop-width, var(--text-phone-width, auto));
+    min-height: var(--text-desktop-min-height, var(--text-phone-min-height, 0));
+    transform: translate(var(--text-desktop-x, var(--text-phone-x, 0)), var(--text-desktop-y, var(--text-phone-y, 0))) rotate(var(--text-rotation, 0deg));
   }
 }
 

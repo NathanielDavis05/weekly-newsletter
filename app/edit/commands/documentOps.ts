@@ -137,6 +137,11 @@ export function duplicateItem(
     target.items.push(copy);
     target.rows.splice(rowIndex + 1, 0, newRow(page, [copy.id]));
   });
+  if (newId) {
+    for (const [key, frame] of Object.entries(next.textFrames)) {
+      if (key.startsWith(`${id}:`)) next.textFrames[`${newId}${key.slice(id.length)}`] = clone(frame);
+    }
+  }
   return { doc: next, newId };
 }
 
@@ -147,10 +152,12 @@ export function duplicateItem(
 export function removeItem(doc: VisualDocument, page: VisualPageId, id: string): VisualDocument {
   const item = findItem(doc, page, id);
   if (item?.kind === "native") return setHidden(doc, page, id, true);
-  return withPage(doc, page, (target) => {
+  const next = withPage(doc, page, (target) => {
     target.items = target.items.filter((candidate) => candidate.id !== id);
     for (const row of target.rows) row.itemIds = row.itemIds.filter((itemId) => itemId !== id);
   });
+  for (const key of Object.keys(next.textFrames)) if (key.startsWith(`${id}:`)) delete next.textFrames[key];
+  return next;
 }
 
 export function setHidden(doc: VisualDocument, page: VisualPageId, id: string, hidden: boolean): VisualDocument {

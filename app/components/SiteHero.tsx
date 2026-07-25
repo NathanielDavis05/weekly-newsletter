@@ -4,7 +4,7 @@ import type { NewsletterContent, VisualPageId } from "../content/types";
 import { visualDocument } from "../content/visual";
 import { fluidFontClamp } from "../content/theme";
 import { SiteMenu } from "./SiteMenu";
-import type { CanvasEditorState } from "./ItemCanvas";
+import { TextFrame, type CanvasEditorState } from "./ItemCanvas";
 
 type HeroVars = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -59,7 +59,8 @@ export function SiteHero({
   detail?: boolean;
 }) {
   const { shared } = content;
-  const header = visualDocument(content).headers[page];
+  const visual = visualDocument(content);
+  const header = visual.headers[page];
   const imageUrl = safeImageUrl(header.imageUrl);
   const activeId = `hero-${page}`;
   const justify = (value: "left" | "center" | "right") => value === "left" ? "start" : value === "right" ? "end" : "center";
@@ -139,15 +140,14 @@ export function SiteHero({
   };
   const heroEditable = (field: "title" | "kicker", value: string, tag: "h1" | "p") => {
     const Tag = tag;
-    if (!editor) return <Tag key={field}>{value}</Tag>;
-    return <Tag
-      key={field}
-      contentEditable
-      suppressContentEditableWarning
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
-      onBlur={(event) => editor.onHeroTextChange?.(field, event.currentTarget.textContent ?? "")}
-    >{value}</Tag>;
+    const frameKey = `${activeId}:${field}`;
+    const text = editor ? <Tag
+        contentEditable
+        suppressContentEditableWarning
+        onClick={(event) => event.stopPropagation()}
+        onBlur={(event) => editor.onHeroTextChange?.(field, event.currentTarget.textContent ?? "")}
+      >{value}</Tag> : <Tag>{value}</Tag>;
+    return <TextFrame key={field} frameKey={frameKey} style={visual.textFrames[frameKey]} editor={editor} block>{text}</TextFrame>;
   };
   const copyItems = {
     kicker: header.showKicker ? heroEditable("kicker", kicker, "p") : null,
@@ -155,10 +155,14 @@ export function SiteHero({
   };
   return (
     <header
+      data-item-id={activeId}
       data-hero-shape={header.shape}
       className={`site-hero${detail ? " site-hero--detail" : ""}${editable ? " site-hero--editable" : ""}${editor?.selectedId === activeId ? " site-hero--selected" : ""}`}
       style={vars}
-      onClick={editable ? () => editor?.onSelect?.(activeId) : undefined}
+      onClick={editable ? (event) => {
+        if ((event.target as HTMLElement).closest(".text-frame")) return;
+        editor?.onSelect?.(activeId);
+      } : undefined}
     >
       {editable ? <span className="site-hero__badge">Hero</span> : null}
       <span className="site-hero__overlay" aria-hidden="true" />
