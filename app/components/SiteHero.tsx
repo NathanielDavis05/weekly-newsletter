@@ -43,6 +43,13 @@ function safeImageUrl(value: string) {
   return "";
 }
 
+/** Built-in artwork changes with the site. Give these local assets a release
+ * marker so mobile browsers do not keep showing an earlier cached pattern. */
+function currentImageUrl(value: string) {
+  if (!value.startsWith("/images/")) return value;
+  return `${value}${value.includes("?") ? "&" : "?"}v=20260726`;
+}
+
 export function SiteHero({
   page,
   content,
@@ -61,7 +68,7 @@ export function SiteHero({
   const { shared } = content;
   const visual = visualDocument(content);
   const header = visual.headers[page];
-  const imageUrl = safeImageUrl(header.imageUrl);
+  const imageUrl = currentImageUrl(safeImageUrl(header.imageUrl));
   const activeId = `hero-${page}`;
   const justify = (value: "left" | "center" | "right") => value === "left" ? "start" : value === "right" ? "end" : "center";
   const vertical = (value: "top" | "center" | "bottom") => value === "top" ? "start" : value === "bottom" ? "end" : "center";
