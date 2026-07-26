@@ -42,6 +42,17 @@ export function mergeContent(stored: unknown): NewsletterContent {
       table: { ...merged.shared.scorecard.table, ...table },
     };
   }
+  // Birthday entries were added after the original single-name shape. Preserve
+  // that optional list explicitly because the generic merge intentionally only
+  // walks keys known to the older defaults.
+  const storedBirthday = isPlainObject(stored) && isPlainObject(stored.home) && isPlainObject(stored.home.recognition) && isPlainObject(stored.home.recognition.birthday)
+    ? stored.home.recognition.birthday
+    : null;
+  if (storedBirthday && Array.isArray(storedBirthday.entries)) {
+    merged.home.recognition.birthday.entries = storedBirthday.entries
+      .filter((entry): entry is Record<string, unknown> => isPlainObject(entry))
+      .map((entry) => ({ name: typeof entry.name === "string" ? entry.name : "", date: typeof entry.date === "string" ? entry.date : "" }));
+  }
   // `visual` is intentionally not part of the authored newsletter defaults.
   // Keep it explicitly when a saved draft is read back, otherwise the generic
   // default merge would drop every freeform position, size, and style setting.
