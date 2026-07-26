@@ -428,6 +428,8 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--item-phone-nudge-x": px(style.phone?.nudgeX), "--item-phone-nudge-y": px(style.phone?.nudgeY),
     "--item-desktop-nudge-x": px(style.desktop?.nudgeX), "--item-desktop-nudge-y": px(style.desktop?.nudgeY),
     "--item-phone-z-index": style.phone?.zIndex ?? 0, "--item-desktop-z-index": style.desktop?.zIndex ?? style.phone?.zIndex ?? 0,
+    "--card-icon-phone-x": px(style.phone?.iconX), "--card-icon-phone-y": px(style.phone?.iconY), "--card-icon-phone-scale": scale(style.phone?.iconScale),
+    "--card-icon-desktop-x": px(style.desktop?.iconX), "--card-icon-desktop-y": px(style.desktop?.iconY), "--card-icon-desktop-scale": scale(style.desktop?.iconScale),
     "--referral-icon-phone-x": px(style.phone?.iconX), "--referral-icon-phone-y": px(style.phone?.iconY), "--referral-icon-phone-scale": scale(style.phone?.iconScale),
     "--referral-icon-desktop-x": px(style.desktop?.iconX), "--referral-icon-desktop-y": px(style.desktop?.iconY), "--referral-icon-desktop-scale": scale(style.desktop?.iconScale),
   } as CSSProperties;

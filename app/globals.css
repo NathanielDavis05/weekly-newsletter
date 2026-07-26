@@ -98,6 +98,9 @@ body {
   --referral-icon-x: var(--referral-icon-phone-x, 0px);
   --referral-icon-y: var(--referral-icon-phone-y, 0px);
   --referral-icon-scale: var(--referral-icon-phone-scale, 1);
+  --card-icon-x: var(--card-icon-phone-x, 0px);
+  --card-icon-y: var(--card-icon-phone-y, 0px);
+  --card-icon-scale: var(--card-icon-phone-scale, 1);
 }
 .newsletter-item > :first-child { width: 100%; }
 .newsletter-item .section { padding: 0; }
@@ -152,6 +155,9 @@ body {
     --referral-icon-x: var(--referral-icon-desktop-x, var(--referral-icon-phone-x, 0px));
     --referral-icon-y: var(--referral-icon-desktop-y, var(--referral-icon-phone-y, 0px));
     --referral-icon-scale: var(--referral-icon-desktop-scale, var(--referral-icon-phone-scale, 1));
+    --card-icon-x: var(--card-icon-desktop-x, var(--card-icon-phone-x, 0px));
+    --card-icon-y: var(--card-icon-desktop-y, var(--card-icon-phone-y, 0px));
+    --card-icon-scale: var(--card-icon-desktop-scale, var(--card-icon-phone-scale, 1));
   }
   .text-frame {
     width: var(--text-desktop-width, var(--text-phone-width, auto));
@@ -486,6 +492,8 @@ h3 {
   height: 72px;
   overflow: visible;
   align-self: center;
+  transform: translate(var(--card-icon-x), var(--card-icon-y)) scale(var(--card-icon-scale));
+  transform-origin: center;
 }
 
 .card-icon--art img {
