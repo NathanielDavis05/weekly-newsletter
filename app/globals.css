@@ -98,6 +98,9 @@ body {
   --referral-icon-x: var(--referral-icon-phone-x, 0px);
   --referral-icon-y: var(--referral-icon-phone-y, 0px);
   --referral-icon-scale: var(--referral-icon-phone-scale, 1);
+  --referral-background-x: var(--referral-background-phone-x, 0px);
+  --referral-background-y: var(--referral-background-phone-y, 0px);
+  --referral-background-scale: var(--referral-background-phone-scale, 1);
   --card-icon-x: var(--card-icon-phone-x, 0px);
   --card-icon-y: var(--card-icon-phone-y, 0px);
   --card-icon-scale: var(--card-icon-phone-scale, 1);
@@ -158,6 +161,9 @@ body {
     --referral-icon-x: var(--referral-icon-desktop-x, var(--referral-icon-phone-x, 0px));
     --referral-icon-y: var(--referral-icon-desktop-y, var(--referral-icon-phone-y, 0px));
     --referral-icon-scale: var(--referral-icon-desktop-scale, var(--referral-icon-phone-scale, 1));
+    --referral-background-x: var(--referral-background-desktop-x, var(--referral-background-phone-x, 0px));
+    --referral-background-y: var(--referral-background-desktop-y, var(--referral-background-phone-y, 0px));
+    --referral-background-scale: var(--referral-background-desktop-scale, var(--referral-background-phone-scale, 1));
     --card-icon-x: var(--card-icon-desktop-x, var(--card-icon-phone-x, 0px));
     --card-icon-y: var(--card-icon-desktop-y, var(--card-icon-phone-y, 0px));
     --card-icon-scale: var(--card-icon-desktop-scale, var(--card-icon-phone-scale, 1));
@@ -535,7 +541,7 @@ h3 {
 
 .card-icon--events .card-icon__background {
   border: 1px solid #efc9c9;
-  background: #fff7f5;
+  background: #f8e8e7;
 }
 
 .card-icon--training .training-tv {
@@ -884,11 +890,20 @@ h3 {
   height: 64px;
   align-items: center;
   justify-content: center;
-  border: 4px solid var(--paper);
   border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.referral-note__badge-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 4px solid var(--paper);
+  border-radius: inherit;
   background: linear-gradient(145deg, #ea633f, var(--red));
   box-shadow: 0 8px 18px rgba(88, 18, 16, 0.28);
-  transform: translateX(-50%);
+  transform: translate(var(--referral-background-x), var(--referral-background-y)) scale(var(--referral-background-scale));
+  transform-origin: center;
 }
 
 .referral-note__gift {
@@ -898,6 +913,7 @@ h3 {
   display: block;
   width: 42px;
   height: auto;
+  z-index: 1;
   transform: translate(-50%, -50%) translate(var(--referral-icon-x), var(--referral-icon-y)) scale(var(--referral-icon-scale));
   transform-origin: center;
 }

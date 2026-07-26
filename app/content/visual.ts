@@ -437,6 +437,8 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--card-background-desktop-x": px(style.desktop?.iconBackgroundX), "--card-background-desktop-y": px(style.desktop?.iconBackgroundY), "--card-background-desktop-scale": scale(style.desktop?.iconBackgroundScale),
     "--referral-icon-phone-x": px(style.phone?.iconX), "--referral-icon-phone-y": px(style.phone?.iconY), "--referral-icon-phone-scale": scale(style.phone?.iconScale),
     "--referral-icon-desktop-x": px(style.desktop?.iconX), "--referral-icon-desktop-y": px(style.desktop?.iconY), "--referral-icon-desktop-scale": scale(style.desktop?.iconScale),
+    "--referral-background-phone-x": px(style.phone?.iconBackgroundX), "--referral-background-phone-y": px(style.phone?.iconBackgroundY), "--referral-background-phone-scale": scale(style.phone?.iconBackgroundScale),
+    "--referral-background-desktop-x": px(style.desktop?.iconBackgroundX), "--referral-background-desktop-y": px(style.desktop?.iconBackgroundY), "--referral-background-desktop-scale": scale(style.desktop?.iconBackgroundScale),
   } as CSSProperties;
 }
 

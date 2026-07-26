@@ -138,6 +138,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-referral": <section className="referral-note" aria-label="Referral bonus opportunity">
       <span className="referral-note__badge" aria-hidden="true">
+        <span className="referral-note__badge-background" />
         <img className="referral-note__gift" src="/images/referral-gift.png" alt="" />
       </span>
       <div className="referral-note__content">
