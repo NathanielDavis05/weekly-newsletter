@@ -1668,6 +1668,37 @@ h3 {
 }
 
 @media (max-width: 639px) {
+  /* Keep all five scorecard columns in the phone viewport. The old 680px
+     fixed table made this block horizontally scrollable, hiding most results
+     in the editor and on the published page. */
+  .metrics-table-wrap {
+    margin-right: 0;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .metrics-table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.74rem;
+  }
+
+  .metrics-table th,
+  .metrics-table td {
+    padding: 10px 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .metrics-table thead th {
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+  }
+
+  .metrics-table th:first-child,
+  .metrics-table tbody th {
+    width: 40%;
+  }
+
   .home-hero {
     min-height: auto;
     padding: 12px 20px 18px;
