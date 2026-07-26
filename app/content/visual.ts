@@ -194,6 +194,9 @@ function normaliseLayout(value: ResponsiveLayout | undefined): ResponsiveLayout 
     iconX: typeof value.iconX === "number" ? numberIn(value.iconX, 0, -80, 80) : undefined,
     iconY: typeof value.iconY === "number" ? numberIn(value.iconY, 0, -80, 80) : undefined,
     iconScale: typeof value.iconScale === "number" ? numberIn(value.iconScale, 100, 40, 180) : undefined,
+    iconBackgroundX: typeof value.iconBackgroundX === "number" ? numberIn(value.iconBackgroundX, 0, -80, 80) : undefined,
+    iconBackgroundY: typeof value.iconBackgroundY === "number" ? numberIn(value.iconBackgroundY, 0, -80, 80) : undefined,
+    iconBackgroundScale: typeof value.iconBackgroundScale === "number" ? numberIn(value.iconBackgroundScale, 100, 40, 180) : undefined,
   };
 }
 
@@ -430,6 +433,8 @@ export function styleForBlock(style?: BlockStyle): CSSProperties | undefined {
     "--item-phone-z-index": style.phone?.zIndex ?? 0, "--item-desktop-z-index": style.desktop?.zIndex ?? style.phone?.zIndex ?? 0,
     "--card-icon-phone-x": px(style.phone?.iconX), "--card-icon-phone-y": px(style.phone?.iconY), "--card-icon-phone-scale": scale(style.phone?.iconScale),
     "--card-icon-desktop-x": px(style.desktop?.iconX), "--card-icon-desktop-y": px(style.desktop?.iconY), "--card-icon-desktop-scale": scale(style.desktop?.iconScale),
+    "--card-background-phone-x": px(style.phone?.iconBackgroundX), "--card-background-phone-y": px(style.phone?.iconBackgroundY), "--card-background-phone-scale": scale(style.phone?.iconBackgroundScale),
+    "--card-background-desktop-x": px(style.desktop?.iconBackgroundX), "--card-background-desktop-y": px(style.desktop?.iconBackgroundY), "--card-background-desktop-scale": scale(style.desktop?.iconBackgroundScale),
     "--referral-icon-phone-x": px(style.phone?.iconX), "--referral-icon-phone-y": px(style.phone?.iconY), "--referral-icon-phone-scale": scale(style.phone?.iconScale),
     "--referral-icon-desktop-x": px(style.desktop?.iconX), "--referral-icon-desktop-y": px(style.desktop?.iconY), "--referral-icon-desktop-scale": scale(style.desktop?.iconScale),
   } as CSSProperties;

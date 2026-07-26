@@ -27,6 +27,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-action": <article className="card priority-card priority-card--action">
       <div className="card-icon card-icon--art card-icon--training" aria-hidden="true">
+        <span className="card-icon__background" />
         <span className="training-tv" />
       </div>
       <div className="card-body">
@@ -45,6 +46,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-event": <Link className="card priority-card priority-card--link" href={home.overview.eventCard.href}>
       <span className="card-icon card-icon--art card-icon--events" aria-hidden="true">
+        <span className="card-icon__background" />
         <img src="/images/weekly-events-icon.png" alt="" />
       </span>
       <span className="card-body">

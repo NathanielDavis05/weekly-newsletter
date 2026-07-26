@@ -101,6 +101,9 @@ body {
   --card-icon-x: var(--card-icon-phone-x, 0px);
   --card-icon-y: var(--card-icon-phone-y, 0px);
   --card-icon-scale: var(--card-icon-phone-scale, 1);
+  --card-background-x: var(--card-background-phone-x, 0px);
+  --card-background-y: var(--card-background-phone-y, 0px);
+  --card-background-scale: var(--card-background-phone-scale, 1);
 }
 .newsletter-item > :first-child { width: 100%; }
 .newsletter-item .section { padding: 0; }
@@ -158,6 +161,9 @@ body {
     --card-icon-x: var(--card-icon-desktop-x, var(--card-icon-phone-x, 0px));
     --card-icon-y: var(--card-icon-desktop-y, var(--card-icon-phone-y, 0px));
     --card-icon-scale: var(--card-icon-desktop-scale, var(--card-icon-phone-scale, 1));
+    --card-background-x: var(--card-background-desktop-x, var(--card-background-phone-x, 0px));
+    --card-background-y: var(--card-background-desktop-y, var(--card-background-phone-y, 0px));
+    --card-background-scale: var(--card-background-desktop-scale, var(--card-background-phone-scale, 1));
   }
   .text-frame {
     width: var(--text-desktop-width, var(--text-phone-width, auto));
@@ -488,10 +494,28 @@ h3 {
 }
 
 .card-icon--art {
+  position: relative;
   width: 72px;
   height: 72px;
   overflow: visible;
   align-self: center;
+  background: transparent;
+}
+
+.card-icon--art .card-icon__background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--red-soft);
+  transform: translate(var(--card-background-x), var(--card-background-y)) scale(var(--card-background-scale));
+  transform-origin: center;
+}
+
+.card-icon--art img,
+.card-icon--art .training-tv {
+  position: relative;
+  z-index: 1;
   transform: translate(var(--card-icon-x), var(--card-icon-y)) scale(var(--card-icon-scale));
   transform-origin: center;
 }
@@ -504,8 +528,14 @@ h3 {
 }
 
 .card-icon--training {
-  background: #fff1f0;
   color: var(--navy);
+}
+
+.card-icon--training .card-icon__background { background: #fff1f0; }
+
+.card-icon--events .card-icon__background {
+  border: 1px solid #efc9c9;
+  background: #fff7f5;
 }
 
 .card-icon--training .training-tv {
@@ -538,11 +568,6 @@ h3 {
   border-radius: 999px;
   background: currentColor;
   transform: translateX(-50%);
-}
-
-.card-icon--events {
-  background: #fff7f5;
-  border: 1px solid #efc9c9;
 }
 
 .card-icon--date {
