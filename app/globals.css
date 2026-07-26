@@ -497,6 +497,39 @@ h3 {
 
 .card-icon--training {
   background: #fff1f0;
+  color: var(--navy);
+}
+
+.card-icon--training .training-tv {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 28px;
+  border: 4px solid currentColor;
+  border-radius: 7px;
+}
+
+.card-icon--training .training-tv::before {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  left: 7px;
+  height: 4px;
+  content: "";
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.card-icon--training .training-tv::after {
+  position: absolute;
+  bottom: -11px;
+  left: 50%;
+  width: 20px;
+  height: 4px;
+  content: "";
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateX(-50%);
 }
 
 .card-icon--events {

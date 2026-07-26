@@ -27,7 +27,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-action": <article className="card priority-card priority-card--action">
       <div className="card-icon card-icon--art card-icon--training" aria-hidden="true">
-        <img src="/images/commercepoint-training-icon.png" alt="" />
+        <span className="training-tv" />
       </div>
       <div className="card-body">
         <p className="urgent-label">{f("home.overview.actionCard.label", home.overview.actionCard.label)}</p>
