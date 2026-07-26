@@ -75,7 +75,7 @@ function nativeSectionText(content: NewsletterContent, nativeId: string): string
     "home-scorecard": [shared.scorecard.heading, shared.scorecard.resultValue],
     "home-recognition-heading": [home.recognition.heading],
     "home-recognition-feature": [home.recognition.feature.heading, home.recognition.feature.body],
-    "home-birthday": [home.recognition.birthday.name, home.recognition.birthday.date],
+    "home-birthday": (home.recognition.birthday.entries ?? [{ name: home.recognition.birthday.name, date: home.recognition.birthday.date }]).flatMap((entry) => [entry.name, entry.date]),
     "home-anniversaries": home.recognition.anniversaries.entries.map((entry) => entry.name),
     "home-events": home.events.items.map((event) => event.name),
     "home-grow": [home.grow.heading, home.grow.body],

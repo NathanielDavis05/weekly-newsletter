@@ -99,8 +99,11 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
 
     "home-birthday": <article className="mini-card">
       <p className="card-kicker">{f("home.recognition.birthday.kicker", home.recognition.birthday.kicker)}</p>
-      <h3>{f("home.recognition.birthday.name", home.recognition.birthday.name)}</h3>
-      <p>{f("home.recognition.birthday.date", home.recognition.birthday.date)}</p>
+      {home.recognition.birthday.entries ? home.recognition.birthday.entries.map((entry, index) => <Fragment key={index}>
+        {index > 0 ? <hr /> : null}
+        <h3>{f(`home.recognition.birthday.entries.${index}.name`, entry.name)}</h3>
+        <p>{f(`home.recognition.birthday.entries.${index}.date`, entry.date)}</p>
+      </Fragment>) : <><h3>{f("home.recognition.birthday.name", home.recognition.birthday.name)}</h3><p>{f("home.recognition.birthday.date", home.recognition.birthday.date)}</p></>}
     </article>,
 
     "home-anniversaries": <article className="mini-card">

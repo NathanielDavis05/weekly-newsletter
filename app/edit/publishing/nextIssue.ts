@@ -138,10 +138,25 @@ export function createNextIssue(
   next.home.recognition.anniversaries.entries = keptAnniversaries;
   overrides = remapOverrides(overrides, "home.recognition.anniversaries.entries", anniversarySurvivors);
 
-  // --- 4. clear a birthday that has passed ----------------------------------
-  if (next.home.recognition.birthday.date && isExpired(next.home.recognition.birthday.date, cutoff, year)) {
-    next.home.recognition.birthday.name = "";
-    next.home.recognition.birthday.date = "";
+  // --- 4. drop birthdays that have passed -----------------------------------
+  const birthday = next.home.recognition.birthday;
+  if (birthday.entries) {
+    const keptBirthdays: typeof birthday.entries = [];
+    const birthdaySurvivors = new Map<number, number>();
+    birthday.entries.forEach((entry, index) => {
+      if (isExpired(entry.date, cutoff, year)) return;
+      birthdaySurvivors.set(index, keptBirthdays.length);
+      keptBirthdays.push(entry);
+    });
+    if (keptBirthdays.length !== birthday.entries.length) summary.push(`Removed ${birthday.entries.length - keptBirthdays.length} past birthday${birthday.entries.length - keptBirthdays.length === 1 ? "" : "s"}.`);
+    birthday.entries = keptBirthdays;
+    const firstBirthday = keptBirthdays[0] ?? { name: "", date: "" };
+    birthday.name = firstBirthday.name;
+    birthday.date = firstBirthday.date;
+    overrides = remapOverrides(overrides, "home.recognition.birthday.entries", birthdaySurvivors);
+  } else if (birthday.date && isExpired(birthday.date, cutoff, year)) {
+    birthday.name = "";
+    birthday.date = "";
     overrides = dropOverrides(overrides, "home.recognition.birthday.name", "home.recognition.birthday.date");
     summary.push("Cleared last issue's birthday.");
   }

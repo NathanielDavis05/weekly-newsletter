@@ -23,6 +23,11 @@ export interface AnniversaryEntry {
   detail: string;
 }
 
+export interface BirthdayEntry {
+  name: string;
+  date: string;
+}
+
 export interface HomeActionCard {
   icon: string;
   label: string;
@@ -79,6 +84,8 @@ export interface HomeContent {
       kicker: string;
       name: string;
       date: string;
+      /** Optional list keeps existing single-birthday issues compatible. */
+      entries?: BirthdayEntry[];
     };
     anniversaries: {
       kicker: string;

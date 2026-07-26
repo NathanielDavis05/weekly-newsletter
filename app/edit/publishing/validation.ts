@@ -90,8 +90,10 @@ function datedFields(content: NewsletterContent): Array<{ path: string; label: s
   const fields: Array<{ path: string; label: string; value: string; page: VisualPageId }> = [
     { path: "home.overview.actionCard.bodyEmphasis", label: "Action deadline", value: content.home.overview.actionCard.bodyEmphasis, page: "home" },
     { path: "home.overview.eventCard.detail", label: "Featured event", value: content.home.overview.eventCard.detail, page: "home" },
-    { path: "home.recognition.birthday.date", label: "Birthday", value: content.home.recognition.birthday.date, page: "home" },
   ];
+  const birthdayEntries = content.home.recognition.birthday.entries;
+  if (birthdayEntries) birthdayEntries.forEach((entry, index) => fields.push({ path: `home.recognition.birthday.entries.${index}.date`, label: `Birthday "${entry.name}"`, value: entry.date, page: "home" }));
+  else fields.push({ path: "home.recognition.birthday.date", label: "Birthday", value: content.home.recognition.birthday.date, page: "home" });
   content.home.events.items.forEach((event, index) => {
     fields.push({ path: `home.events.items.${index}.date`, label: `Event "${event.name}"`, value: event.date, page: "home" });
   });
