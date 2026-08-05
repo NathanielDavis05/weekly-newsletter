@@ -342,7 +342,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     const item = doc.pages[page].items.find((candidate) => candidate.id === id);
     if (!item) return;
     Object.assign(item, patch);
-    if ((item.kind === "text" || item.kind === "container" || item.kind === "subsection") && "title" in patch && !("richTitle" in patch)) item.richTitle = richTextFromPlain(patch.title ?? "");
+    if ((item.kind === "text" || item.kind === "container" || item.kind === "subsection" || item.kind === "button") && "title" in patch && !("richTitle" in patch)) item.richTitle = richTextFromPlain(patch.title ?? "");
     if ((item.kind === "text" || item.kind === "container") && "body" in patch && !("richBody" in patch)) item.richBody = richTextFromPlain(patch.body ?? "");
   }), [page, updateVisual]);
   const patchLayout = useCallback((id: string, patch: Partial<ResponsiveLayout>) => updateVisual((doc) => { const item = doc.pages[page].items.find((candidate) => candidate.id === id); if (!item) return; const style = item.style ?? {}; const target = device; item.style = { ...style, [target]: { ...style[target], ...patch } }; if (style.linkedDevices) item.style[target === "phone" ? "desktop" : "phone"] = { ...style[target === "phone" ? "desktop" : "phone"], ...patch }; }), [device, page, updateVisual]);
