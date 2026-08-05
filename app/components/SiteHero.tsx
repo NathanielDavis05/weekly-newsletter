@@ -68,6 +68,7 @@ export function SiteHero({
   const { shared } = content;
   const visual = visualDocument(content);
   const header = visual.headers[page];
+  const menuLinks = [...shared.navLinks, ...(visual.customPages ?? []).map((custom) => ({ label: custom.title, href: `/${custom.slug}` }))];
   const imageUrl = currentImageUrl(safeImageUrl(header.imageUrl));
   const activeId = `hero-${page}`;
   const justify = (value: "left" | "center" | "right") => value === "left" ? "start" : value === "right" ? "end" : "center";
@@ -143,7 +144,7 @@ export function SiteHero({
   const topItems = {
     back: detail ? <Link key="back" className="site-hero__back" href="/"><span aria-hidden="true">←</span> {shared.detailBackLabel}</Link> : null,
     brand: header.showBrand ? <Link key="brand" className="site-hero__brand" href="/" aria-label={`${shared.brandName} home`}><span>{shared.brandName}</span><small>{shared.brandTagline}</small></Link> : null,
-    menu: header.showMenu ? <div key="menu"><SiteMenu heading={shared.navHeading} links={shared.navLinks} inverted /></div> : null,
+    menu: header.showMenu ? <div key="menu"><SiteMenu heading={shared.navHeading} links={menuLinks} inverted /></div> : null,
   };
   const heroEditable = (field: "title" | "kicker", value: string, tag: "h1" | "p") => {
     const Tag = tag;

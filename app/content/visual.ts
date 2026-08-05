@@ -4,6 +4,8 @@ import { defaultLooks, defaultTheme, parseTheme } from "./theme";
 import { BOX_SHADOWS, safeStyleColor } from "../edit/panels/blockStyles";
 import type {
   BlockStyle,
+  BuiltInPageId,
+  CustomPageMeta,
   HeaderDeviceStyle,
   HeaderStyle,
   Look,
@@ -21,7 +23,7 @@ import type {
 
 type SeedItem = [id: string, label: string];
 
-const pageSeeds: Record<VisualPageId, { items: SeedItem[]; rows: string[][] }> = {
+const pageSeeds: Record<BuiltInPageId, { items: SeedItem[]; rows: string[][] }> = {
   home: {
     items: [
       ["home-overview-intro", "This week at a glance"],
@@ -89,19 +91,41 @@ export function defaultHeader(page: VisualPageId): HeaderStyle {
     textColor: "#ffffff", kickerColor: "#fff7e8", brandColor: "#ffffff", menuColor: "#ffffff",
     menuBackground: "rgba(255,255,255,.08)", menuBorderColor: "rgba(255,255,255,.6)",
     titleWeight: 700, titleLetterSpacing: -1.3, kickerLetterSpacing: 2,
-    showBrand: true, showKicker: true, showTitle: page === "home", showMenu: true,
+    showBrand: true, showKicker: true, showTitle: page === "home" || page.startsWith("page-"), showMenu: true,
     advancedCss: "", topOrder: ["back", "brand", "menu"], copyOrder: ["kicker", "title"],
   };
 }
 
 function defaultPage(page: VisualPageId): VisualPageDocument {
-  const seed = pageSeeds[page];
+  const seed = pageSeeds[page as BuiltInPageId] ?? { items: [], rows: [] };
   return {
     items: seed.items.map(([id, label]) => ({ id, kind: "native", nativeId: id, label })),
     rows: seed.rows.map((itemIds, index) => ({ id: `${page}-row-${index + 1}`, itemIds, gap: 16, align: "stretch", keepColumnsOnPhone: false })),
     background: "#fbf7ef", contentWidth: page === "home" ? 900 : 860, minHeight: 0,
     paddingTop: 30, paddingRight: 22, paddingBottom: 46, paddingLeft: 22, rowGap: 22,
   };
+}
+
+/** Routes and app screens that custom pages must not shadow. */
+export const RESERVED_SLUGS = new Set([
+  "edit", "archive", "training", "results", "api", "images", "favicon.ico", "robots.txt", "sitemap.xml",
+]);
+
+function parseCustomPages(raw: unknown): CustomPageMeta[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set<string>(); const slugs = new Set<string>();
+  const pages: CustomPageMeta[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const value = entry as Record<string, unknown>;
+    const id = typeof value.id === "string" ? value.id : "";
+    const slug = typeof value.slug === "string" ? value.slug.trim().toLowerCase() : "";
+    if (!/^page-[a-zA-Z0-9-]{8,120}$/.test(id) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || RESERVED_SLUGS.has(slug) || ids.has(id) || slugs.has(slug)) continue;
+    ids.add(id); slugs.add(slug);
+    pages.push({ id: id as VisualPageId, title: shortText(value.title, "Untitled page"), slug });
+    if (pages.length === 20) break;
+  }
+  return pages;
 }
 
 export function defaultVisualDocument(): VisualDocument {
@@ -389,13 +413,29 @@ function parseSavedBlocks(raw: unknown): SavedBlock[] {
 export function visualDocument(content: NewsletterContent): VisualDocument {
   const fallback = defaultVisualDocument(); const candidate = content.visual as unknown as Record<string, unknown> | undefined;
   if (!candidate || !candidate.pages) return fallback;
-  const pages = candidate.pages as Partial<Record<VisualPageId, unknown>>;
-  const headers = candidate.headers as Partial<Record<VisualPageId, HeaderStyle>> | undefined;
+  const pages = candidate.pages as Partial<Record<string, unknown>>;
+  const headers = candidate.headers as Partial<Record<string, HeaderStyle>> | undefined;
+  const customPages = parseCustomPages(candidate.customPages);
+  const migratedPages: Record<string, VisualPageDocument> = {
+    home: migratePage("home", pages.home, fallback.pages.home),
+    training: migratePage("training", pages.training, fallback.pages.training),
+    results: migratePage("results", pages.results, fallback.pages.results),
+  };
+  const migratedHeaders: Record<string, HeaderStyle> = {
+    home: normaliseHeader(headers?.home, fallback.headers.home),
+    training: normaliseHeader(headers?.training, fallback.headers.training),
+    results: normaliseHeader(headers?.results, fallback.headers.results),
+  };
+  for (const meta of customPages) {
+    migratedPages[meta.id] = migratePage(meta.id, pages[meta.id], defaultPage(meta.id));
+    migratedHeaders[meta.id] = normaliseHeader(headers?.[meta.id], defaultHeader(meta.id));
+  }
   const activeLookId = typeof candidate.activeLookId === "string" ? candidate.activeLookId : undefined;
   return {
     version: 10,
-    pages: { home: migratePage("home", pages.home, fallback.pages.home), training: migratePage("training", pages.training, fallback.pages.training), results: migratePage("results", pages.results, fallback.pages.results) },
-    headers: { home: normaliseHeader(headers?.home, fallback.headers.home), training: normaliseHeader(headers?.training, fallback.headers.training), results: normaliseHeader(headers?.results, fallback.headers.results) },
+    pages: migratedPages,
+    headers: migratedHeaders,
+    ...(customPages.length ? { customPages } : {}),
     // v7 -> v8: documents saved before the theme existed adopt the brand
     // defaults, so nothing needs rebuilding by hand.
     theme: parseTheme(candidate.theme),

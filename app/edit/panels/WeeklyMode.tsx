@@ -156,33 +156,62 @@ const STATE_LABEL: Record<SectionState, string> = {
 export interface WeeklyModeProps {
   sections: WeeklySection[];
   selectedId: string | null;
+  /** The dated draft the manager is changing right now. */
+  draftLabel: string;
+  /** The dated issue readers can see on the live site. */
+  publishedLabel: string;
+  isFutureDraft: boolean;
+  issueTarget: "draft" | "live";
   onEdit: (itemId: string) => void;
   onToggleHidden: (itemId: string, hidden: boolean) => void;
   onMove: (itemId: string, direction: number) => void;
   onCreateNextIssue: () => void;
+  onUndoNextIssue: () => void;
+  onSwitchIssue: (target: "draft" | "live") => void;
   onOpenChecklist: () => void;
 }
 
 export function WeeklyMode({
   sections,
   selectedId,
+  draftLabel,
+  publishedLabel,
+  isFutureDraft,
+  issueTarget,
   onEdit,
   onToggleHidden,
   onMove,
   onCreateNextIssue,
+  onUndoNextIssue,
+  onSwitchIssue,
   onOpenChecklist,
 }: WeeklyModeProps) {
   const needsWork = sections.filter((section) => section.state === "empty" || section.state === "attention").length;
+  const isLive = issueTarget === "live";
 
   return (
     <div className="weekly">
       <div className="weekly__head">
         <div>
-          <h2>This week&rsquo;s issue</h2>
-          <p>{needsWork ? `${needsWork} section${needsWork === 1 ? "" : "s"} need attention` : "Every section is filled in"}</p>
+          <h2>{isLive ? "Editing live issue" : "Editing next week's draft"}</h2>
+          <strong className="weekly__date">{isLive ? publishedLabel : draftLabel}</strong>
+          <p>{isLive ? "Updates appear for readers right away" : needsWork ? `${needsWork} section${needsWork === 1 ? "" : "s"} need attention` : "Every section is filled in"}</p>
         </div>
-        <button type="button" className="weekly__next" onClick={onCreateNextIssue}>Create next issue</button>
+        {isLive ? <button type="button" className="weekly__next" onClick={() => onSwitchIssue("draft")}>Open next week's draft</button> : <button type="button" className="weekly__next" onClick={onCreateNextIssue}>Start next week</button>}
       </div>
+
+      <div className="weekly__live" aria-label="Live newsletter">
+        <span>{isLive ? "Next draft" : "Live now"}</span>
+        <strong>{isLive ? draftLabel : publishedLabel}</strong>
+      </div>
+
+      {!isLive && isFutureDraft ? <div className="weekly__next-note" role="status">
+        <span aria-hidden="true">!</span>
+        <p>You&rsquo;re editing next week&rsquo;s draft</p>
+        <button type="button" onClick={onUndoNextIssue}>Undo</button>
+      </div> : null}
+
+      <p className="weekly__label">Content blocks</p>
 
       <ol className="weekly__list">
         {sections.map((section, index) => (

@@ -62,6 +62,29 @@ export async function saveDraft(content: NewsletterContent, expectedRevision: nu
   return { draft: parseContent(json), revision };
 }
 
+/**
+ * Save an intentional correction to the newsletter that is currently live.
+ * This is kept separate from `saveDraft`: switching issue tabs in the editor
+ * must never quietly replace next week's work with a live-week edit.
+ */
+export async function savePublished(content: NewsletterContent, expectedRevision: number): Promise<{ published: NewsletterContent; revision: number }> {
+  const db = binding(); const row = await readRow(); const current = row?.revision ?? 0;
+  if (current !== expectedRevision) throw new RevisionConflictError(current);
+  if (row) await snapshotLegacy(row);
+  const revision = current + 1; const json = JSON.stringify(content); const updatedAt = new Date().toISOString();
+  if (!row) {
+    await db.prepare(
+      "INSERT INTO newsletter_content (id, published, revision, updated_at) VALUES (?, ?, ?, ?)",
+    ).bind(SINGLETON_ID, json, revision, updatedAt).run();
+  } else {
+    const updated = await db.prepare(
+      "UPDATE newsletter_content SET published = ?, revision = ?, updated_at = ? WHERE id = ? AND revision = ?",
+    ).bind(json, revision, updatedAt, SINGLETON_ID, current).run();
+    if ((updated.meta.changes ?? 0) < 1) throw new RevisionConflictError((await readRow())?.revision ?? current);
+  }
+  return { published: parseContent(json), revision };
+}
+
 export interface VersionSummary {
   id: string;
   kind: string;

@@ -265,6 +265,10 @@ export function ItemCanvas({ content, page, native, editor }: {
                   if ((event.target as HTMLElement).closest(".rt-editable, .newsletter-item__resize, .text-frame")) return;
                   event.stopPropagation();
                   editor.onSelect?.(item.id, event.shiftKey);
+                  // The whole selected block is a grab surface. A simple click
+                  // still just selects it (the drag threshold lives in the
+                  // gesture hook); moving the pointer places it precisely.
+                  editor.onStartDrag?.(event, item.id);
                 } : undefined}
                 onKeyDown={editor ? keyboard : undefined}
               >

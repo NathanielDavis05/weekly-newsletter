@@ -44,9 +44,15 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    // The Cloudflare worker can briefly reconnect while local content changes.
+    // Keep the editor usable during that reconnect instead of covering it with
+    // Vite's development error overlay.
+    server: {
+      hmr: { overlay: false },
+      ...(isCodexSeatbeltSandbox
+        ? { watch: { useFsEvents: false, usePolling: true } }
+        : {}),
+    },
     plugins: [
       vinext(),
       sites(),

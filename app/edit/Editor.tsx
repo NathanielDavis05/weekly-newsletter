@@ -6,11 +6,13 @@ import { HomeView } from "../components/HomeView";
 import type { CanvasEditorState, ContentFieldRequest, TextFieldRequest } from "../components/ItemCanvas";
 import { ResultsView } from "../components/ResultsView";
 import { TrainingView } from "../components/TrainingView";
+import { CustomPageView } from "../components/CustomPageView";
 import type { BlockStyle, HeaderDeviceStyle, HeaderStyle, Look, NewsletterContent, ResponsiveLayout, ResultTone, SavedBlock, TextFrameLayout, TextFrameStyle, VisualBlock, VisualBlockKind, VisualPageId } from "../content/types";
 import { richTextFromPlain, richTextToPlain } from "../content/richtext";
 import { setByPath } from "../content/paths";
 import { defaultTheme, defaultTextStyles, withRecentColor, type ColorToken, type SiteTheme, type TextStyleDef, type TextStyleId } from "../content/theme";
-import { defaultHeader, visualDocument } from "../content/visual";
+import { defaultHeader, RESERVED_SLUGS, visualDocument } from "../content/visual";
+import { formatDate, parseNewsletterDate } from "../content/dates";
 import { GuideLayer, type GuideLayerHandle } from "./canvas/GuideLayer";
 import { useDragReorder } from "./canvas/useDragReorder";
 import { useResize } from "./canvas/useResize";
@@ -27,7 +29,8 @@ import { createNextIssue } from "./publishing/nextIssue";
 import { validateNewsletter, type ValidationIssue } from "./publishing/validation";
 import { RichTextEditor } from "./richtext/RichTextEditor";
 
-const pages: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
+const builtInPages: Array<{ id: VisualPageId; label: string }> = [{ id: "home", label: "Home" }, { id: "training", label: "Training" }, { id: "results", label: "Results" }];
+type IssueTarget = "draft" | "live";
 type Template = { id: string; kind: Exclude<VisualBlockKind, "native">; label: string; icon: string; title?: string; body?: string; href?: string; imageUrl?: string; style?: BlockStyle };
 const templates: Template[] = [
   { id: "heading", kind: "text", label: "Heading", icon: "T", title: "New heading", style: { fontSize: 34, fontWeight: 700, phone: { width: 100 }, desktop: { width: 80 } } },
@@ -35,6 +38,7 @@ const templates: Template[] = [
   { id: "subsection", kind: "subsection", label: "Subsection bar", icon: "↔", title: "Bonus", style: { background: "#91d255", color: "#102a1d", borderColor: "#5e9e31", borderWidth: 3, borderRadius: 999, fontSize: 18, fontWeight: 700, textAlign: "center", paddingTop: 7, paddingRight: 18, paddingBottom: 7, paddingLeft: 18, phone: { width: 100 }, desktop: { width: 100 } } },
   { id: "button", kind: "button", label: "Primary button", icon: "↗", title: "Learn more", href: "https://", style: { phone: { width: 100 }, desktop: { width: 42 } } },
   { id: "card", kind: "container", label: "Info card", icon: "▣", title: "Important update", body: "Add supporting details here.", style: { background: "#fffdf8", borderColor: "#ddd3c4", borderWidth: 1, borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 70 } } },
+  { id: "section-box", kind: "container", label: "Section box", icon: "▦", title: "New section", body: "Add the details for this section.", style: { background: "#fffdf8", borderColor: "#e3d7cf", borderWidth: 1, borderRadius: 14, paddingTop: 22, paddingRight: 22, paddingBottom: 22, paddingLeft: 22, phone: { width: 100 }, desktop: { width: 78 } } },
   { id: "recognition", kind: "container", label: "Recognition", icon: "★", title: "Team shout-out", body: "Celebrate a team member here.", style: { background: "#fff4d9", borderRadius: 18, paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 60 } } },
   { id: "stat", kind: "container", label: "Stat card", icon: "5", title: "5 of 6", body: "goals met", style: { background: "#edf8f0", color: "#08733d", borderRadius: 18, textAlign: "center", paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, phone: { width: 100 }, desktop: { width: 48 } } },
   { id: "image", kind: "image", label: "Image", icon: "▧", style: { phone: { width: 100 }, desktop: { width: 70 } } },
@@ -43,6 +47,21 @@ const templates: Template[] = [
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const makeItem = (template: Template): VisualBlock => ({ id: uid(), kind: template.kind, label: template.label, title: template.title, body: template.body, href: template.href, imageUrl: template.imageUrl, alt: template.kind === "image" ? "Newsletter image" : undefined, style: template.style ? structuredClone(template.style) : undefined });
+
+/** A human week label stays tied to the newsletter's real dated hero line. */
+function issueWeekLabel(content: NewsletterContent): string {
+  const parsed = parseNewsletterDate(content.home.hero.kicker);
+  if (!parsed) return content.home.hero.kicker.trim() || "Undated issue";
+  const end = new Date(parsed.start.getTime() + 6 * 86_400_000);
+  const start = formatDate(parsed.start, "long", false);
+  return parsed.start.getMonth() === end.getMonth()
+    ? `Week of ${start}–${end.getDate()}, ${end.getFullYear()}`
+    : `Week of ${start}–${formatDate(end, "long")}`;
+}
+
+function issueStart(content: NewsletterContent): number | null {
+  return parseNewsletterDate(content.home.hero.kicker)?.start.getTime() ?? null;
+}
 
 function DeferredNumber({ value, onCommit, min, max }: { value?: number; onCommit: (value: number | undefined) => void; min?: number; max?: number }) {
   const shown = value == null ? "" : String(value); const [draft, setDraft] = useState(shown); const editing = useRef(false);
@@ -161,7 +180,7 @@ function HeroInspector({ page, header, content, patch, patchDevice, upload, chan
     <NumberField label="Top padding" value={d.paddingTop} min={0} max={300} onCommit={(value) => patchDevice(device, { paddingTop: value ?? 0 })} />
     <NumberField label="Bottom padding" value={d.paddingBottom} min={0} max={300} onCommit={(value) => patchDevice(device, { paddingBottom: value ?? 0 })} />
   </div>; };
-  return <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Hero</p><h2>{pages.find((item) => item.id === page)?.label} header</h2></div>
+  return <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Hero</p><h2>{builtInPages.find((item) => item.id === page)?.label} header</h2></div>
     <div className="inspector-actions"><button type="button" onClick={() => patch(defaultHeader(page))}>Reset Hero</button></div>
     <TextField label="Header title" value={page === "home" ? content.home.hero.headline : page === "training" ? content.training.heading : content.results.heading} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.headline = value; else if (page === "training") draft.training.heading = value; else draft.results.heading = value; })} />
     <TextField label="Header kicker" value={page === "home" ? content.home.hero.kicker : page === "training" ? content.training.badge : content.results.eyebrow} onChange={(value) => change((draft) => { if (page === "home") draft.home.hero.kicker = value; else if (page === "training") draft.training.badge = value; else draft.results.eyebrow = value; })} />
@@ -237,9 +256,14 @@ function AttachedSubsectionControls({ bar, device, onToggle, patchItem, patchLay
 
 export function Editor({ initialDraft, initialPublished, initialRevision, userEmail }: { initialDraft: NewsletterContent; initialPublished: NewsletterContent; initialRevision: number; userEmail: string }) {
   const normalized = (value: NewsletterContent) => ({ ...value, visual: visualDocument(value) });
-  const [content, setContent] = useState<NewsletterContent>(() => normalized(initialDraft)); const [saved, setSaved] = useState<NewsletterContent>(() => normalized(initialDraft)); const [, setPublished] = useState<NewsletterContent>(() => normalized(initialPublished));
-  const [revision, setRevision] = useState(initialRevision); const revisionRef = useRef(initialRevision);
-  const [page, setPage] = useState<VisualPageId>("home"); const [device, setDevice] = useState<"phone" | "desktop">("phone");
+  const initialDraftContent = normalized(initialDraft); const initialPublishedContent = normalized(initialPublished);
+  const [content, setContent] = useState<NewsletterContent>(() => initialDraftContent); const [saved, setSaved] = useState<NewsletterContent>(() => initialDraftContent); const [published, setPublished] = useState<NewsletterContent>(() => initialPublishedContent);
+  const [issueTarget, setIssueTarget] = useState<IssueTarget>("draft");
+  const draftBufferRef = useRef({ content: initialDraftContent, saved: initialDraftContent });
+  const liveBufferRef = useRef({ content: initialPublishedContent, saved: initialPublishedContent });
+  const issueTargetRef = useRef<IssueTarget>("draft");
+  const [, setRevision] = useState(initialRevision); const revisionRef = useRef(initialRevision);
+  const [page, setPage] = useState<VisualPageId>("home"); const [device, setDevice] = useState<"phone" | "desktop">("desktop");
   // Selection is an array so shift-click can extend it. The first entry is the
   // primary selection and drives the inspector.
   const [selectedIds, setSelectedIds] = useState<string[]>([]); const selectedId = selectedIds[0] ?? null;
@@ -247,9 +271,6 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const [drawer, setDrawer] = useState<"add" | "layers" | "design" | "weekly" | "history" | "media" | "blocks" | null>("weekly");
   // The ⌘K command palette is a modal overlay, independent of the drawers.
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Weekly mode is the default: routine updates are the common case, and the
-  // full design canvas is a deliberate step up rather than the starting point.
-  const [mode, setMode] = useState<"weekly" | "design">("weekly");
   const [checklistOpen, setChecklistOpen] = useState(false);
   // Phones get a different shell: the inspector is a dismissible sheet rather
   // than a permanent panel, so the canvas stays visible while editing.
@@ -261,7 +282,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);
   }, []);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   // The phone sheet is tracked separately from the desktop panel rather than
   // sharing one flag: on a phone the inspector covers the canvas, so it must
   // start closed and open only when explicitly asked for.
@@ -281,9 +302,16 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const surfaceRef = useRef<HTMLElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const guidesRef = useRef<GuideLayerHandle | null>(null);
-  const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme; const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
+  const document = useMemo(() => visualDocument(content), [content]); const theme = document.theme;
+  const pageTabs = useMemo(() => [...builtInPages, ...(document.customPages ?? []).map((item) => ({ id: item.id, label: item.title, slug: item.slug }))], [document.customPages]);
+  const pageDocument = document.pages[page]; const selected = pageDocument.items.find((item) => item.id === selectedId) ?? null; const selectedRow = pageDocument.rows.find((row) => row.itemIds.includes(selectedId ?? ""));
   const attachedSubsection = selected && !selected.attachedTo ? pageDocument.items.find((item) => item.kind === "subsection" && item.attachedTo === selected.id) ?? null : null;
   const dirty = useMemo(() => JSON.stringify(content) !== JSON.stringify(saved), [content, saved]);
+  const draftWeekLabel = useMemo(() => issueWeekLabel(content), [content]);
+  const publishedWeekLabel = useMemo(() => issueWeekLabel(published), [published]);
+  const draftStart = useMemo(() => issueStart(content), [content]);
+  const publishedStart = useMemo(() => issueStart(published), [published]);
+  const isFutureDraft = draftStart !== null && publishedStart !== null && draftStart > publishedStart;
 
   // Every mutation runs through here. Computing the next document outside the
   // setState updater keeps the updater pure — React may call it twice, which
@@ -295,6 +323,11 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     mutator(next);
     next.visual = visualDocument(next);
     contentRef.current = next;
+    if (issueTargetRef.current === "draft") draftBufferRef.current = { ...draftBufferRef.current, content: next };
+    else {
+      liveBufferRef.current = { ...liveBufferRef.current, content: next };
+      setPublished(next);
+    }
     history.record(previous, next, { label: options?.label ?? "Edit", coalesceKey: options?.coalesceKey });
     setContent(next);
   }, [history]);
@@ -336,7 +369,24 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // Arrow-key nudges coalesce: holding a key is one undo step, not forty.
   const nudge = useCallback((id: string, dx: number, dy: number) => edit((draft) => { draft.visual = ops.nudgeItem(visualDocument(draft), page, id, device, dx, dy); }, { label: "Nudge", coalesceKey: `nudge:${id}` }), [device, edit, page]);
 
-  const addTemplate = useCallback((templateId: string) => { const template = templates.find((item) => item.id === templateId); if (!template) return; const item = makeItem(template); updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); }); setSelectedIds([item.id]); setSelectedTextFrame(null); setDrawer(null); setInspectorOpen(true); }, [page, updateVisual]);
+  const addTemplate = useCallback((templateId: string, dropAt?: { x: number; y: number }) => {
+    const template = templates.find((item) => item.id === templateId); if (!template) return;
+    const item = makeItem(template);
+    updateVisual((doc) => { doc.pages[page].items.push(item); doc.pages[page].rows.push({ id: `${page}-row-${uid()}`, itemIds: [item.id], gap: 16, align: "stretch", keepColumnsOnPhone: false }); });
+    setSelectedIds([item.id]); setSelectedTextFrame(null); setDrawer(null); setInspectorOpen(true);
+    // A canvas drop should honour the pointer, not append a block and make the
+    // manager hunt for it. After React paints the new block we turn the exact
+    // screen delta into the persistent per-device nudge.
+    if (dropAt) requestAnimationFrame(() => {
+      const element = surfaceRef.current?.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(item.id)}"]`);
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      patchLayout(item.id, {
+        nudgeX: Math.round(dropAt.x - rect.left - rect.width / 2),
+        nudgeY: Math.round(dropAt.y - rect.top - Math.min(rect.height, 80) / 2),
+      });
+    });
+  }, [page, patchLayout, updateVisual]);
   const duplicate = useCallback((id: string) => {
     const result = ops.duplicateItem(visualDocument(contentRef.current), page, id);
     if (!result.newId) return;
@@ -357,18 +407,50 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const matchSelected = useCallback((dimension: ops.SizeDimension) => applyOp("Match size", (doc) => ops.matchSize(doc, page, selectedIds, dimension, device)), [applyOp, device, page, selectedIds]);
   const distributeSelected = useCallback(() => applyOp("Distribute", (doc) => ops.distributeWidths(doc, page, selectedIds, device)), [applyOp, device, page, selectedIds]);
 
-  const undo = useCallback(() => { const state = history.undo(); if (state) { contentRef.current = state; setContent(state); } }, [history]);
-  const redo = useCallback(() => { const state = history.redo(); if (state) { contentRef.current = state; setContent(state); } }, [history]);
+  const undo = useCallback(() => { const state = history.undo(); if (state) { contentRef.current = state; if (issueTargetRef.current === "draft") draftBufferRef.current = { ...draftBufferRef.current, content: state }; else { liveBufferRef.current = { ...liveBufferRef.current, content: state }; setPublished(state); } setContent(state); } }, [history]);
+  const redo = useCallback(() => { const state = history.redo(); if (state) { contentRef.current = state; if (issueTargetRef.current === "draft") draftBufferRef.current = { ...draftBufferRef.current, content: state }; else { liveBufferRef.current = { ...liveBufferRef.current, content: state }; setPublished(state); } setContent(state); } }, [history]);
 
   type ApiData = { draft?: NewsletterContent; published?: NewsletterContent; revision?: number; error?: string };
   const api = useCallback(async (url: string, init: RequestInit) => { const controller = new AbortController(); const timer = globalThis.setTimeout(() => controller.abort(), 20000); try { const response = await fetch(url, { headers: { "content-type": "application/json" }, signal: controller.signal, ...init }); const data = await response.json().catch(() => ({})) as ApiData; if (!response.ok) { const error = new Error(data.error || "Could not save changes.") as Error & { status?: number; revision?: number }; error.status = response.status; error.revision = data.revision; throw error; } return data; } catch (error) { if (error instanceof DOMException && error.name === "AbortError") throw new Error("Saving timed out. Your changes remain in this tab; try Save again."); throw error; } finally { globalThis.clearTimeout(timer); } }, []);
-  const acceptSaved = useCallback((data: ApiData, snapshot: NewsletterContent) => { const next = normalized(data.draft ?? snapshot); const nextRevision = data.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setSaved(next); setContent((current) => { const adopted = JSON.stringify(current) === JSON.stringify(snapshot) ? next : current; contentRef.current = adopted; return adopted; }); }, []);
-  const persist = useCallback(async (snapshot: NewsletterContent, label?: string) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current, label }) }); acceptSaved(data, snapshot); }, [acceptSaved, api]);
+  const acceptSaved = useCallback((data: ApiData, snapshot: NewsletterContent, target: IssueTarget) => {
+    const next = normalized(target === "live" ? data.published ?? snapshot : data.draft ?? snapshot);
+    const nextRevision = data.revision ?? revisionRef.current;
+    revisionRef.current = nextRevision; setRevision(nextRevision);
+    if (target === "draft") draftBufferRef.current = { content: next, saved: next };
+    else { liveBufferRef.current = { content: next, saved: next }; setPublished(next); }
+    if (issueTargetRef.current !== target) return;
+    setSaved(next); setContent((current) => { const adopted = JSON.stringify(current) === JSON.stringify(snapshot) ? next : current; contentRef.current = adopted; return adopted; });
+  }, []);
+  const persist = useCallback(async (snapshot: NewsletterContent, label?: string, target = issueTargetRef.current) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current, label, target }) }); acceptSaved(data, snapshot, target); }, [acceptSaved, api]);
 
-  useEffect(() => { if (!dirty || busy || saving || conflict) return; const snapshot = structuredClone(content); const timer = globalThis.setTimeout(() => { const task = (async () => { setSaving(true); setStatus("Saving draft…"); try { await persist(snapshot); setStatus("Draft autosaved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setSaving(false); autosaveRef.current = null; } })(); autosaveRef.current = task; }, 1000); return () => globalThis.clearTimeout(timer); }, [busy, conflict, content, dirty, persist, saving]);
+  useEffect(() => { if (!dirty || busy || saving || conflict) return; const snapshot = structuredClone(content); const target = issueTarget; const timer = globalThis.setTimeout(() => { const task = (async () => { setSaving(true); setStatus(target === "live" ? "Saving live changes…" : "Saving draft…"); try { await persist(snapshot, undefined, target); setStatus(target === "live" ? "Live changes saved" : "Draft autosaved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setSaving(false); autosaveRef.current = null; } })(); autosaveRef.current = task; }, 1000); return () => globalThis.clearTimeout(timer); }, [busy, conflict, content, dirty, issueTarget, persist, saving]);
 
-  const saveNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(content); await persist(snapshot, "Manual save"); setConflict(false); setStatus("Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
-  const publishNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); let snapshot = structuredClone(content); if (JSON.stringify(snapshot) !== JSON.stringify(saved)) { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current }) }); acceptSaved(data, snapshot); snapshot = normalized(data.draft ?? snapshot); } const result = await api("/api/content/publish", { method: "POST", body: JSON.stringify({ expectedRevision: revisionRef.current }) }); const nextRevision = result.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); setPublished(normalized(result.published ?? snapshot)); setSaved(snapshot); contentRef.current = snapshot; setContent(snapshot); setStatus("Published — live site updated"); setConflict(false); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
+  const saveNow = async () => { const target = issueTargetRef.current; setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(contentRef.current); await persist(snapshot, target === "live" ? "Saved live issue" : "Manual save", target); setConflict(false); setStatus(target === "live" ? "Live changes saved" : "Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
+  const switchIssue = async (target: IssueTarget) => {
+    const currentTarget = issueTargetRef.current;
+    if (target === currentTarget || busy) return;
+    if (dirty) {
+      setBusy(true);
+      try {
+        await persist(structuredClone(contentRef.current), undefined, currentTarget);
+        setStatus(currentTarget === "live" ? "Live changes saved" : "Draft saved");
+      } catch (error) {
+        const typed = error as Error & { status?: number };
+        if (typed.status === 409) setConflict(true);
+        setStatus(typed.message);
+        return;
+      } finally { setBusy(false); }
+    }
+    const next = target === "draft" ? draftBufferRef.current : liveBufferRef.current;
+    issueTargetRef.current = target;
+    contentRef.current = next.content;
+    setIssueTarget(target); setContent(next.content); setSaved(next.saved);
+    setPublished(liveBufferRef.current.content);
+    setSelectedIds([]); setSelectedTextFrame(null); setSheetOpen(false);
+    history.reset();
+    setStatus(target === "live" ? "Editing the live issue" : "Editing next week's draft");
+  };
+  const publishNow = async () => { setBusy(true); try { await autosaveRef.current?.catch(() => undefined); let snapshot = structuredClone(content); if (JSON.stringify(snapshot) !== JSON.stringify(saved)) { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current, target: "draft" }) }); acceptSaved(data, snapshot, "draft"); snapshot = normalized(data.draft ?? snapshot); } const result = await api("/api/content/publish", { method: "POST", body: JSON.stringify({ expectedRevision: revisionRef.current }) }); const nextRevision = result.revision ?? revisionRef.current; revisionRef.current = nextRevision; setRevision(nextRevision); const nextPublished = normalized(result.published ?? snapshot); setPublished(nextPublished); liveBufferRef.current = { content: nextPublished, saved: nextPublished }; setSaved(snapshot); draftBufferRef.current = { content: snapshot, saved: snapshot }; contentRef.current = snapshot; setContent(snapshot); setStatus("Published — live site updated"); setConflict(false); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
 
   const upload = async (file: File, hero = false) => { setBusy(true); try { const form = new FormData(); form.append("file", file); const response = await fetch("/api/media", { method: "POST", body: form }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Upload failed"); if (hero) patchHeader({ imageUrl: data.url }); else if (selected) patchItem(selected.id, { imageUrl: data.url, alt: selected.alt || file.name }); setStatus("Image uploaded"); } catch (error) { setStatus(error instanceof Error ? error.message : "Upload failed"); } finally { setBusy(false); } };
   const patchHeader = (patch: Partial<HeaderStyle>) => updateVisual((doc) => { doc.headers[page] = { ...doc.headers[page], ...patch }; });
@@ -434,7 +516,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   const setHeroText = useCallback((field: "title" | "kicker", value: string) => edit((draft) => {
     if (page === "home") { if (field === "title") draft.home.hero.headline = value; else draft.home.hero.kicker = value; }
     else if (page === "training") { if (field === "title") draft.training.heading = value; else draft.training.badge = value; }
-    else { if (field === "title") draft.results.heading = value; else draft.results.eyebrow = value; }
+    else if (page === "results") { if (field === "title") draft.results.heading = value; else draft.results.eyebrow = value; }
   }), [edit, page]);
   // Rich text edits write both the formatted document and its plain-text mirror
   // so `title`/`body` stay usable by anything that has not been taught about
@@ -739,6 +821,35 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     setStatus("Next issue drafted — the live newsletter is unchanged");
   }, [edit]);
 
+  const createCustomPage = useCallback(() => {
+    const requestedTitle = globalThis.prompt("Name this new page", "New page");
+    const title = requestedTitle?.trim().slice(0, 80);
+    if (!title) return;
+    const existingSlugs = new Set((document.customPages ?? []).map((item) => item.slug));
+    const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "new-page";
+    let slug = base; let suffix = 2;
+    while (RESERVED_SLUGS.has(slug) || existingSlugs.has(slug)) { slug = `${base}-${suffix}`; suffix += 1; }
+    const id = `page-${uid()}` as VisualPageId;
+    const headingId = `${id}-heading`; const introId = `${id}-intro`;
+    updateVisual((doc) => {
+      doc.customPages = [...(doc.customPages ?? []), { id, title, slug }];
+      doc.pages[id] = {
+        items: [
+          { id: headingId, kind: "text", label: "Page heading", title, richTitle: richTextFromPlain(title), style: { fontSize: 42, fontWeight: 750, color: "#242126", phone: { width: 100 }, desktop: { width: 100 } } },
+          { id: introId, kind: "text", label: "Introduction", body: "Add a short introduction to this page.", richBody: richTextFromPlain("Add a short introduction to this page."), style: { fontSize: 18, color: "#5d5659", phone: { width: 100 }, desktop: { width: 78 } } },
+        ],
+        rows: [
+          { id: `${id}-row-heading`, itemIds: [headingId], gap: 16, align: "stretch", keepColumnsOnPhone: false },
+          { id: `${id}-row-intro`, itemIds: [introId], gap: 16, align: "stretch", keepColumnsOnPhone: false },
+        ],
+        background: "#fbf7ef", contentWidth: 900, minHeight: 0, paddingTop: 30, paddingRight: 22, paddingBottom: 46, paddingLeft: 22, rowGap: 22,
+      };
+      doc.headers[id] = defaultHeader(id);
+    }, { label: "Create page" });
+    setPage(id); setSelectedIds([headingId]); setSelectedTextFrame(null); setDrawer("weekly"); setInspectorOpen(true);
+    setStatus(`Created “${title}”`);
+  }, [document.customPages, updateVisual]);
+
   const editor: CanvasEditorState = { selectedId, selectedIds, device,
     selectedTextFrame, textFrames: document.textFrames,
     renderField,
@@ -767,7 +878,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   // closures live here; `runCommand` performs the action from an event handler.
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [];
-    for (const item of pages) list.push({ id: `page-${item.id}`, group: "Pages", label: `Go to ${item.label} page`, action: { kind: "page", page: item.id } });
+    for (const item of pageTabs) list.push({ id: `page-${item.id}`, group: "Pages", label: `Go to ${item.label} page`, action: { kind: "page", page: item.id } });
     list.push({ id: "panel-add", group: "Panels", label: "Add an item…", action: { kind: "drawer", drawer: "add" } });
     list.push({ id: "panel-design", group: "Panels", label: "Open Site design & Looks", action: { kind: "drawer", drawer: "design" } });
     list.push({ id: "panel-blocks", group: "Panels", label: "Open Saved blocks", action: { kind: "drawer", drawer: "blocks" } });
@@ -776,13 +887,13 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     for (const template of templates) list.push({ id: `tmpl-${template.id}`, group: "Add a block", label: `Add ${template.label}`, hint: "template", action: { kind: "template", templateId: template.id } });
     for (const look of document.looks) list.push({ id: `look-${look.id}`, group: "Looks", label: `Apply Look: ${look.name}`, action: { kind: "look", lookId: look.id } });
     for (const block of document.savedBlocks) list.push({ id: `savedblock-${block.id}`, group: "Saved blocks", label: `Insert ${block.name}`, action: { kind: "block", blockId: block.id } });
-    const pageLabel = pages.find((item) => item.id === page)?.label;
+    const pageLabel = pageTabs.find((item) => item.id === page)?.label;
     for (const id of pageDocument.rows.flatMap((row) => row.itemIds)) {
       const item = pageDocument.items.find((candidate) => candidate.id === id);
       if (item) list.push({ id: `jump-${id}`, group: "Sections", label: `Edit ${item.label}`, hint: pageLabel, action: { kind: "jump", itemId: id } });
     }
     return list;
-  }, [document.looks, document.savedBlocks, page, pageDocument]);
+  }, [document.looks, document.savedBlocks, page, pageDocument, pageTabs]);
 
   const runCommand = useCallback((action: CommandAction) => {
     switch (action.kind) {
@@ -794,25 +905,39 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       case "jump": select(action.itemId); revealOnCanvas(action.itemId); setInspectorOpen(true); return;
     }
   }, [addTemplate, applyLook, insertSavedBlock, revealOnCanvas, select]);
-  const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => { const id = event.dataTransfer.getData("application/x-newsletter-template"); if (id) { event.preventDefault(); addTemplate(id); } };
-  const selectedStyle = selected?.style ?? {}; const currentLayout = selectedStyle[device] ?? {}; const heroSelected = selectedId === `hero-${page}`;
+  const dropTemplate = (event: ReactDragEvent<HTMLDivElement>) => { const id = event.dataTransfer.getData("application/x-newsletter-template"); if (id) { event.preventDefault(); addTemplate(id, { x: event.clientX, y: event.clientY }); } };
+  const selectedStyle = selected?.style ?? {}; const currentLayout = selectedStyle[device] ?? {}; const heroSelected = (page === "home" || page === "training" || page === "results") && selectedId === `hero-${page}`;
   const selectedFrameStyle = selectedTextFrame ? document.textFrames[selectedTextFrame] ?? {} : {};
   const selectedFrameLayout = selectedFrameStyle[device] ?? {};
-  const previewHref = page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
+  const activeCustomPage = document.customPages?.find((item) => item.id === page);
+  const previewHref = activeCustomPage ? `/${activeCustomPage.slug}` : page === "home" ? "/edit/preview" : `/edit/preview/${page}`;
   const changePage = (nextPage: VisualPageId) => {
     if (nextPage === page) return;
     setPage(nextPage);
     setSelectedIds([]);
     setSelectedTextFrame(null);
-    setDrawer(null);
     setSheetOpen(false);
   };
 
   return <div className="builder">
-    <header className="builder-toolbar"><div className="builder-brand"><strong>Newsletter builder</strong><span>{userEmail}</span></div><div className="toolbar-group toolbar-group--content"><button type="button" className="toolbar-cmdk" title="Command palette (⌘K)" onClick={() => setPaletteOpen(true)}>⌘K</button><button type="button" className={drawer === "add" ? "is-active" : ""} onClick={() => setDrawer(drawer === "add" ? null : "add")}>＋ Add item</button><button type="button" onClick={() => setDrawer(drawer === "layers" ? null : "layers")}>View</button><button type="button" className={drawer === "design" ? "is-active" : ""} onClick={() => setDrawer(drawer === "design" ? null : "design")}>Design</button><button type="button" className={drawer === "blocks" ? "is-active" : ""} onClick={() => setDrawer(drawer === "blocks" ? null : "blocks")}>Blocks</button><button type="button" className={drawer === "media" ? "is-active" : ""} onClick={() => setDrawer(drawer === "media" ? null : "media")}>Media</button><button type="button" className={drawer === "history" ? "is-active" : ""} onClick={() => setDrawer(drawer === "history" ? null : "history")}>History</button></div><div className="device-switch mode-switch"><button type="button" className={mode === "weekly" ? "is-active" : ""} onClick={() => { setMode("weekly"); setDrawer("weekly"); }}>Weekly</button><button type="button" className={mode === "design" ? "is-active" : ""} onClick={() => { setMode("design"); setDrawer(null); }}>Design mode</button></div><div className="device-switch"><button type="button" className={device === "phone" ? "is-active" : ""} onClick={() => setDevice("phone")}>Phone</button><button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>Desktop</button></div><div className="toolbar-group toolbar-group--undo"><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} aria-label="Undo" disabled={!historyState.canUndo || busy} onClick={undo}>↶</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} aria-label="Redo" disabled={!historyState.canRedo || busy} onClick={redo}>↷</button></div><span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status} <small>r{revision}</small></span><a className="toolbar-link" href={previewHref} target="_blank">Preview</a><button type="button" onClick={saveNow} disabled={busy || conflict}>Save</button><button type="button" className="publish-button" onClick={() => setChecklistOpen(true)} disabled={busy || conflict}>Publish</button><button type="button" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button></header>
-    <nav className="editor-page-tabs" aria-label="Newsletter pages" role="tablist">
-      {pages.map((item) => <button key={item.id} type="button" role="tab" aria-selected={page === item.id} className={page === item.id ? "is-active" : ""} onClick={() => changePage(item.id)}>{item.label}</button>)}
-    </nav>
+    <header className="builder-toolbar">
+      <div className="builder-brand"><strong>Newsletter Editor</strong><span>{userEmail}</span></div>
+      <a className="toolbar-link toolbar-link--plain" href={previewHref} target="_blank">◉&nbsp; Preview</a>
+      <div className="toolbar-group toolbar-group--undo"><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} disabled={!historyState.canUndo || busy} onClick={undo}>↶&nbsp; Undo</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} disabled={!historyState.canRedo || busy} onClick={redo}>↷&nbsp; Redo</button></div>
+      <label className="toolbar-device-select"><span aria-hidden="true">▣</span><select aria-label="Preview device" value={device} onChange={(event) => setDevice(event.target.value as "phone" | "desktop")}><option value="desktop">Desktop</option><option value="phone">Phone</option></select></label>
+      <details className="toolbar-more"><summary aria-label="More editor tools">⋮</summary><div><button type="button" onClick={() => setPaletteOpen(true)}>Command palette</button><button type="button" onClick={() => void saveNow()} disabled={busy || conflict}>Save draft</button><button type="button" onClick={() => setDrawer("weekly")}>Weekly sections</button><button type="button" onClick={() => setDrawer("add")}>Add item</button><button type="button" onClick={() => setDrawer("layers")}>View items</button><button type="button" onClick={() => setDrawer("design")}>Design</button><button type="button" onClick={() => setDrawer("blocks")}>Blocks</button><button type="button" onClick={() => setDrawer("media")}>Media</button><button type="button" onClick={() => setDrawer("history")}>History</button><hr />{pageTabs.map((item) => <button key={item.id} type="button" className={page === item.id ? "is-active" : ""} onClick={() => changePage(item.id)}>{item.label} page</button>)}</div></details>
+      <span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status}</span>
+      <button type="button" className="publish-button" onClick={() => issueTarget === "live" ? void saveNow() : setChecklistOpen(true)} disabled={busy || conflict}>{issueTarget === "live" ? "✓ Save live changes" : "▣ Schedule & Publish"}</button>
+      <button type="button" className="toolbar-inspector" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button>
+    </header>
+    <section className="issue-context" aria-label="Choose an issue to edit">
+      <button type="button" className={`issue-context__card issue-context__draft${issueTarget === "draft" ? " is-active" : ""}`} aria-pressed={issueTarget === "draft"} onClick={() => void switchIssue("draft")} disabled={busy}>
+        <span className="issue-context__icon" aria-hidden="true">✎</span><span className="issue-context__badge">Next week · draft</span><strong>{draftWeekLabel}</strong><p>{issueTarget === "draft" ? "Editing now — changes are private" : "Click to edit next week's draft"}</p><span className="issue-context__action">{issueTarget === "draft" ? "Currently editing" : "Edit draft →"}</span>
+      </button>
+      <button type="button" className={`issue-context__card issue-context__live${issueTarget === "live" ? " is-active" : ""}`} aria-pressed={issueTarget === "live"} onClick={() => void switchIssue("live")} disabled={busy}>
+        <span className="issue-context__icon" aria-hidden="true">◉</span><span className="issue-context__badge">Live now</span><strong>{publishedWeekLabel}</strong><p>{issueTarget === "live" ? "Editing now — changes are live" : "Click to edit what readers see today"}</p><span className="issue-context__action">{issueTarget === "live" ? "Currently editing" : "Edit live issue →"}</span>
+      </button>
+    </section>
     {paletteOpen ? <CommandPalette commands={commands} onRun={runCommand} onClose={() => setPaletteOpen(false)} /> : null}
     {checklistOpen ? <PublishChecklist
       result={validation}
@@ -822,8 +947,12 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       onJump={jumpToIssue}
     /> : null}
     {conflict ? <div className="stale-banner"><strong>Newer changes exist in another tab.</strong><span>Your current tab has stopped autosaving to protect them.</span><button type="button" onClick={() => globalThis.location.reload()}>Reload latest draft</button></div> : null}
-    <div className={`builder-workspace${inspectorOpen ? "" : " builder-workspace--wide"}`}>
-      {drawer ? <aside className="builder-drawer">{drawer === "media" ? <MediaPanel
+    <div className={`builder-workspace${inspectorOpen ? "" : " builder-workspace--wide"}${drawer ? " builder-workspace--drawer" : ""}`}>
+      {drawer ? <aside className="builder-drawer"><nav className="editor-page-switcher" aria-label="Choose a newsletter page">
+        <span>Editing page</span>
+        <div>{pageTabs.map((item) => <button key={item.id} type="button" aria-current={page === item.id ? "page" : undefined} className={page === item.id ? "is-active" : ""} onClick={() => changePage(item.id)}>{item.label}</button>)}<button type="button" className="editor-page-switcher__add" onClick={createCustomPage} aria-label="Add a page">＋</button></div>
+        <button type="button" className="editor-add-section" onClick={() => addTemplate("section-box")}>＋ Add section box</button>
+      </nav>{drawer === "media" ? <MediaPanel
         onClose={() => setDrawer(null)}
         onUse={selected?.kind === "image" ? (asset: MediaAsset) => {
           patchItem(selected.id, { imageUrl: asset.url, alt: asset.altText ?? selected.alt ?? "" });
@@ -832,10 +961,16 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
       /> : drawer === "weekly" ? <WeeklyMode
         sections={weeklySections}
         selectedId={selectedId}
+        draftLabel={draftWeekLabel}
+        publishedLabel={publishedWeekLabel}
+        isFutureDraft={isFutureDraft}
+        issueTarget={issueTarget}
         onEdit={(itemId) => { select(itemId); revealOnCanvas(itemId); }}
         onToggleHidden={(itemId, hidden) => applyOp(hidden ? "Hide" : "Show", (doc) => ops.setHidden(doc, page, itemId, hidden))}
         onMove={(itemId, direction) => moveRow(itemId, direction)}
         onCreateNextIssue={startNextIssue}
+        onUndoNextIssue={undo}
+        onSwitchIssue={(target) => void switchIssue(target)}
         onOpenChecklist={() => setChecklistOpen(true)}
       /> : drawer === "history" ? <HistoryPanel
         onClose={() => setDrawer(null)}
@@ -866,7 +1001,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         onAttachSubsection={attachSubsection}
         onClose={() => setDrawer(null)}
       /> : drawer === "add" ? <><div className="drawer-heading"><h2>Add an item</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><input className="template-search" type="search" placeholder="Search templates" value={query} onChange={(event) => setQuery(event.target.value)} /><div className="template-list">{filteredTemplates.map((item) => <button key={item.id} type="button" draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-newsletter-template", item.id); }} onClick={() => addTemplate(item.id)}><span>{item.icon}</span><strong>{item.label}</strong><small>Click or drag to canvas</small></button>)}</div></> : <><div className="drawer-heading"><h2>Items</h2><button type="button" onClick={() => setDrawer(null)}>×</button></div><button type="button" className="layer-item" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); setDrawer(null); }}>Hero</button>{pageDocument.rows.flatMap((row) => row.itemIds).map((id, index, ids) => { const item = pageDocument.items.find((candidate) => candidate.id === id); return item ? <div className={`layer-row${selectedIds.includes(id) ? " is-active" : ""}`} key={id}><button type="button" className="layer-row__select" onClick={(event) => { select(id, event.shiftKey); revealOnCanvas(id); }}>{item.label}{item.style?.hidden ? <em> · hidden</em> : null}</button><button type="button" className="layer-row__move" onClick={() => (item.style?.hidden ? applyOp("Show", (doc) => ops.setHidden(doc, page, id, false)) : hideItem(id))} aria-label={item.style?.hidden ? `Show ${item.label}` : `Hide ${item.label}`} title={item.style?.hidden ? "Show" : "Hide"}>{item.style?.hidden ? "◌" : "◉"}</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, -1)} disabled={index === 0} aria-label="Move up">↑</button><button type="button" className="layer-row__move" onClick={() => moveRow(id, 1)} disabled={index === ids.length - 1} aria-label="Move down">↓</button></div> : null; })}</>}</aside> : null}
-      <main className="builder-stage"><div className="stage-top"><span>{pages.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : <ResultsView content={content} editor={editor} />}</div></main>
+      <main className="builder-stage"><div className="stage-top"><span>{pageTabs.find((item) => item.id === page)?.label} · {device}</span><button type="button" onClick={() => { setSelectedIds([`hero-${page}`]); setInspectorOpen(true); }}>Edit Hero</button></div><div ref={scrollerRef} className={`builder-canvas builder-canvas--${device}`} style={{ background: pageDocument.background }} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-newsletter-template")) event.preventDefault(); }} onDrop={dropTemplate}>{page === "home" ? <HomeView content={content} editor={editor} /> : page === "training" ? <TrainingView content={content} editor={editor} /> : page === "results" ? <ResultsView content={content} editor={editor} /> : <CustomPageView content={content} page={page} title={activeCustomPage?.title ?? "New page"} editor={editor} />}</div></main>
       {isMobile ? <>
         {selected && !sheetOpen ? (
           <div className="mobile-selection" role="status">
@@ -936,7 +1071,7 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
         <details className="inspector-section"><summary>Spacing · {device}</summary><p className="inspector-device-note">Space above this item</p><div className="segmented" role="group" aria-label="Space above"><button type="button" onClick={() => patchLayout(selected.id, { marginTop: -12 })}>Tight</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 0 })}>Snug</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 16 })}>Normal</button><button type="button" onClick={() => patchLayout(selected.id, { marginTop: 40 })}>Roomy</button></div><div className="inspector-grid"><NumberField label="Top padding" value={currentLayout.paddingTop ?? selectedStyle.paddingTop} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingTop: value })} /><NumberField label="Bottom padding" value={currentLayout.paddingBottom ?? selectedStyle.paddingBottom} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingBottom: value })} /><NumberField label="Left padding" value={currentLayout.paddingLeft ?? selectedStyle.paddingLeft} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingLeft: value })} /><NumberField label="Right padding" value={currentLayout.paddingRight ?? selectedStyle.paddingRight} min={0} max={240} onCommit={(value) => patchLayout(selected.id, { paddingRight: value })} /></div><div className="inspector-grid"><NumberField label="Space above" value={currentLayout.marginTop} min={-80} max={240} onCommit={(value) => patchLayout(selected.id, { marginTop: value })} /><NumberField label="Space below" value={currentLayout.marginBottom} min={-80} max={240} onCommit={(value) => patchLayout(selected.id, { marginBottom: value })} /></div></details>
         <details className="inspector-section"><summary>Style</summary><div className="alignment-buttons"><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "left" } })}>Left</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "center" } })}>Middle</button><button type="button" onClick={() => patchItem(selected.id, { style: { ...selectedStyle, textAlign: "right" } })}>Right</button></div><ColorField label="Background" value={selectedStyle.background} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, background: value } })} /><ColorField label="Text color" value={selectedStyle.color} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, color: value } })} /><div className="inspector-grid"><NumberField label="Corner radius" value={selectedStyle.borderRadius} min={0} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderRadius: value } })} /><NumberField label="Font size" value={selectedStyle.fontSize} min={8} max={160} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, fontSize: value } })} /></div><div className="inspector-grid"><ColorField label="Border color" value={selectedStyle.borderColor} onChange={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderColor: value } })} /><NumberField label="Border width" value={selectedStyle.borderWidth} min={0} max={20} onCommit={(value) => patchItem(selected.id, { style: { ...selectedStyle, borderWidth: value } })} /></div></details>
         <details className="inspector-section"><summary>Advanced</summary><label className="visual-switch"><input type="checkbox" checked={selectedStyle.linkedDevices ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, linkedDevices: event.target.checked } })} /> Link phone &amp; desktop sizing</label><label className="visual-switch"><input type="checkbox" checked={selectedStyle.hidden ?? false} onChange={(event) => patchItem(selected.id, { style: { ...selectedStyle, hidden: event.target.checked } })} /> Hide on canvas &amp; live site</label><p className="inspector-device-note">Drag the ⋮⋮ handle to place this item exactly. Hold Shift while dragging to reorder it into the layout.</p><div className="inspector-grid"><NumberField label="Position X" value={currentLayout.nudgeX} min={-2000} max={2000} onCommit={(value) => patchLayout(selected.id, { nudgeX: value })} /><NumberField label="Position Y" value={currentLayout.nudgeY} min={-2000} max={2000} onCommit={(value) => patchLayout(selected.id, { nudgeY: value })} /></div><div className="inspector-actions"><button type="button" onClick={() => patchLayout(selected.id, { zIndex: (currentLayout.zIndex ?? 0) + 1 })}>Bring forward</button><button type="button" onClick={() => patchLayout(selected.id, { zIndex: (currentLayout.zIndex ?? 0) - 1 })}>Send backward</button><button type="button" onClick={() => patchLayout(selected.id, { zIndex: 100 })}>To front</button><button type="button" onClick={() => patchLayout(selected.id, { zIndex: -100 })}>To back</button></div><NumberField label="Layer order" value={currentLayout.zIndex} min={-1000} max={1000} onCommit={(value) => patchLayout(selected.id, { zIndex: value })} /></details>
-        <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button>{selected.kind !== "native" ? <button type="button" onClick={() => saveBlock(selected.label)}>Save as block</button> : null}<button type="button" className="danger" onClick={() => removeSelected(selected)}>{selected.kind === "native" ? "Remove section" : "Delete"}</button></div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pages.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><div className="inspector-grid"><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /></div><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><details className="inspector-section"><summary>Page padding</summary><div className="inspector-grid"><NumberField label="Top" value={pageDocument.paddingTop} min={0} max={240} onCommit={(value) => patchPage({ paddingTop: value ?? 0 })} /><NumberField label="Bottom" value={pageDocument.paddingBottom} min={0} max={240} onCommit={(value) => patchPage({ paddingBottom: value ?? 0 })} /><NumberField label="Left" value={pageDocument.paddingLeft} min={0} max={240} onCommit={(value) => patchPage({ paddingLeft: value ?? 0 })} /><NumberField label="Right" value={pageDocument.paddingRight} min={0} max={240} onCommit={(value) => patchPage({ paddingRight: value ?? 0 })} /></div></details><p className="inspector-note">The page grows automatically. Select any item to edit content, size, spacing, and style. Paired items stack on phone automatically.</p></div>}</aside> : null}
+        <div className="inspector-actions"><button type="button" onClick={() => duplicate(selected.id)}>Duplicate</button>{selected.kind !== "native" ? <button type="button" onClick={() => saveBlock(selected.label)}>Save as block</button> : null}<button type="button" className="danger" onClick={() => removeSelected(selected)}>{selected.kind === "native" ? "Remove section" : "Delete"}</button></div></div> : <div className="editor-inspector-form"><div className="inspector-heading"><p className="visual-kicker">Page</p><h2>{pageTabs.find((item) => item.id === page)?.label} settings</h2></div><ColorField label="Page background" value={pageDocument.background} onChange={(value) => patchPage({ background: value })} /><div className="inspector-grid"><NumberField label="Content width" value={pageDocument.contentWidth} min={320} max={1400} onCommit={(value) => patchPage({ contentWidth: value ?? 760 })} /><NumberField label="Row spacing" value={pageDocument.rowGap} min={0} max={160} onCommit={(value) => patchPage({ rowGap: value ?? 22 })} /></div><NumberField label="Minimum page height" value={pageDocument.minHeight} min={0} max={12000} onCommit={(value) => patchPage({ minHeight: value ?? 0 })} /><details className="inspector-section"><summary>Page padding</summary><div className="inspector-grid"><NumberField label="Top" value={pageDocument.paddingTop} min={0} max={240} onCommit={(value) => patchPage({ paddingTop: value ?? 0 })} /><NumberField label="Bottom" value={pageDocument.paddingBottom} min={0} max={240} onCommit={(value) => patchPage({ paddingBottom: value ?? 0 })} /><NumberField label="Left" value={pageDocument.paddingLeft} min={0} max={240} onCommit={(value) => patchPage({ paddingLeft: value ?? 0 })} /><NumberField label="Right" value={pageDocument.paddingRight} min={0} max={240} onCommit={(value) => patchPage({ paddingRight: value ?? 0 })} /></div></details><p className="inspector-note">The page grows automatically. Select any item to edit content, size, spacing, and style. Paired items stack on phone automatically.</p></div>}</aside> : null}
     </div>
   </div>;
 }

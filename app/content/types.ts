@@ -253,7 +253,16 @@ export interface NewsletterContent {
   visual?: VisualDocument;
 }
 
-export type VisualPageId = "home" | "training" | "results";
+/** Built-in pages have specialised newsletter content; custom pages are made of editor blocks. */
+export type BuiltInPageId = "home" | "training" | "results";
+export type VisualPageId = BuiltInPageId | `page-${string}`;
+
+/** Navigation metadata for a page created in the editor. */
+export interface CustomPageMeta {
+  id: VisualPageId;
+  title: string;
+  slug: string;
+}
 
 export type VisualBlockKind =
   | "native"
@@ -419,8 +428,10 @@ export interface VisualDocument {
    * — nothing is rewritten in D1 until the next save.
    */
   version: 10;
-  pages: Record<VisualPageId, VisualPageDocument>;
-  headers: Record<VisualPageId, HeaderStyle>;
+  pages: Record<string, VisualPageDocument>;
+  headers: Record<string, HeaderStyle>;
+  /** Extra tabs made by the editor owner, rendered as freeform block pages. */
+  customPages?: CustomPageMeta[];
   /** Brand palette and global text styles shared by every page. */
   theme: SiteTheme;
   /**

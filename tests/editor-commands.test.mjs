@@ -11,7 +11,7 @@ register("./ts-resolve-loader.mjs", import.meta.url);
 const { History } = await import("../app/edit/commands/history.ts");
 const ops = await import("../app/edit/commands/documentOps.ts");
 const geo = await import("../app/edit/canvas/geometry.ts");
-const { defaultVisualDocument } = await import("../app/content/visual.ts");
+const { defaultVisualDocument, visualDocument } = await import("../app/content/visual.ts");
 
 // ---------------------------------------------------------------------------
 // History
@@ -185,9 +185,15 @@ test("duplicating an item inserts a copy with a new id right below", () => {
   assert.ok(newId && newId !== source.id, "the copy gets its own id");
   const copy = ops.findItem(next, page, newId);
   assert.match(copy.label, /copy$/);
+  assert.equal(copy.kind, "container", "a copied built-in section becomes independently editable");
   const sourceRow = next.pages[page].rows.findIndex((row) => row.itemIds.includes(source.id));
   const copyRow = next.pages[page].rows.findIndex((row) => row.itemIds.includes(newId));
   assert.equal(copyRow, sourceRow + 1);
+  const reread = visualDocument({ visual: next });
+  assert.ok(
+    reread.pages[page].items.some((item) => item.id === newId),
+    "the editable copy survives document normalization",
+  );
 });
 
 test("deleting a native section hides it instead of destroying its copy", () => {
@@ -363,7 +369,6 @@ test("auto-scroll accelerates near an edge and rests in the middle", () => {
 // ---------------------------------------------------------------------------
 
 const { defaultLooks } = await import("../app/content/theme.ts");
-const { visualDocument } = await import("../app/content/visual.ts");
 
 test("applying a Look swaps the whole theme and records the active id", () => {
   const doc = defaultVisualDocument();

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 async function findPage(slug: string) {
   const content = await getPublishedContent();
   const doc = visualDocument(content);
-  const meta = doc.customPages.find((page) => page.slug === slug);
+  const meta = doc.customPages?.find((page) => page.slug === slug);
   return meta ? { content, meta } : null;
 }
 

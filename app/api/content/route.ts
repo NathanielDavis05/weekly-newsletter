@@ -1,5 +1,5 @@
 import { mergeContent } from "../../content/merge";
-import { getEditorContent, recordVersion, RevisionConflictError, saveDraft } from "../../content/store";
+import { getEditorContent, recordVersion, RevisionConflictError, saveDraft, savePublished } from "../../content/store";
 import { getEditorUser } from "../../edit-auth";
 
 function unauthorized() {
@@ -29,14 +29,18 @@ export async function PUT(request: Request) {
   if (!user) return unauthorized();
   try {
     const payload = await request.json();
-    const draft = mergeContent(payload.content ?? payload);
+    const content = mergeContent(payload.content ?? payload);
     const expectedRevision = Number(payload.expectedRevision ?? 0);
-    const result = await saveDraft(draft, expectedRevision);
+    const target = payload.target === "live" ? "live" : "draft";
+    const result = target === "live"
+      ? await savePublished(content, expectedRevision)
+      : await saveDraft(content, expectedRevision);
     // Only explicit saves become history entries — recording every autosave
     // would bury the useful points under one row per second of typing.
     if (payload.label) {
       try {
-        await recordVersion("save", JSON.stringify(result.draft), result.revision, String(payload.label), user.email);
+        const saved = target === "live" ? result.published : result.draft;
+        await recordVersion("save", JSON.stringify(saved), result.revision, String(payload.label), user.email);
       } catch {
         // Best effort; the draft is already saved.
       }

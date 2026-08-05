@@ -130,9 +130,19 @@ export function duplicateItem(
     const source = target.items.find((item) => item.id === id);
     const rowIndex = target.rows.findIndex((row) => row.itemIds.includes(id));
     if (!source || rowIndex < 0) return;
-    const copy = clone(source);
-    copy.id = uid();
-    copy.label = `${copy.label} copy`;
+    // Native sections point at one piece of structured newsletter data, so a
+    // second native instance would be silently folded away during migration.
+    // Copy it as a fully independent section box instead: it stays on the
+    // canvas and its title/body can be changed without touching the source.
+    const copy = source.kind === "native"
+      ? {
+          id: uid(), kind: "container" as const, label: `${source.label} copy`,
+          title: `${source.label} copy`, body: "Add the details for this section.",
+          style: clone(source.style),
+        }
+      : clone(source);
+    copy.id = copy.id || uid();
+    copy.label = `${source.label} copy`;
     newId = copy.id;
     target.items.push(copy);
     target.rows.splice(rowIndex + 1, 0, newRow(page, [copy.id]));

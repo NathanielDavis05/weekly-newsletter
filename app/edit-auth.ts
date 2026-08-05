@@ -26,15 +26,13 @@ export function isAllowedEditor(email: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// LOCAL-DEV-ONLY BYPASS — remove this block once you're done testing locally.
-// `import.meta.env.DEV` is a Vite build-time constant: it is `true` only under
-// `vinext dev` and is statically replaced with `false` (then dead-code-eliminated)
-// by `vinext build`/`vinext deploy`. This code cannot exist in the deployed
-// bundle, so it can never bypass auth on the live site — but it does mean
-// `/edit` skips ChatGPT sign-in entirely whenever you run `npm run dev`.
+// LOCAL-PREVIEW BYPASS — this is only enabled by the local worker command below.
+// It is not part of .openai/hosting.json, so the deployed site never receives
+// this variable and continues to require the normal ChatGPT sign-in.
 const LOCAL_DEV_USER: ChatGPTUser = { displayName: "Local dev", email: DEFAULT_ALLOWLIST.split(",")[0].trim(), fullName: null };
 function localDevBypass(): ChatGPTUser | null {
-  return import.meta.env.DEV ? LOCAL_DEV_USER : null;
+  const localPreview = (env as Record<string, unknown>).LOCAL_EDITOR_PREVIEW === "true";
+  return import.meta.env.DEV || localPreview ? LOCAL_DEV_USER : null;
 }
 // ---------------------------------------------------------------------------
 
