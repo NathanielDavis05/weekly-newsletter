@@ -375,6 +375,8 @@ export interface VisualBlock {
   richTitle?: RichText;
   /** Formatted body copy. Added in visual document v7. */
   richBody?: RichText;
+  /** Optional call-to-action displayed inside a container block. */
+  buttonLabel?: string;
   href?: string;
   imageUrl?: string;
   alt?: string;

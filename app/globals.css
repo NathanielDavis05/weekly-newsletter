@@ -132,6 +132,10 @@ body {
 .free-block { min-width: 0; }
 .free-block--text,
 .free-block--container { display: grid; gap: 10px; }
+.free-block--action-card { gap: 18px; }
+.free-block__action-copy { display: grid; gap: 10px; }
+.free-block--action-card::before { content: ""; width: 48px; height: 5px; border-radius: 999px; background: var(--red); }
+.free-block--action-card .button { justify-self: start; }
 .free-block__title,
 .free-block__subsection-title { margin: 0; }
 .free-block__body { margin: 0; }

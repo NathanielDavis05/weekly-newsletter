@@ -191,6 +191,13 @@ function FreeItem({ item, editor, textFrames }: { item: VisualBlock; editor?: Ca
     </section>;
   }
 
+  if (item.kind === "container" && item.buttonLabel != null) {
+    const frameKey = `${item.id}:button`;
+    return <section className="free-block free-block--container free-block--action-card">
+      <div className="free-block__action-copy">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</div>
+      <TextFrame frameKey={frameKey} style={textFrames[frameKey]} editor={editor}><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.buttonLabel || "Take action"}</a></TextFrame>
+    </section>;
+  }
   return <section className="free-block free-block--container">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</section>;
 }
 
