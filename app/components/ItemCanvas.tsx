@@ -276,7 +276,7 @@ export function ItemCanvas({ content, page, native, editor }: {
               };
               return <div
                 key={item.id} data-item-id={item.id} tabIndex={editor ? 0 : undefined}
-                className={`newsletter-item newsletter-item--${item.kind}${selected ? " newsletter-item--selected" : ""}${primary ? " newsletter-item--primary" : ""}`}
+                className={`newsletter-item newsletter-item--${item.kind}${item.variant === "feature-card" ? " newsletter-item--feature-card" : ""}${selected ? " newsletter-item--selected" : ""}${primary ? " newsletter-item--primary" : ""}`}
                 style={styleForBlock(item.style)}
                 onPointerDown={editor ? (event) => {
                   // Text editing owns its own pointer handling; don't steal it.

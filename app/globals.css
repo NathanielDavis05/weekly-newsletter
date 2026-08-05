@@ -148,6 +148,13 @@ body {
 .free-block--shape .free-block__decoration { top: 0; left: 0; right: auto; }
 .free-block--action-card .button { justify-self: start; }
 .free-block--feature-card { grid-template-columns: 84px minmax(0, 1fr); column-gap: 22px; align-items: center; }
+.newsletter-item--feature-card { overflow: hidden; }
+.newsletter-item--feature-card .free-block__accent {
+  top: -28px;
+  left: -28px !important;
+  width: calc(100% + 56px) !important;
+  border-radius: 18px 18px 0 0;
+}
 .free-block__feature-icon { position: relative; z-index: 1; display: grid; place-items: center; width: 76px; height: 76px; border-radius: 999px; background: var(--red-soft); color: var(--navy); font-size: 38px; line-height: 1; }
 .free-block__feature-copy { gap: 7px; }
 .free-block__eyebrow { margin: 0; color: var(--red); font-size: 12px; font-weight: 700; letter-spacing: .11em; line-height: 1.3; }
