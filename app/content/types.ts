@@ -268,6 +268,7 @@ export type VisualBlockKind =
   | "native"
   | "text"
   | "subsection"
+  | "shape"
   | "image"
   | "button"
   | "divider"
@@ -357,6 +358,29 @@ export interface TableRow {
   values: string[];
 }
 
+/** A simple decorative element that can sit inside a card or stand on its own. */
+export type DecorativeShape = "none" | "circle" | "star" | "sparkle" | "diamond";
+
+/** The small visual bar used by cards such as the Action required card. */
+export interface BlockAccentBar {
+  enabled: boolean;
+  color?: string;
+  width?: number;
+  height?: number;
+  inset?: number;
+}
+
+/** Position is measured from the top-right corner of its card in pixels. */
+export interface BlockDecoration {
+  shape: DecorativeShape;
+  color?: string;
+  size?: number;
+  x?: number;
+  y?: number;
+  opacity?: number;
+  rotation?: number;
+}
+
 export interface VisualBlock {
   id: string;
   kind: VisualBlockKind;
@@ -377,6 +401,9 @@ export interface VisualBlock {
   richBody?: RichText;
   /** Optional call-to-action displayed inside a container block. */
   buttonLabel?: string;
+  /** Optional top accent and decorative shape for basic cards. */
+  accentBar?: BlockAccentBar;
+  decoration?: BlockDecoration;
   href?: string;
   imageUrl?: string;
   alt?: string;

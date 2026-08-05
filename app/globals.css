@@ -132,9 +132,20 @@ body {
 .free-block { min-width: 0; }
 .free-block--text,
 .free-block--container { display: grid; gap: 10px; }
+.free-block--container { position: relative; isolation: isolate; }
 .free-block--action-card { gap: 18px; }
-.free-block__action-copy { display: grid; gap: 10px; }
-.free-block--action-card::before { content: ""; width: 48px; height: 5px; border-radius: 999px; background: var(--red); }
+.free-block__content,
+.free-block__action-copy { position: relative; z-index: 1; display: grid; gap: 10px; }
+.free-block__accent { position: absolute; z-index: 1; top: 0; border-radius: 0 0 999px 999px; pointer-events: none; }
+.free-block__decoration { position: absolute; z-index: 0; top: 18px; right: 20px; display: block; pointer-events: none; }
+.free-block__decoration--circle { border-radius: 999px; }
+.free-block__decoration--diamond { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.free-block__decoration--star,
+.free-block__decoration--sparkle { background: transparent !important; font-size: inherit; line-height: 1; }
+.free-block__decoration--star::before { content: "★"; display: block; font-size: 1em; line-height: 1; }
+.free-block__decoration--sparkle::before { content: "✦"; display: block; font-size: 1em; line-height: 1; }
+.free-block--shape { position: relative; min-height: 58px; overflow: visible; }
+.free-block--shape .free-block__decoration { top: 0; left: 0; right: auto; }
 .free-block--action-card .button { justify-self: start; }
 .free-block__title,
 .free-block__subsection-title { margin: 0; }

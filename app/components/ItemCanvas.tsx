@@ -135,8 +135,12 @@ function FreeItem({ item, editor, textFrames }: { item: VisualBlock; editor?: Ca
     return <TextFrame frameKey={frameKey} style={textFrames[frameKey]} editor={editor} block={!singleLine}>{inner}</TextFrame>;
   };
 
+  const accent = item.accentBar?.enabled ? <span className="free-block__accent" aria-hidden="true" style={{ backgroundColor: item.accentBar.color ?? "var(--red)", width: `${item.accentBar.width ?? 54}%`, height: `${item.accentBar.height ?? 5}px`, left: `${item.accentBar.inset ?? 0}px` }} /> : null;
+  const decoration = item.decoration?.shape && item.decoration.shape !== "none" ? <span className={`free-block__decoration free-block__decoration--${item.decoration.shape}`} aria-hidden="true" style={{ color: item.decoration.color ?? "var(--red)", backgroundColor: item.decoration.color ?? "var(--red)", width: `${item.decoration.size ?? 48}px`, height: `${item.decoration.size ?? 48}px`, fontSize: `${item.decoration.size ?? 48}px`, opacity: (item.decoration.opacity ?? 100) / 100, transform: `translate(${item.decoration.x ?? 0}px, ${item.decoration.y ?? 0}px) rotate(${item.decoration.rotation ?? 0}deg)` }} /> : null;
+
   if (item.kind === "text") return <section className="free-block free-block--text">{text("richTitle", "free-block__title", "Heading", true)}{text("richBody", "free-block__body", "Add your message here.")}</section>;
   if (item.kind === "subsection") return <section className="free-block free-block--subsection">{text("richTitle", "free-block__subsection-title", "Subsection title", true)}</section>;
+  if (item.kind === "shape") return <div className="free-block free-block--shape">{decoration}</div>;
   // Plain <img>, not next/image: sources are arbitrary author-supplied URLs
   // (uploads and pasted links) rendered inside newsletter markup that must stay
   // portable to email/static contexts, where the optimiser and its loader do not
@@ -194,11 +198,11 @@ function FreeItem({ item, editor, textFrames }: { item: VisualBlock; editor?: Ca
   if (item.kind === "container" && item.buttonLabel != null) {
     const frameKey = `${item.id}:button`;
     return <section className="free-block free-block--container free-block--action-card">
-      <div className="free-block__action-copy">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</div>
+      {accent}{decoration}<div className="free-block__content free-block__action-copy">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</div>
       <TextFrame frameKey={frameKey} style={textFrames[frameKey]} editor={editor}><a className="button button--red" href={item.href || "#"} onClick={editor ? (event) => event.preventDefault() : undefined}>{item.buttonLabel || "Take action"}</a></TextFrame>
     </section>;
   }
-  return <section className="free-block free-block--container">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</section>;
+  return <section className="free-block free-block--container">{accent}{decoration}<div className="free-block__content">{text("richTitle", "free-block__title", "Card title", true)}{text("richBody", "free-block__body", "Add supporting details here.")}</div></section>;
 }
 
 export function ItemCanvas({ content, page, native, editor }: {

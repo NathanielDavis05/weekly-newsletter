@@ -4,6 +4,8 @@ import { defaultLooks, defaultTheme, parseTheme } from "./theme";
 import { BOX_SHADOWS, safeStyleColor } from "../edit/panels/blockStyles";
 import type {
   BlockStyle,
+  BlockAccentBar,
+  BlockDecoration,
   BuiltInPageId,
   CustomPageMeta,
   HeaderDeviceStyle,
@@ -257,6 +259,33 @@ function normaliseTextFrame(value: TextFrameStyle): TextFrameStyle {
   };
 }
 
+function normaliseAccentBar(value: unknown): BlockAccentBar | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const bar = value as Partial<BlockAccentBar>;
+  return {
+    enabled: Boolean(bar.enabled),
+    color: safeStyleColor(bar.color),
+    width: typeof bar.width === "number" ? numberIn(bar.width, 54, 12, 100) : undefined,
+    height: typeof bar.height === "number" ? numberIn(bar.height, 5, 2, 20) : undefined,
+    inset: typeof bar.inset === "number" ? numberIn(bar.inset, 0, 0, 120) : undefined,
+  };
+}
+
+function normaliseDecoration(value: unknown): BlockDecoration | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const decoration = value as Partial<BlockDecoration>;
+  const shape = decoration.shape === "circle" || decoration.shape === "star" || decoration.shape === "sparkle" || decoration.shape === "diamond" || decoration.shape === "none" ? decoration.shape : "none";
+  return {
+    shape,
+    color: safeStyleColor(decoration.color),
+    size: typeof decoration.size === "number" ? numberIn(decoration.size, 48, 8, 360) : undefined,
+    x: typeof decoration.x === "number" ? numberIn(decoration.x, 0, -500, 500) : undefined,
+    y: typeof decoration.y === "number" ? numberIn(decoration.y, 0, -500, 500) : undefined,
+    opacity: typeof decoration.opacity === "number" ? numberIn(decoration.opacity, 100, 0, 100) : undefined,
+    rotation: typeof decoration.rotation === "number" ? numberIn(decoration.rotation, 0, -180, 180) : undefined,
+  };
+}
+
 function parseTextFrames(raw: unknown): Record<string, TextFrameStyle> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const frames: Record<string, TextFrameStyle> = {};
@@ -299,7 +328,7 @@ function normaliseBlock(block: VisualBlock): VisualBlock {
     phone: normaliseLayout(block.style.phone),
     desktop: normaliseLayout(block.style.desktop),
   } : undefined;
-  return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style });
+  return withRichText({ ...block, id: shortText(block.id, crypto.randomUUID()), label: shortText(block.label, "Untitled item"), style, accentBar: normaliseAccentBar(block.accentBar), decoration: normaliseDecoration(block.decoration) });
 }
 
 function normaliseRow(value: VisualRow, validIds: Set<string>, fallbackId: string): VisualRow | null {
