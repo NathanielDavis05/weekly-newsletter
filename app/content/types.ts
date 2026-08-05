@@ -401,6 +401,11 @@ export interface VisualBlock {
   richBody?: RichText;
   /** Optional call-to-action displayed inside a container block. */
   buttonLabel?: string;
+  /** Optional compact action-card treatment for announcements and surveys. */
+  variant?: "feature-card";
+  eyebrow?: string;
+  micro?: string;
+  icon?: string;
   /** Optional top accent and decorative shape for basic cards. */
   accentBar?: BlockAccentBar;
   decoration?: BlockDecoration;
