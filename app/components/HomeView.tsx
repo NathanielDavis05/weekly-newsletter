@@ -73,7 +73,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
         <h2>{f("shared.scorecard.heading", scorecard.heading)}</h2>
         <p>{f("shared.scorecard.intro", scorecard.intro)}</p>
       </div>
-      <div className="score-teaser__result" aria-label={scorecard.resultAria}>
+      <div className="score-teaser__result" aria-label={`${scorecard.resultValue} ${scorecard.resultUnit} ${scorecard.resultLabel}`}>
         <strong>{f("shared.scorecard.resultValue", scorecard.resultValue)} <span className="unit">{f("shared.scorecard.resultUnit", scorecard.resultUnit)}</span></strong>
         <small>{f("shared.scorecard.resultLabel", scorecard.resultLabel)}</small>
       </div>

@@ -36,7 +36,7 @@ test("public home page renders the newsletter default content", async () => {
 
   const html = await response.text();
   assert.match(html, /This week, at a glance/);
-  assert.match(html, /CommercePoint training/);
+  assert.match(html, /CommercePoint support/);
   assert.match(html, /Spirit Night: Henderson Elementary/);
   assert.match(html, /Your week, made simple\./);
   assert.match(html, /item-page--home/);
@@ -63,7 +63,8 @@ test("public results page renders default metrics", async () => {
   assert.match(html, /metric-card--red/);
   assert.match(html, /momentum-note--celebrate/);
   assert.match(html, /metrics-table__row--green/);
-  assert.match(html, /metrics-table__row--red/);
+  assert.doesNotMatch(html, /metrics-table__row--red/);
+  assert.match(html, /5 of 5/);
 });
 
 test("editor page redirects anonymous visitors to sign in", async () => {

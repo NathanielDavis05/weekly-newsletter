@@ -42,7 +42,7 @@ export function ResultsView({ content, editor }: { content: NewsletterContent; e
       <p className="detail-lead">{f("results.lead", results.lead)}</p>
     </section>,
 
-    "results-summary": <section className={`goal-summary goal-summary--${results.summaryTone ?? "green"}`} aria-label={results.summaryAria}>
+    "results-summary": <section className={`goal-summary goal-summary--${results.summaryTone ?? "green"}`} aria-label={`${results.summaryValue} ${results.summaryUnit} ${results.summaryLabel}`}>
       <span className="goal-summary__mark" aria-hidden="true">★</span>
       <div>
         <strong>{f("results.summaryValue", results.summaryValue)} <span className="unit">{f("results.summaryUnit", results.summaryUnit)}</span></strong>

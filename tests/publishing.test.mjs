@@ -169,7 +169,7 @@ test("past dates are warnings, and they name the field and the gap", () => {
   const past = result.warnings.filter((issue) => issue.id.startsWith("past-"));
 
   assert.ok(past.length > 0, "July events should be flagged from late August");
-  assert.ok(past.some((issue) => issue.path === "home.overview.actionCard.bodyEmphasis"), "the July 28 deadline is flagged");
+  assert.ok(past.some((issue) => issue.path.startsWith("home.events.items.")), "past weekly events are flagged");
   assert.match(past[0].detail, /day/);
   assert.equal(result.canPublish, true, "past dates warn but do not block");
 });
@@ -236,7 +236,7 @@ test("events that will have passed are removed, upcoming ones kept", () => {
   const names = result.content.home.events.items.map((event) => event.name);
 
   // Next issue is August 16, so August 15 has passed while the rodeo's final day remains current.
-  assert.ok(!names.includes("Hometown Reunion 2026 at Legends Event Center"), "Aug 15 has passed");
+  assert.ok(!names.includes("Hometown Reunion 2026 @ Legends"), "Aug 15 has passed");
   assert.ok(names.includes("Youth Rodeo Association"), "Aug 14–16 is still current");
   assert.ok(result.summary.some((line) => /Removed \d+ past event/.test(line)));
 });
@@ -259,12 +259,12 @@ test("last issue's recognition is cleared so it cannot go out twice", () => {
 
 test("a passed birthday is cleared but an upcoming one is kept", () => {
   const passed = createNextIssue(defaultContent, baseDoc(), { today: JULY_2026 });
-  assert.equal(passed.content.home.recognition.birthday.date, "", "July 14 has passed by July 17");
+  assert.deepEqual(passed.content.home.recognition.birthday.entries, [], "there are no birthdays to carry forward");
 
   const upcoming = clone(defaultContent);
-  upcoming.home.recognition.birthday.date = "August 30";
+  upcoming.home.recognition.birthday.entries = [{ name: "Future teammate", date: "August 30" }];
   const kept = createNextIssue(upcoming, baseDoc(), { today: JULY_2026 });
-  assert.equal(kept.content.home.recognition.birthday.date, "August 30");
+  assert.equal(kept.content.home.recognition.birthday.entries[0].date, "August 30");
 });
 
 test("an unfinished action item can be carried forward", () => {
