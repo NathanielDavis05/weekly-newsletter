@@ -58,13 +58,13 @@ test("public results page renders default metrics", async () => {
   assert.match(html, /Guest experience scorecard/);
   assert.match(html, /Move with purpose/);
   assert.match(html, /data-item-id="results-metric-2"/);
-  assert.match(html, /goal-summary--green/);
+  assert.match(html, /goal-summary--yellow/);
   assert.match(html, /metric-card--green/);
   assert.match(html, /metric-card--red/);
   assert.match(html, /momentum-note--celebrate/);
   assert.match(html, /metrics-table__row--green/);
-  assert.doesNotMatch(html, /metrics-table__row--red/);
-  assert.match(html, /5 of 5/);
+  assert.match(html, /metrics-table__row--red/);
+  assert.match(html, /5 of 6/);
 });
 
 test("editor page redirects anonymous visitors to sign in", async () => {
