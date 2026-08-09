@@ -219,10 +219,10 @@ test("unsaved changes are reported when the editor says so", () => {
 
 test("the issue date moves forward a week by default", () => {
   const result = createNextIssue(defaultContent, baseDoc(), { today: JULY_2026 });
-  assert.match(result.content.home.hero.kicker, /July 17, 2026/);
-  assert.match(result.content.home.footer.line, /July 17, 2026/);
-  assert.match(result.content.home.overview.eyebrow, /July 19/);
-  assert.ok(result.summary.some((line) => /July 17, 2026/.test(line)));
+  assert.match(result.content.home.hero.kicker, /Aug 16, 2026/);
+  assert.match(result.content.home.footer.line, /August 16, 2026/);
+  assert.match(result.content.home.overview.eyebrow, /August 16/);
+  assert.ok(result.summary.some((line) => /August 16, 2026/.test(line)));
 });
 
 test("the published issue and the original content are left untouched", () => {
@@ -235,9 +235,9 @@ test("events that will have passed are removed, upcoming ones kept", () => {
   const result = createNextIssue(defaultContent, baseDoc(), { today: JULY_2026 });
   const names = result.content.home.events.items.map((event) => event.name);
 
-  // Next issue is July 17, so the 12–16 events are gone and the 18th remains.
-  assert.ok(!names.includes("TAMU Tennis Camp"), "Jul 12–16 has passed");
-  assert.ok(names.includes("State 4-H Horse Show"), "Jul 18 is still upcoming");
+  // Next issue is August 16, so August 15 has passed while the rodeo's final day remains current.
+  assert.ok(!names.includes("Hometown Reunion 2026 at Legends Event Center"), "Aug 15 has passed");
+  assert.ok(names.includes("Youth Rodeo Association"), "Aug 14–16 is still current");
   assert.ok(result.summary.some((line) => /Removed \d+ past event/.test(line)));
 });
 
@@ -262,9 +262,9 @@ test("a passed birthday is cleared but an upcoming one is kept", () => {
   assert.equal(passed.content.home.recognition.birthday.date, "", "July 14 has passed by July 17");
 
   const upcoming = clone(defaultContent);
-  upcoming.home.recognition.birthday.date = "July 30";
+  upcoming.home.recognition.birthday.date = "August 30";
   const kept = createNextIssue(upcoming, baseDoc(), { today: JULY_2026 });
-  assert.equal(kept.content.home.recognition.birthday.date, "July 30");
+  assert.equal(kept.content.home.recognition.birthday.date, "August 30");
 });
 
 test("an unfinished action item can be carried forward", () => {
@@ -292,18 +292,18 @@ test("formatting follows its item when earlier events are removed", () => {
   // Format the last event, which survives the roll-forward, plus the first,
   // which does not.
   doc.richOverrides = {
-    "home.events.items.0.name": richTextFromPlain("TAMU Tennis Camp"),
-    "home.events.items.6.name": richTextFromPlain("State 4-H Horse Show"),
+    "home.events.items.0.name": richTextFromPlain("Spirit Night — Henderson Elementary · 6–9 PM"),
+    "home.events.items.4.name": richTextFromPlain("Youth Rodeo Association"),
   };
 
   const result = createNextIssue(defaultContent, doc, { today: JULY_2026 });
   const survivors = result.content.home.events.items;
-  const keptIndex = survivors.findIndex((event) => event.name === "State 4-H Horse Show");
+  const keptIndex = survivors.findIndex((event) => event.name === "Youth Rodeo Association");
 
   assert.ok(keptIndex >= 0);
   assert.equal(
     richTextToPlain(result.document.richOverrides[`home.events.items.${keptIndex}.name`]),
-    "State 4-H Horse Show",
+    "Youth Rodeo Association",
     "formatting moved with the surviving event",
   );
   assert.equal(

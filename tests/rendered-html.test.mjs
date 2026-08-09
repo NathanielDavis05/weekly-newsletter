@@ -37,7 +37,7 @@ test("public home page renders the newsletter default content", async () => {
   const html = await response.text();
   assert.match(html, /This week, at a glance/);
   assert.match(html, /CommercePoint training/);
-  assert.match(html, /Cow Appreciation Day/);
+  assert.match(html, /Spirit Night: Henderson Elementary/);
   assert.match(html, /Your week, made simple\./);
   assert.match(html, /item-page--home/);
   assert.match(html, /data-item-id="home-action"/);
@@ -55,8 +55,8 @@ test("public results page renders default metrics", async () => {
   const response = await fetchPath("/results");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /Three-month scorecard/);
-  assert.match(html, /Win back two seconds/);
+  assert.match(html, /Guest experience scorecard/);
+  assert.match(html, /Move with purpose/);
   assert.match(html, /data-item-id="results-metric-2"/);
   assert.match(html, /goal-summary--green/);
   assert.match(html, /metric-card--green/);
