@@ -37,7 +37,12 @@ test("public home page renders the newsletter default content", async () => {
   const html = await response.text();
   assert.match(html, /This week, at a glance/);
   assert.match(html, /CommercePoint support/);
-  assert.match(html, /Spirit Night: Henderson Elementary/);
+  assert.match(html, /New Student Conference \(NSC\)/);
+  assert.match(html, /Signature Member Tasting Event/);
+  assert.match(html, /BCS Classic @ Brazos County Expo/);
+  assert.match(html, /Maroon &amp; White Night/);
+  assert.match(html, /TAMU Soccer v\. Sam Houston/);
+  assert.match(html, /Sip &amp; Shop Indoor Market 2026/);
   assert.match(html, /Your week, made simple\./);
   assert.match(html, /item-page--home/);
   assert.match(html, /data-item-id="home-action"/);

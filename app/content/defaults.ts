@@ -70,10 +70,10 @@ export const defaultContent: NewsletterContent = {
         linkHref: "/training",
       },
       eventCard: {
-        icon: "10",
-        kicker: "Monday",
-        title: "Spirit Night: Henderson Elementary",
-        detail: "August 10 · 6–9 PM",
+        icon: "18",
+        kicker: "Tuesday–Wednesday",
+        title: "New Student Conference (NSC)",
+        detail: "August 18–19",
         href: "#events",
       },
       recognitionCard: {
@@ -127,12 +127,12 @@ export const defaultContent: NewsletterContent = {
       heading: "What’s happening nearby",
       intro: "Local events may bring extra traffic. Arrive ready and take care of one another.",
       items: [
-        { date: "Aug 10", name: "Spirit Night — Henderson Elementary · 6–9 PM", featured: true },
-        { date: "Aug 11", name: "Maroon & White Scrimmage — VB · 5:30 PM" },
-        { date: "Aug 12", name: "Bryan ISD first day of school" },
-        { date: "Aug 12", name: "Brazos Christian first day of school · early dismissal" },
-        { date: "Aug 14–16", name: "Youth Rodeo Association" },
-        { date: "Aug 15", name: "Hometown Reunion 2026 @ Legends" },
+        { date: "Aug 18–19", name: "New Student Conference (NSC)", featured: true },
+        { date: "Aug 20", name: "Signature Member Tasting Event" },
+        { date: "Aug 18–22", name: "BCS Classic @ Brazos County Expo" },
+        { date: "Aug 21", name: "Maroon & White Night · 6 PM" },
+        { date: "Aug 22", name: "TAMU Soccer v. Sam Houston · 8 PM" },
+        { date: "Aug 22", name: "Sip & Shop Indoor Market 2026 · 10 AM–3 PM" },
       ],
     },
     grow: {
