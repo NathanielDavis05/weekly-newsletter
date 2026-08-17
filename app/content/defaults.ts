@@ -131,6 +131,7 @@ export const defaultContent: NewsletterContent = {
         { date: "Aug 20", name: "Signature Member Tasting Event" },
         { date: "Aug 18–22", name: "BCS Classic @ Brazos County Expo" },
         { date: "Aug 21", name: "Maroon & White Night · 6 PM" },
+        { date: "Aug 21", name: "Signature Member Tasting Event — New Fall Promotion · 5–6 PM" },
         { date: "Aug 22", name: "TAMU Soccer v. Sam Houston · 8 PM" },
         { date: "Aug 22", name: "Sip & Shop Indoor Market 2026 · 10 AM–3 PM" },
       ],
