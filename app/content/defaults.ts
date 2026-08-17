@@ -187,7 +187,7 @@ export const defaultContent: NewsletterContent = {
         strongEmphasis: "Complete it in Pathway",
       },
     ],
-    primaryButton: { label: "Open Pathway training", href: "https://www.cfahome.com/" },
+    primaryButton: { label: "Open Fall Promotion training", href: "https://www.cfawestbryan.com/promotion" },
     helpLink: { label: "Need help? Ask a leader", href: "#leader-help" },
     alert: {
       kicker: "Starts Monday, August 24",
