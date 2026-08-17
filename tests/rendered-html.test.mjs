@@ -38,7 +38,7 @@ test("public home page renders the newsletter default content", async () => {
   assert.match(html, /This week, at a glance/);
   assert.match(html, /Fall seasonal items training/);
   assert.match(html, /Monday, August 24/);
-  assert.match(html, /https:\/\/www\.cfawestbryan\.com\/promotion/);
+  assert.match(html, /https:\/\/www\.pathway\.cfahome\.com\/plans\/my-plans/);
   assert.match(html, /New Student Conference \(NSC\)/);
   assert.match(html, /Signature Member Tasting Event/);
   assert.match(html, /BCS Classic @ Brazos County Expo/);

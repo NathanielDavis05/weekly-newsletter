@@ -78,6 +78,13 @@
       "when": 1786993200000,
       "tag": "0010_fall_promotion_training",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1786996800000,
+      "tag": "0011_pathway_training_link",
+      "breakpoints": true
     }
   ]
 }
