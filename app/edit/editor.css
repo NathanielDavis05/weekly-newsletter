@@ -823,6 +823,9 @@ body, .builder { background:#f7f4f2; }
 .save-state small { display:none; }
 .builder-toolbar .publish-button { border-color:#fff; border-radius:9px; background:#fff; color:#09213f; font-weight:750; }
 .builder-toolbar .publish-button:hover { border-color:#fff; background:#eaf2fb; }
+.builder-toolbar .toolbar-next-week { border-color:rgba(255,255,255,.4); background:rgba(255,255,255,.12); color:#fff; font-weight:750; }
+.builder-toolbar .toolbar-next-week:hover { border-color:#fff; background:rgba(255,255,255,.22); }
+.builder-toolbar .toolbar-sync { min-width:66px; }
 .toolbar-inspector { display:none; }
 
 .issue-context { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px; background:#fffaf7; border-bottom:1px solid #eadfda; }
@@ -892,7 +895,8 @@ body, .builder { background:#f7f4f2; }
   .builder-brand::before { width:21px; height:27px; }
   .builder-brand::after { left:14px; top:calc(50% - 12px); width:8px; height:8px; }
   .builder-brand strong { font-size:14px; }
-  .toolbar-group--undo, .toolbar-more, .save-state { display:none; }
+  .toolbar-group--undo, .toolbar-more, .save-state, .toolbar-sync { display:none; }
+  .builder-toolbar .toolbar-next-week { padding:7px 9px; font-size:12px; }
   .toolbar-link--plain { min-width:auto; padding:7px 8px; }
   .toolbar-device-select { min-height:34px; margin-left:0; padding:0 5px; }
   .toolbar-device-select span { display:none; }

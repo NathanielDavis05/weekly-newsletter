@@ -197,7 +197,7 @@ export function WeeklyMode({
           <strong className="weekly__date">{isLive ? publishedLabel : draftLabel}</strong>
           <p>{isLive ? "Updates appear for readers right away" : needsWork ? `${needsWork} section${needsWork === 1 ? "" : "s"} need attention` : "Every section is filled in"}</p>
         </div>
-        {isLive ? <button type="button" className="weekly__next" onClick={() => onSwitchIssue("draft")}>Open next week's draft</button> : <button type="button" className="weekly__next" onClick={onCreateNextIssue}>Start next week</button>}
+        {isLive ? <button type="button" className="weekly__next" onClick={() => onSwitchIssue("draft")}>Open next week&apos;s draft</button> : <button type="button" className="weekly__next" onClick={onCreateNextIssue}>Start next week</button>}
       </div>
 
       <div className="weekly__live" aria-label="Live newsletter">

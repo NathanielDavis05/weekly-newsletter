@@ -443,6 +443,58 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
   }, []);
   const persist = useCallback(async (snapshot: NewsletterContent, label?: string, target = issueTargetRef.current) => { const data = await api("/api/content", { method: "PUT", body: JSON.stringify({ content: snapshot, expectedRevision: revisionRef.current, label, target }) }); acceptSaved(data, snapshot, target); }, [acceptSaved, api]);
 
+  // Both editor URLs read and write the same D1 record. Polling is deliberately
+  // conservative: a newer remote revision is adopted only when this tab has
+  // no local edits, so another editor can never silently overwrite a manager's
+  // in-progress work.
+  const syncFromServer = useCallback(async (announce = false) => {
+    if (busy || saving) return;
+    const requestRevision = revisionRef.current;
+    const requestContent = JSON.stringify(contentRef.current);
+    try {
+      const data = await api("/api/content", { method: "GET" });
+      const remoteRevision = data.revision ?? requestRevision;
+      // An edit made while the request was in flight wins over this response.
+      if (JSON.stringify(contentRef.current) !== requestContent || remoteRevision <= revisionRef.current) {
+        if (announce && remoteRevision <= revisionRef.current) setStatus("You are up to date");
+        return;
+      }
+      if (dirty) {
+        setConflict(true);
+        setStatus("Newer changes are available in another editor");
+        return;
+      }
+      const nextDraft = normalized(data.draft ?? draftBufferRef.current.saved);
+      const nextPublished = normalized(data.published ?? liveBufferRef.current.saved);
+      draftBufferRef.current = { content: nextDraft, saved: nextDraft };
+      liveBufferRef.current = { content: nextPublished, saved: nextPublished };
+      revisionRef.current = remoteRevision;
+      setRevision(remoteRevision);
+      setPublished(nextPublished);
+      const active = issueTargetRef.current === "draft" ? draftBufferRef.current : liveBufferRef.current;
+      contentRef.current = active.content;
+      setContent(active.content);
+      setSaved(active.saved);
+      setConflict(false);
+      history.reset();
+      setStatus(announce ? "Updated with changes from the other editor" : "Updated from the other editor");
+    } catch (error) {
+      if (announce) setStatus(error instanceof Error ? error.message : "Could not check for updates");
+    }
+  }, [api, busy, dirty, history, saving]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (globalThis.document.visibilityState === "visible") void syncFromServer();
+    };
+    const timer = globalThis.setInterval(refresh, 10000);
+    globalThis.document.addEventListener("visibilitychange", refresh);
+    return () => {
+      globalThis.clearInterval(timer);
+      globalThis.document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [syncFromServer]);
+
   useEffect(() => { if (!dirty || busy || saving || conflict) return; const snapshot = structuredClone(content); const target = issueTarget; const timer = globalThis.setTimeout(() => { const task = (async () => { setSaving(true); setStatus(target === "live" ? "Saving live changes…" : "Saving draft…"); try { await persist(snapshot, undefined, target); setStatus(target === "live" ? "Live changes saved" : "Draft autosaved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setSaving(false); autosaveRef.current = null; } })(); autosaveRef.current = task; }, 1000); return () => globalThis.clearTimeout(timer); }, [busy, conflict, content, dirty, issueTarget, persist, saving]);
 
   const saveNow = async () => { const target = issueTargetRef.current; setBusy(true); try { await autosaveRef.current?.catch(() => undefined); const snapshot = structuredClone(contentRef.current); await persist(snapshot, target === "live" ? "Saved live issue" : "Manual save", target); setConflict(false); setStatus(target === "live" ? "Live changes saved" : "Draft saved"); } catch (error) { const typed = error as Error & { status?: number }; if (typed.status === 409) setConflict(true); setStatus(typed.message); } finally { setBusy(false); } };
@@ -943,9 +995,11 @@ export function Editor({ initialDraft, initialPublished, initialRevision, userEm
     <header className="builder-toolbar">
       <div className="builder-brand"><strong>Newsletter Editor</strong><span>{userEmail}</span></div>
       <a className="toolbar-link toolbar-link--plain" href={previewHref} target="_blank">◉&nbsp; Preview</a>
+      {issueTarget === "draft" ? <button type="button" className="toolbar-next-week" onClick={startNextIssue} disabled={busy || conflict}>＋&nbsp; Next week</button> : null}
       <div className="toolbar-group toolbar-group--undo"><button type="button" title={historyState.undoLabel ? `Undo ${historyState.undoLabel} (\u2318Z)` : "Undo (\u2318Z)"} disabled={!historyState.canUndo || busy} onClick={undo}>↶&nbsp; Undo</button><button type="button" title={historyState.redoLabel ? `Redo ${historyState.redoLabel} (\u2318\u21e7Z)` : "Redo (\u2318\u21e7Z)"} disabled={!historyState.canRedo || busy} onClick={redo}>↷&nbsp; Redo</button></div>
       <label className="toolbar-device-select"><span aria-hidden="true">▣</span><select aria-label="Preview device" value={device} onChange={(event) => setDevice(event.target.value as "phone" | "desktop")}><option value="desktop">Desktop</option><option value="phone">Phone</option></select></label>
       <details className="toolbar-more"><summary aria-label="More editor tools">⋮</summary><div><button type="button" onClick={() => setPaletteOpen(true)}>Command palette</button><button type="button" onClick={() => void saveNow()} disabled={busy || conflict}>Save draft</button><button type="button" onClick={() => setDrawer("weekly")}>Weekly sections</button><button type="button" onClick={() => setDrawer("add")}>Add item</button><button type="button" onClick={() => setDrawer("layers")}>View items</button><button type="button" onClick={() => setDrawer("design")}>Design</button><button type="button" onClick={() => setDrawer("blocks")}>Blocks</button><button type="button" onClick={() => setDrawer("media")}>Media</button><button type="button" onClick={() => setDrawer("history")}>History</button><hr />{pageTabs.map((item) => <button key={item.id} type="button" className={page === item.id ? "is-active" : ""} onClick={() => changePage(item.id)}>{item.label} page</button>)}</div></details>
+      <button type="button" className="toolbar-sync" onClick={() => void syncFromServer(true)} disabled={busy || saving} title="Check for changes made in the other editor">↻&nbsp; Sync</button>
       <span className={`save-state${conflict ? " save-state--error" : ""}`}>{saving ? "Saving…" : dirty ? "Autosave pending" : status}</span>
       <button type="button" className="publish-button" onClick={() => issueTarget === "live" ? void saveNow() : setChecklistOpen(true)} disabled={busy || conflict}>{issueTarget === "live" ? "✓ Save live changes" : "▣ Schedule & Publish"}</button>
       <button type="button" className="toolbar-inspector" aria-label="Toggle inspector" onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setInspectorOpen(!inspectorOpen))}>☰</button>
