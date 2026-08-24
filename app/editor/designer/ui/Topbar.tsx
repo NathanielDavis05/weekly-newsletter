@@ -5,6 +5,7 @@ import { renameSite } from '../store/actions/pages';
 import { useDoc } from '../store/docStore';
 import { useEditor } from '../store/editorStore';
 import { saveNow } from '../io/persistence';
+import { refreshLiveNewsletter, sendDesignerCopyToDraft } from '../io/newsletterSync';
 import { Icon } from './Icon';
 import { Tooltip } from './controls/Tooltip';
 import { Popover } from './controls/Popover';
@@ -52,6 +53,7 @@ export function Topbar() {
   const setActivePage = useEditor((s) => s.setActivePage);
 
   const [menu, setMenu] = useState<DOMRect | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const menuBtn = useRef<HTMLButtonElement>(null);
 
   const doUndo = () => {
@@ -64,6 +66,14 @@ export function Topbar() {
   const doRedo = () => {
     const entry = redo();
     if (entry?.pageId) setActivePage(entry.pageId);
+  };
+  const refreshLive = async () => {
+    setSyncing(true);
+    try { await refreshLiveNewsletter(); } catch (error) { useEditor.getState().toast(error instanceof Error ? error.message : 'Could not refresh the newsletter', 'error'); } finally { setSyncing(false); }
+  };
+  const sendToDraft = async () => {
+    setSyncing(true);
+    try { await sendDesignerCopyToDraft(); } catch (error) { useEditor.getState().toast(error instanceof Error ? error.message : 'Could not update the draft', 'error'); } finally { setSyncing(false); }
   };
 
   const viewports: { value: Breakpoint; icon: 'desktop' | 'tablet' | 'mobile'; tip: string }[] = [
@@ -127,6 +137,16 @@ export function Topbar() {
       </div>
 
       <div className="topbar-group">
+        <Tooltip label="Pull the published newsletter into this visual canvas">
+          <button type="button" className="btn" disabled={syncing} onClick={() => void refreshLive()}>
+            <Icon name="refresh" size={14} /> Refresh live
+          </button>
+        </Tooltip>
+        <Tooltip label="Send this canvas's shared copy to the /edit private draft">
+          <button type="button" className="btn" disabled={syncing} onClick={() => void sendToDraft()}>
+            <Icon name="upload" size={14} /> Update /edit
+          </button>
+        </Tooltip>
         <SaveIndicator />
         <div className="topbar-sep" />
         <Tooltip label="Version history">

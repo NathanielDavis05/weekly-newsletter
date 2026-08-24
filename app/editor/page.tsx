@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getEditorContent } from '../content/store';
 import { requireEditorUser } from '../edit-auth';
 import { DesignerApp } from './DesignerApp';
 
@@ -15,5 +16,6 @@ export const metadata: Metadata = {
  */
 export default async function NewsletterDesignerPage() {
   await requireEditorUser('/editor');
-  return <DesignerApp />;
+  const { published } = await getEditorContent();
+  return <DesignerApp liveContent={published} />;
 }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDragController } from '../dnd/useDragController';
 import { loadSite, loadUiPrefs, startAutosave } from '../io/persistence';
+import { applyNewsletterContent } from '../io/newsletterBridge';
+import type { NewsletterContent } from '../../../content/types';
 import type { Breakpoint } from '../model/types';
 import { useDoc } from '../store/docStore';
 import { useEditor, type LeftTab } from '../store/editorStore';
@@ -133,7 +135,7 @@ function PreviewBar() {
   );
 }
 
-export function App() {
+export function App({ liveContent }: { liveContent: NewsletterContent }) {
   const leftTab = useEditor((s) => s.leftTab);
   const setLeftTab = useEditor((s) => s.setLeftTab);
   const rightPanelOpen = useEditor((s) => s.rightPanelOpen);
@@ -152,7 +154,9 @@ export function App() {
   /* ---- boot: restore the saved document and UI state ---- */
   useEffect(() => {
     const saved = loadSite();
-    if (saved) useDoc.getState().replaceDoc(saved);
+    // Preserve the familiar visual document and its layout, then bring its
+    // newsletter fields forward to exactly what readers see on the live site.
+    useDoc.getState().replaceDoc(applyNewsletterContent(saved ?? useDoc.getState().doc, liveContent));
 
     const prefs = loadUiPrefs();
     const current = useDoc.getState().doc;
@@ -170,7 +174,7 @@ export function App() {
     });
 
     return startAutosave();
-  }, []);
+  }, [liveContent]);
 
   /* Keep the active page valid if it gets deleted or restored away. */
   useEffect(() => {

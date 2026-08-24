@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import type { NewsletterContent } from '../content/types';
 import './designer/styles/app.css';
 
 // Creating an editor document generates IDs. Keep that work entirely in the
@@ -16,6 +17,6 @@ const Designer = dynamic(
  * Keeping it as a client component preserves its native canvas, drag/drop,
  * undo history, local autosave, and export behaviour.
  */
-export function DesignerApp() {
-  return <Designer />;
+export function DesignerApp({ liveContent }: { liveContent: NewsletterContent }) {
+  return <Designer liveContent={liveContent} />;
 }
