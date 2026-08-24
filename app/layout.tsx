@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     type: "website",
     title: "CFA West Bryan | This week, at a glance",
     description:
-      "The August 17 team update: action required, recognition, local events, and August results.",
+      "The August 24 team update: action required, recognition, local events, and August results.",
     images: [
       {
         url: "/og.png",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "CFA West Bryan | This week, at a glance",
-    description: "The August 17 team update.",
+    description: "The August 24 team update.",
     images: ["/og.png"],
   },
 };

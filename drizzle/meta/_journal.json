@@ -85,6 +85,13 @@
       "when": 1786996800000,
       "tag": "0011_pathway_training_link",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1787583600000,
+      "tag": "0012_august_24_newsletter",
+      "breakpoints": true
     }
   ]
 }

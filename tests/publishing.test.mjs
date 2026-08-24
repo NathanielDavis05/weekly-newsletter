@@ -164,11 +164,11 @@ test("starter text left in a block is flagged as a warning", () => {
 });
 
 test("past dates are warnings, and they name the field and the gap", () => {
-  const later = new Date(2026, 7, 20);
+  const later = new Date(2026, 8, 10);
   const result = validateNewsletter(defaultContent, baseDoc(), { today: later });
   const past = result.warnings.filter((issue) => issue.id.startsWith("past-"));
 
-  assert.ok(past.length > 0, "July events should be flagged from late August");
+  assert.ok(past.length > 0, "August events should be flagged in September");
   assert.ok(past.some((issue) => issue.path.startsWith("home.events.items.")), "past weekly events are flagged");
   assert.match(past[0].detail, /day/);
   assert.equal(result.canPublish, true, "past dates warn but do not block");
@@ -219,10 +219,10 @@ test("unsaved changes are reported when the editor says so", () => {
 
 test("the issue date moves forward a week by default", () => {
   const result = createNextIssue(defaultContent, baseDoc(), { today: JULY_2026 });
-  assert.match(result.content.home.hero.kicker, /Aug 24, 2026/);
-  assert.match(result.content.home.footer.line, /August 24, 2026/);
-  assert.match(result.content.home.overview.eyebrow, /August 24/);
-  assert.ok(result.summary.some((line) => /August 24, 2026/.test(line)));
+  assert.match(result.content.home.hero.kicker, /Aug 31, 2026/);
+  assert.match(result.content.home.footer.line, /August 31, 2026/);
+  assert.match(result.content.home.overview.eyebrow, /August 31/);
+  assert.ok(result.summary.some((line) => /August 31, 2026/.test(line)));
 });
 
 test("the published issue and the original content are left untouched", () => {
@@ -234,15 +234,15 @@ test("the published issue and the original content are left untouched", () => {
 test("events that will have passed are removed, upcoming ones kept", () => {
   const content = clone(defaultContent);
   content.home.events.items = [
-    { date: "Aug 23", name: "Sunday event" },
-    { date: "Aug 24", name: "Monday event" },
+    { date: "Aug 30", name: "Sunday event" },
+    { date: "Aug 31", name: "Monday event" },
   ];
   const result = createNextIssue(content, baseDoc(), { today: JULY_2026 });
   const names = result.content.home.events.items.map((event) => event.name);
 
-  // Next issue is August 24, so August 23 has passed while August 24 remains current.
-  assert.ok(!names.includes("Sunday event"), "Aug 23 has passed");
-  assert.ok(names.includes("Monday event"), "Aug 24 is still current");
+  // Next issue is August 31, so August 30 has passed while August 31 remains current.
+  assert.ok(!names.includes("Sunday event"), "Aug 30 has passed");
+  assert.ok(names.includes("Monday event"), "Aug 31 is still current");
   assert.ok(result.summary.some((line) => /Removed \d+ past event/.test(line)));
 });
 
@@ -267,9 +267,9 @@ test("a passed birthday is cleared but an upcoming one is kept", () => {
   assert.deepEqual(passed.content.home.recognition.birthday.entries, [], "there are no birthdays to carry forward");
 
   const upcoming = clone(defaultContent);
-  upcoming.home.recognition.birthday.entries = [{ name: "Future teammate", date: "August 30" }];
+  upcoming.home.recognition.birthday.entries = [{ name: "Future teammate", date: "September 6" }];
   const kept = createNextIssue(upcoming, baseDoc(), { today: JULY_2026 });
-  assert.equal(kept.content.home.recognition.birthday.entries[0].date, "August 30");
+  assert.equal(kept.content.home.recognition.birthday.entries[0].date, "September 6");
 });
 
 test("an unfinished action item can be carried forward", () => {
@@ -286,7 +286,7 @@ test("an unfinished action item can be carried forward", () => {
 
 test("an action item still in the future is kept and reported", () => {
   const content = clone(defaultContent);
-  content.home.overview.actionCard.bodyEmphasis = "August 28";
+  content.home.overview.actionCard.bodyEmphasis = "September 4";
   const result = createNextIssue(content, baseDoc(), { today: JULY_2026 });
   assert.equal(result.content.home.overview.actionCard.heading, defaultContent.home.overview.actionCard.heading);
   assert.ok(result.summary.some((line) => /Carried forward/.test(line)));
@@ -295,8 +295,8 @@ test("an action item still in the future is kept and reported", () => {
 test("formatting follows its item when earlier events are removed", () => {
   const content = clone(defaultContent);
   content.home.events.items = [
-    { date: "Aug 23", name: "Sunday event" },
-    { date: "Aug 25", name: "Tuesday event" },
+    { date: "Aug 30", name: "Sunday event" },
+    { date: "Sep 1", name: "Tuesday event" },
   ];
   const doc = baseDoc();
   // Format the later event, which survives the roll-forward, plus the first,

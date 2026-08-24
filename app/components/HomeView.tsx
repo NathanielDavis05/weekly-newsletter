@@ -97,23 +97,23 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
       </div>
     </section>,
 
-    "home-birthday": <article className="mini-card">
+    "home-birthday": (home.recognition.birthday.entries?.length || home.recognition.birthday.name.trim() || home.recognition.birthday.date.trim()) ? <article className="mini-card">
       <p className="card-kicker">{f("home.recognition.birthday.kicker", home.recognition.birthday.kicker)}</p>
       {home.recognition.birthday.entries ? home.recognition.birthday.entries.map((entry, index) => <Fragment key={index}>
         {index > 0 ? <hr /> : null}
         <h3>{f(`home.recognition.birthday.entries.${index}.name`, entry.name)}</h3>
         <p>{f(`home.recognition.birthday.entries.${index}.date`, entry.date)}</p>
       </Fragment>) : <><h3>{f("home.recognition.birthday.name", home.recognition.birthday.name)}</h3><p>{f("home.recognition.birthday.date", home.recognition.birthday.date)}</p></>}
-    </article>,
+    </article> : undefined,
 
-    "home-anniversaries": <article className="mini-card">
+    "home-anniversaries": home.recognition.anniversaries.entries.length ? <article className="mini-card">
       <p className="card-kicker">{f("home.recognition.anniversaries.kicker", home.recognition.anniversaries.kicker)}</p>
       {home.recognition.anniversaries.entries.map((entry, index) => <Fragment key={index}>
         {index > 0 ? <hr /> : null}
         <h3>{f(`home.recognition.anniversaries.entries.${index}.name`, entry.name)}</h3>
         <p>{f(`home.recognition.anniversaries.entries.${index}.detail`, entry.detail)}</p>
       </Fragment>)}
-    </article>,
+    </article> : undefined,
 
     "home-events": <section id="events">
       <p className="eyebrow">{f("home.events.eyebrow", home.events.eyebrow)}</p>
