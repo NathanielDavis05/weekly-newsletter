@@ -106,13 +106,20 @@ export const defaultContent: NewsletterContent = {
       },
       birthday: {
         kicker: "Birthday",
-        name: "",
-        date: "",
-        entries: [],
+        name: "Jeremiel Fernandez",
+        date: "August 25",
+        entries: [
+          { name: "Jeremiel Fernandez", date: "August 25" },
+          { name: "Katriel Oyler", date: "August 25" },
+          { name: "Cynthia Vargas", date: "August 26" },
+        ],
       },
       anniversaries: {
         kicker: "Work anniversaries",
-        entries: [],
+        entries: [
+          { name: "Benedict Cruz — August 27", detail: "1 year with CFA" },
+          { name: "Katriel Oyler — August 27", detail: "1 year with CFA" },
+        ],
       },
     },
     events: {

@@ -44,8 +44,19 @@ WITH `issue_patch` (`payload`) AS (VALUES (json('{
         "heading": "Shoutout from a Guest",
         "body": "Katie Davis was mentioned in a comment by a guest this week."
       },
-      "birthday": {"name": "", "date": "", "entries": []},
-      "anniversaries": {"entries": []}
+      "birthday": {
+        "name": "Jeremiel Fernandez",
+        "date": "August 25",
+        "entries": [
+          {"name": "Jeremiel Fernandez", "date": "August 25"},
+          {"name": "Katriel Oyler", "date": "August 25"},
+          {"name": "Cynthia Vargas", "date": "August 26"}
+        ]
+      },
+      "anniversaries": {"entries": [
+        {"name": "Benedict Cruz — August 27", "detail": "1 year with CFA"},
+        {"name": "Katriel Oyler — August 27", "detail": "1 year with CFA"}
+      ]}
     },
     "events": {"items": [
       {"date": "Aug 24", "name": "TAMU First Day of Classes — Fall 2026", "featured": true},
@@ -116,6 +127,8 @@ WITH `issue_patch` (`payload`) AS (VALUES (json('{
     "home.recognition.birthday.entries.0.date": null,
     "home.recognition.birthday.entries.1.name": null,
     "home.recognition.birthday.entries.1.date": null,
+    "home.recognition.birthday.entries.2.name": null,
+    "home.recognition.birthday.entries.2.date": null,
     "home.recognition.anniversaries.entries.0.name": null,
     "home.recognition.anniversaries.entries.0.detail": null,
     "home.recognition.anniversaries.entries.1.name": null,

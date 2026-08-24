@@ -48,8 +48,12 @@ test("public home page renders the newsletter default content", async () => {
   assert.match(html, /HERPS Exotic Reptile &amp; Pet Expo/);
   assert.match(html, /Katie Davis/);
   assert.match(html, /SOS \(Total Time\) · 3:45/);
-  assert.doesNotMatch(html, /data-item-id="home-birthday"/);
-  assert.doesNotMatch(html, /data-item-id="home-anniversaries"/);
+  assert.match(html, /Jeremiel Fernandez/);
+  assert.match(html, /Katriel Oyler/);
+  assert.match(html, /Cynthia Vargas/);
+  assert.match(html, /Benedict Cruz — August 27/);
+  assert.match(html, /data-item-id="home-birthday"/);
+  assert.match(html, /data-item-id="home-anniversaries"/);
   assert.match(html, /Your week, made simple\./);
   assert.match(html, /item-page--home/);
   assert.match(html, /data-item-id="home-action"/);
