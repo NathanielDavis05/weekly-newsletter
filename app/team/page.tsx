@@ -5,7 +5,11 @@ import { LINKS, isLive, type Destination } from "./links";
 import "./landing.css";
 
 // Static by design: the landing page holds no dates, counts, or issue content,
-// so there is nothing to fetch and nothing to revalidate.
+// so there is nothing to fetch and nothing to revalidate. Declared explicitly
+// because every other route here sets `dynamic`, and without it this page is
+// the only one the build cannot classify.
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
   title: "Team",
   description:
