@@ -41,8 +41,6 @@ function Destination({
   return <Link className={className} href={to.href}>{children}</Link>;
 }
 
-const Arrow = () => <span aria-hidden="true">→</span>;
-
 const icons = {
   shirt: (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -120,7 +118,7 @@ export default function TeamLanding() {
               <div className="lp-card__body">
                 <h3>Newsletter</h3>
                 <p>The weekly update for the store, plus every issue that came before it.</p>
-                <Destination to={LINKS.newsletter} className="lp-textlink">Open the newsletter <Arrow /></Destination>
+                <Destination to={LINKS.newsletter} className="lp-pill">Open the newsletter</Destination>
               </div>
             </article>
 
@@ -131,7 +129,7 @@ export default function TeamLanding() {
               <div className="lp-card__body">
                 <h3>Training</h3>
                 <p>Every assignment for your role, and the ones you have already finished.</p>
-                <Destination to={LINKS.training} className="lp-textlink">Go to training <Arrow /></Destination>
+                <Destination to={LINKS.training} className="lp-pill">Go to training</Destination>
               </div>
             </article>
 
@@ -142,7 +140,7 @@ export default function TeamLanding() {
               <div className="lp-card__body">
                 <h3>Promotions</h3>
                 <p>Seasonal menu items, the builds for each one, and when they launch.</p>
-                <Destination to={LINKS.promotions} className="lp-textlink">See promotions <Arrow /></Destination>
+                <Destination to={LINKS.promotions} className="lp-pill">See promotions</Destination>
               </div>
             </article>
           </div>
