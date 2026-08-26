@@ -58,11 +58,6 @@ const icons = {
       <path d="M17.5 3c-1.4 1.6-2 3.4-2 5.5 0 1.6.7 2.6 2 3V21" />
     </svg>
   ),
-  chart: (
-    <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 20h18" /><path d="M6 20v-6M12 20V5M18 20v-9" />
-    </svg>
-  ),
 };
 
 export default function TeamLanding() {
@@ -159,7 +154,9 @@ export default function TeamLanding() {
         </section>
 
         <section className="lp-split lp-split--flip">
-          <div className="lp-split__art">{icons.chart}</div>
+          <div className="lp-split__art lp-split__art--logo">
+            <img src="/images/west-bryan-badge.jpg" alt="" width={440} height={440} />
+          </div>
           <div>
             <h2>See how the store is doing</h2>
             <p className="lp-lead">
