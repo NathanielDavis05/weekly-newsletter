@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node scripts/build-landing.mjs",
+  "outputDirectory": "dist-site",
+  "framework": null,
+  "installCommand": "npm install --no-audit --no-fund"
+}
