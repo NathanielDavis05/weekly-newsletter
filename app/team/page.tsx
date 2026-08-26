@@ -97,7 +97,6 @@ export default function TeamLanding() {
 
       <section className="lp-hero">
         <h1>Everything the team needs, in one place</h1>
-        <p>Your training, the forms you need, and every page for the store — no logins, no searching.</p>
       </section>
 
       <div className="lp-quick">

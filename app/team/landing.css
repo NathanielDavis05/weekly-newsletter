@@ -29,7 +29,11 @@
   line-height: 1.5;
 }
 
-.lp a { text-decoration: none; }
+/* `color: inherit` is not decoration: without it the browser default link
+   colour wins and the nav renders blue. The page only looked correct
+   because globals.css happens to set it, which a standalone export of
+   this page does not carry. */
+.lp a { color: inherit; text-decoration: none; }
 
 /* Not yet wired to a destination — visibly inert, never a dead link. */
 .lp [aria-disabled="true"] { cursor: default; opacity: 0.45; }
