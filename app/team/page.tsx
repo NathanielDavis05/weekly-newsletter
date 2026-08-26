@@ -58,11 +58,6 @@ const icons = {
       <path d="M17.5 3c-1.4 1.6-2 3.4-2 5.5 0 1.6.7 2.6 2 3V21" />
     </svg>
   ),
-  paper: (
-    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4h11a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2Z" /><path d="M17 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2" /><path d="M7.5 8.5h6M7.5 12h6M7.5 15.5h4" />
-    </svg>
-  ),
   chart: (
     <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 20h18" /><path d="M6 20v-6M12 20V5M18 20v-9" />
@@ -113,7 +108,9 @@ export default function TeamLanding() {
           </div>
           <div className="lp-cards">
             <article className="lp-card">
-              <div className="lp-card__panel">{icons.paper}</div>
+              <div className="lp-card__panel lp-card__panel--photo">
+                <img src="/images/food-pattern-red.png" alt="" width={2400} height={1350} />
+              </div>
               <div className="lp-card__body">
                 <h3>Newsletter</h3>
                 <p>The weekly update for the store, plus every issue that came before it.</p>
