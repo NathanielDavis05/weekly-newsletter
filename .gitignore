@@ -42,3 +42,6 @@ next-env.d.ts
 /outputs/
 /work/
 .claude/
+
+# Static export of the team landing page (scripts/build-landing.mjs)
+/dist-site/

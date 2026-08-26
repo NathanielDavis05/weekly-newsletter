@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "site-creator-vinext-starter",
+  // Must not exceed what the installed workerd supports (wrangler 4.92.0 ships
+  // workerd 1.20260515.1, newest supported date 2026-05-22). A later date makes
+  // the local runtime refuse to boot. Bump this together with wrangler.
+  "compatibility_date": "2026-05-22",
+  // nodejs_compat is intentionally omitted: vinext's Cloudflare plugin adds it
+  // to the generated config, and workerd fails to boot when a compatibility
+  // flag is specified twice ("Compatibility flag specified multiple times").
+  "main": "./worker/index.ts",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+  "images": {
+    "binding": "IMAGES"
+  }
+}
