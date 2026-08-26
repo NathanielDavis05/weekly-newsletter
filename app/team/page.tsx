@@ -65,21 +65,6 @@ const icons = {
       <path d="M4 4h11a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2Z" /><path d="M17 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2" /><path d="M7.5 8.5h6M7.5 12h6M7.5 15.5h4" />
     </svg>
   ),
-  cap: (
-    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 8.5 12 4l10 4.5-10 4.5Z" /><path d="M6 10.8V15c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.2" />
-    </svg>
-  ),
-  leaf: (
-    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 4c0 9-6.3 15-14 15C6 11 11.3 5 20 4Z" /><path d="M6 19c2.5-4 5-6.5 8.5-8.5" />
-    </svg>
-  ),
-  person: (
-    <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
-    </svg>
-  ),
   chart: (
     <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 20h18" /><path d="M6 20v-6M12 20V5M18 20v-9" />
@@ -92,9 +77,14 @@ export default function TeamLanding() {
     <div className="lp">
       <header className="lp-wrap">
         <div className="lp-nav">
-          <span className="lp-wordmark">
-            <strong>Chick-fil-A</strong>
-            <em>West Bryan</em>
+          <span className="lp-brand">
+            {/* Decorative: the wordmark beside it already names the store, so an
+                alt here would just make a screen reader say it twice. */}
+            <img className="lp-brand__mark" src="/images/cfa-logo.png" alt="" width={46} height={46} />
+            <span className="lp-wordmark">
+              <strong>Chick-fil-A</strong>
+              <em>West Bryan</em>
+            </span>
           </span>
           <nav className="lp-navlinks" aria-label="Team pages">
             <Destination to={LINKS.newsletter}>Newsletter</Destination>
@@ -135,7 +125,9 @@ export default function TeamLanding() {
             </article>
 
             <article className="lp-card lp-card--red">
-              <div className="lp-card__panel">{icons.cap}</div>
+              <div className="lp-card__panel lp-card__panel--photo">
+                <img src="/images/team-meeting.png" alt="" width={600} height={300} />
+              </div>
               <div className="lp-card__body">
                 <h3>Training</h3>
                 <p>Every assignment for your role, and the ones you have already finished.</p>
@@ -144,7 +136,9 @@ export default function TeamLanding() {
             </article>
 
             <article className="lp-card">
-              <div className="lp-card__panel">{icons.leaf}</div>
+              <div className="lp-card__panel lp-card__panel--photo">
+                <img src="/images/smores-milkshake.png" alt="" width={399} height={501} style={{ objectPosition: "center 20%" }} />
+              </div>
               <div className="lp-card__body">
                 <h3>Promotions</h3>
                 <p>Seasonal menu items, the builds for each one, and when they launch.</p>
@@ -157,7 +151,9 @@ export default function TeamLanding() {
 
       <div className="lp-wrap">
         <section className="lp-split">
-          <div className="lp-split__art">{icons.person}</div>
+          <div className="lp-split__art lp-split__art--photo">
+            <img src="/images/pos-training.png" alt="" width={734} height={418} style={{ objectPosition: "center 28%" }} />
+          </div>
           <div>
             <h2>New here? Start with the basics</h2>
             <p className="lp-lead">

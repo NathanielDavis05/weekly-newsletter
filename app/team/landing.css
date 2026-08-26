@@ -70,6 +70,10 @@
   justify-content: space-between;
   gap: 24px;
 }
+/* Logo mark sits ahead of the stacked wordmark. */
+.lp-brand { display: flex; align-items: center; gap: 10px; }
+.lp-brand__mark { display: block; width: 38px; height: 38px; object-fit: contain; }
+
 .lp-wordmark { display: flex; flex-direction: column; line-height: 1.05; }
 .lp-wordmark strong { color: var(--lp-red); font-size: 19px; font-weight: 700; letter-spacing: -0.5px; }
 .lp-wordmark em {
@@ -190,6 +194,15 @@
   opacity: 0.55;
 }
 .lp-card--red .lp-card__panel { background-color: var(--lp-red); }
+
+/* Photo variant: the pattern panel is replaced by a real image. The tinted
+   pattern and its blend layer are switched off so nothing sits over the photo. */
+.lp-card__panel--photo,
+.lp-split__art--photo { display: block; background: none; }
+.lp-card__panel--photo::before,
+.lp-split__art--photo::before { content: none; }
+.lp-card__panel--photo img,
+.lp-split__art--photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .lp-card__panel svg { position: relative; z-index: 1; color: #fff; opacity: 0.95; }
 .lp-card__body { display: flex; flex: 1; flex-direction: column; padding: 22px 22px 24px; gap: 10px; }
 .lp-card__body h3 { margin: 0; color: var(--lp-navy); font-size: 23px; font-weight: 700; letter-spacing: -0.02em; }
@@ -270,6 +283,8 @@
   }
   .lp-navlinks__sep { width: 1px; height: 20px; background: #cdd6db; }
   .lp-nav .lp-pill { min-height: 44px; padding: 0 26px; font-size: 15px; }
+  .lp-brand { gap: 12px; }
+  .lp-brand__mark { width: 46px; height: 46px; }
 
   .lp-hero { padding: 96px 70px 132px; }
   .lp-hero h1 { font-size: 60px; letter-spacing: -1.6px; }
