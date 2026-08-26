@@ -126,7 +126,7 @@ export default function TeamLanding() {
 
             <article className="lp-card">
               <div className="lp-card__panel lp-card__panel--photo">
-                <img src="/images/smores-milkshake.png" alt="" width={399} height={501} style={{ objectPosition: "center 20%" }} />
+                <img src="/images/smores-milkshake.jpeg" alt="" width={589} height={492} style={{ objectPosition: "center 30%" }} />
               </div>
               <div className="lp-card__body">
                 <h3>Promotions</h3>
