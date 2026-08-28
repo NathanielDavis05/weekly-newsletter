@@ -494,8 +494,8 @@ h3 {
   min-height: 108px;
   padding: 16px;
   align-items: center;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 18px;
 }
 
 .priority-card--action {
@@ -523,6 +523,19 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.02em;
   place-items: center;
+}
+
+/* The overview uses both artwork icons and simple glyph icons. Give every
+   overview icon the same footprint, and clip transformed artwork to that
+   footprint so it can never drift into the card copy. */
+.priority-card .card-icon {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+}
+
+.priority-card .card-body {
+  min-width: 0;
 }
 
 .card-icon--red {
@@ -1777,6 +1790,21 @@ h3 {
 
   .priority-stack {
     gap: 10px;
+  }
+
+  .priority-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .priority-card .card-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .priority-card .card-icon--art img {
+    width: 60px;
+    height: 60px;
   }
 
   .priority-card--action {

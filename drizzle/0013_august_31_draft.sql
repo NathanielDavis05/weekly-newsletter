@@ -64,14 +64,22 @@ WITH `issue_patch` (`payload`) AS (VALUES (json('{
     "recognition": {
       "feature": {
         "heading": "Shoutout from a Guest",
-        "body": "Catye Williams received a customer shout-out this week. Thank you, Catye, for making a positive impression."
+        "body": "Catye Williams received a customer shout-out this week."
       },
       "birthday": {
-        "name": "",
-        "date": "",
-        "entries": []
+        "name": "Cynthia E.",
+        "date": "August 30",
+        "entries": [
+          {"name": "Cynthia E.", "date": "August 30"},
+          {"name": "John S.", "date": "September 2"},
+          {"name": "Madi D.", "date": "September 3"}
+        ]
       },
-      "anniversaries": {"entries": []}
+      "anniversaries": {"entries": [
+        {"name": "Cody J. — August 30", "detail": "7 years with CFA"},
+        {"name": "Fabian C. — September 1", "detail": "4 years with CFA"},
+        {"name": "Maverick V. — September 4", "detail": "1 year with CFA"}
+      ]}
     },
     "events": {
       "eyebrow": "Plan ahead",
@@ -190,6 +198,20 @@ WITH `issue_patch` (`payload`) AS (VALUES (json('{
     "home.scorecard.focusValue": null,
     "home.recognition.feature.heading": null,
     "home.recognition.feature.body": null,
+    "home.recognition.birthday.name": null,
+    "home.recognition.birthday.date": null,
+    "home.recognition.birthday.entries.0.name": null,
+    "home.recognition.birthday.entries.0.date": null,
+    "home.recognition.birthday.entries.1.name": null,
+    "home.recognition.birthday.entries.1.date": null,
+    "home.recognition.birthday.entries.2.name": null,
+    "home.recognition.birthday.entries.2.date": null,
+    "home.recognition.anniversaries.entries.0.name": null,
+    "home.recognition.anniversaries.entries.0.detail": null,
+    "home.recognition.anniversaries.entries.1.name": null,
+    "home.recognition.anniversaries.entries.1.detail": null,
+    "home.recognition.anniversaries.entries.2.name": null,
+    "home.recognition.anniversaries.entries.2.detail": null,
     "home.events.intro": null,
     "home.footer.line": null,
     "shared.scorecard.intro": null,
