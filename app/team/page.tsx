@@ -175,6 +175,9 @@ export default function TeamLanding() {
             <Destination to={LINKS.timePunch}>
               <strong>Time punch correction</strong><span>Fix a missed or wrong clock-in</span>
             </Destination>
+            <Destination to={LINKS.hrRequest}>
+              <strong>HR request</strong><span>Ask for time off or a schedule change</span>
+            </Destination>
             <Destination to={LINKS.restaurantInfo}>
               <strong>Restaurant info</strong><span>Hours, address, and guest ordering</span>
             </Destination>

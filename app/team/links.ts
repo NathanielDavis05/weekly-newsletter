@@ -46,6 +46,10 @@ export const LINKS = {
     "https://docs.google.com/forms/d/e/1FAIpQLSchwdEPUWnWsvMjBFdAFDQD0gqng8GsYpFMMOj5ihC7-cCJ1g/viewform",
     true,
   ),
+  hrRequest: d(
+    "https://docs.google.com/forms/d/e/1FAIpQLSc4FdNBl_Y07DS3fCy7QVHLDGjy_9s1BPP2ddD3uWgmzJ1vwg/viewform",
+    true,
+  ),
   restaurantInfo: d("https://www.chick-fil-a.com/locations/tx/west-bryan", true),
 
   /** Still needs a page built — renders inert until it has one. */
