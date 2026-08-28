@@ -190,7 +190,7 @@ export default function TeamLanding() {
       <footer className="lp-wrap">
         <div className="lp-foot">
           <strong>Chick-fil-A West Bryan</strong>
-          <span>Bookmark this page or scan the break room code</span>
+          <span>Bookmark this page or scan qr code on the back office door</span>
         </div>
       </footer>
     </div>
