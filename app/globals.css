@@ -1875,6 +1875,43 @@ h3 {
   .site-footer { padding: 28px 56px 40px; }
 }
 
+/* Wide monitors should feel like the same newsletter with more room, not a
+   phone-sized column floating in the middle of the screen. Keep the authored
+   page width as the minimum reading measure, then grow the shell and content
+   fluidly until they reach comfortable large-display limits. */
+@media (min-width: 1200px) {
+  .site-shell {
+    width: min(calc(100% - 48px), 2200px);
+  }
+
+  .item-page {
+    padding-right: clamp(32px, 4vw, 88px);
+    padding-left: clamp(32px, 4vw, 88px);
+  }
+
+  .item-page__content {
+    width: min(100%, max(var(--page-content-width, 900px), clamp(1080px, 86vw, 1800px)));
+  }
+
+  .site-hero {
+    padding-right: clamp(48px, 5vw, 120px);
+    padding-left: clamp(48px, 5vw, 120px);
+  }
+
+  .site-hero__copy {
+    width: min(100%, max(var(--hero-desktop-content-width), clamp(680px, 48vw, 900px)));
+  }
+
+  .site-hero__copy h1 {
+    font-size: max(var(--hero-desktop-title-size), clamp(56px, 4vw, 78px));
+  }
+
+  .section {
+    padding-right: clamp(56px, 5vw, 96px);
+    padding-left: clamp(56px, 5vw, 96px);
+  }
+}
+
 /* Persisted freeform layout. Elements remain responsive but may be positioned,
    overlapped, resized, and rotated independently by the visual editor. */
 .freeform-surface { position: relative; width: min(100%, 820px); min-height: var(--canvas-phone-height, 500px); margin-inline: auto; overflow: visible; }

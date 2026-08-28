@@ -34,7 +34,7 @@ export function HomeView({ content, editor, archived }: { content: NewsletterCon
         <p className="urgent-label">{f("home.overview.actionCard.label", home.overview.actionCard.label)}</p>
         <h3>{f("home.overview.actionCard.heading", home.overview.actionCard.heading)}</h3>
         <p>
-          {f("home.overview.actionCard.bodyPrefix", home.overview.actionCard.bodyPrefix)}
+          {f("home.overview.actionCard.bodyPrefix", home.overview.actionCard.bodyPrefix)}{" "}
           <strong>{f("home.overview.actionCard.bodyEmphasis", home.overview.actionCard.bodyEmphasis)}</strong>
         </p>
         <p className="micro-copy">{f("home.overview.actionCard.micro", home.overview.actionCard.micro)}</p>
