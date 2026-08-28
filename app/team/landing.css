@@ -59,13 +59,11 @@
 }
 
 /* ---------- header ---------- */
-.lp-header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  border-bottom: 1px solid #ccc;
-  background: #fff;
-}
+/* Not sticky on phones: the nav links inside it are display:none below the
+   desktop breakpoint, so a stuck bar would follow the reader down the page
+   carrying nothing but the logo. Most visits here are one-handed, mid-shift,
+   off the break room QR code — the screen space is worth more than the bar. */
+.lp-header { border-bottom: 1px solid #ccc; background: #fff; }
 .lp-nav {
   display: flex;
   padding: 22px 0 26px;
@@ -303,6 +301,7 @@
 @media (min-width: 768px) {
   .lp-wrap { padding: 0 70px; }
   .lp-nav { padding: 26px 0 34px; }
+  .lp-header { position: sticky; top: 0; z-index: 30; }
   .lp-navlinks {
     display: flex;
     align-items: center;
