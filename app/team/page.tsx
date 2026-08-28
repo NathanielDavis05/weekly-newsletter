@@ -63,8 +63,8 @@ const icons = {
 export default function TeamLanding() {
   return (
     <div className="lp">
-      <header className="lp-wrap">
-        <div className="lp-nav">
+      <header className="lp-header">
+        <div className="lp-nav lp-wrap">
           <span className="lp-brand">
             {/* Decorative: the wordmark beside it already names the store, so an
                 alt here would just make a screen reader say it twice. */}
@@ -81,13 +81,19 @@ export default function TeamLanding() {
             <Destination to={LINKS.scorecard}>Scorecard</Destination>
             <span className="lp-navlinks__sep" aria-hidden="true" />
             <Destination to={LINKS.restaurantInfo}>Restaurant info</Destination>
+            <Destination to={LINKS.newsletter} className="lp-pill">This week</Destination>
           </nav>
         </div>
       </header>
 
       <section className="lp-hero">
+        <p className="lp-kicker">Chick-fil-A West Bryan</p>
         <h1>Everything the team needs, in one place</h1>
       </section>
+
+      <div className="lp-hero-shot">
+        <img src="/images/team-meeting.png" alt="" width={600} height={300} />
+      </div>
 
       <div className="lp-quick">
         <Destination to={LINKS.uniform}>{icons.shirt}Uniform orders</Destination>
