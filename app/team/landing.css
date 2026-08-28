@@ -92,18 +92,30 @@
 /* ---------- hero ---------- */
 .lp-hero {
   position: relative;
-  padding: 40px 26px 30px;
+  padding: 54px 26px 96px;
   overflow: hidden;
-  background: #fff;
-  color: var(--lp-navy);
+  background: var(--lp-red);
+  color: #fff;
   text-align: center;
 }
-/* Chick-fil-A never runs a flat red field as a hero; red is an accent only. */
-.lp-hero::before { content: none; }
+/* The brand pattern is an opaque two-tone red PNG, so it cannot be knocked out
+   to a transparent overlay. soft-light blends its luminance into the field
+   instead, which keeps the base colour honest at any tint. */
+.lp-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/images/food-pattern-red.png");
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(1) contrast(1.9) brightness(1.15);
+  mix-blend-mode: soft-light;
+  opacity: 0.62;
+}
 .lp-hero > * { position: relative; z-index: 1; }
 .lp-hero .lp-kicker {
   margin: 0 0 14px;
-  color: var(--lp-red);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -118,18 +130,12 @@
   letter-spacing: -1.2px;
 }
 
-
-/* Full-bleed photo band under the headline — chick-fil-a.com leads with
-   photography where this page had a flat colour field. */
-.lp-hero-shot { height: 230px; margin-bottom: 34px; overflow: hidden; }
-.lp-hero-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
-
-/* ---------- utility cards ---------- */
+/* ---------- utility cards straddling the hero edge ---------- */
 .lp-quick {
   position: relative;
   z-index: 2;
   display: grid;
-  margin: 0 24px;
+  margin: -56px 24px 0;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
@@ -311,12 +317,11 @@
   .lp-brand { gap: 12px; }
   .lp-brand__mark { width: 46px; height: 46px; }
 
-  .lp-hero { padding: 64px 70px 34px; }
-  .lp-hero-shot { height: 340px; margin-bottom: 46px; }
+  .lp-hero { padding: 96px 70px 132px; }
   .lp-hero h1 { font-size: 60px; letter-spacing: -1.6px; }
   .lp-hero .lp-kicker { margin-bottom: 18px; font-size: 17px; }
 
-  .lp-quick { max-width: 868px; margin: 0 auto; padding: 0 24px; gap: 20px; }
+  .lp-quick { max-width: 868px; margin: -72px auto 0; padding: 0 24px; gap: 20px; }
   .lp-quick > * { min-height: 132px; padding: 26px 12px; font-size: 16.5px; gap: 12px; }
 
   .lp-section { padding: 96px 0 0; }

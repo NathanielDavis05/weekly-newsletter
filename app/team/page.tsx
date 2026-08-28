@@ -91,10 +91,6 @@ export default function TeamLanding() {
         <h1>Everything the team needs, in one place</h1>
       </section>
 
-      <div className="lp-hero-shot">
-        <img src="/images/team-meeting.png" alt="" width={600} height={300} />
-      </div>
-
       <div className="lp-quick">
         <Destination to={LINKS.uniform}>{icons.shirt}Uniform orders</Destination>
         <Destination to={LINKS.pathway}>{icons.route}Pathway</Destination>
