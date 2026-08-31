@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "title": "Team",
+    "description": "Everything the Chick-fil-A West Bryan team needs in one place — training, uniform orders, promotions, and the store scorecard."
+  },
+  "brand": {
+    "name": "Chick-fil-A",
+    "location": "West Bryan"
+  },
+  "nav": {
+    "newsletter": "Newsletter",
+    "training": "Training",
+    "promotions": "Promotions",
+    "scorecard": "Scorecard",
+    "restaurantInfo": "Restaurant info",
+    "thisWeek": "This week"
+  },
+  "hero": {
+    "kicker": "Chick-fil-A West Bryan",
+    "heading": "Everything the team needs, in one place"
+  },
+  "quickLinks": {
+    "uniform": "Uniform orders",
+    "pathway": "Pathway",
+    "breakMeal": "Break meal policy"
+  },
+  "findSection": {
+    "heading": "Find what you need",
+    "lead": "Each of these has its own page that stays up to date on its own."
+  },
+  "cards": {
+    "newsletter": {
+      "heading": "Newsletter",
+      "body": "The weekly update for the store, plus every issue that came before it.",
+      "cta": "Open the newsletter"
+    },
+    "training": {
+      "heading": "Training",
+      "body": "Every assignment for your role, and the ones you have already finished.",
+      "cta": "Go to training"
+    },
+    "promotions": {
+      "heading": "Promotions",
+      "body": "Seasonal menu items, the builds for each one, and when they launch.",
+      "cta": "See promotions"
+    }
+  },
+  "newTeamMember": {
+    "heading": "New here? Start with the basics",
+    "lead": "Everything a new team member needs in week one — uniform and parking, how a shift runs, who to ask for what, and the words we use behind the counter.",
+    "cta": "Open the new team member guide"
+  },
+  "scorecardSection": {
+    "heading": "See how the store is doing",
+    "lead": "Guest experience scores, the measures we track every month, and the one thing leadership is focused on next.",
+    "cta": "Open the scorecard"
+  },
+  "moreGrid": {
+    "timePunch": { "heading": "Time punch correction", "subheading": "Fix a missed or wrong clock-in" },
+    "hrRequest": { "heading": "HR request", "subheading": "Ask for time off or a schedule change" },
+    "restaurantInfo": { "heading": "Restaurant info", "subheading": "Hours, address, and guest ordering" }
+  },
+  "footer": {
+    "name": "Chick-fil-A West Bryan",
+    "tagline": "Bookmark this page or scan qr code on the back office door"
+  },
+  "links": {
+    "newsletter": "https://newsletter.cfawestbryan.com",
+    "training": "https://newsletter.cfawestbryan.com/training",
+    "promotions": "https://newsletter.cfawestbryan.com/promotion",
+    "scorecard": "https://newsletter.cfawestbryan.com/results",
+    "uniform": "https://docs.google.com/forms/d/e/1FAIpQLSf1iJwRX9I0qjrrLWZOGeYivFIblE12tM9DOyqbn3k1R0JcVg/viewform",
+    "pathway": "https://www.pathway.cfahome.com/plans/my-plans",
+    "breakMeal": "https://drive.google.com/file/d/12fH6Ian9jJa4Z7Ae9_DVEoZDCBbC_1Jh/view",
+    "timePunch": "https://docs.google.com/forms/d/e/1FAIpQLSchwdEPUWnWsvMjBFdAFDQD0gqng8GsYpFMMOj5ihC7-cCJ1g/viewform",
+    "hrRequest": "https://docs.google.com/forms/d/e/1FAIpQLSc4FdNBl_Y07DS3fCy7QVHLDGjy_9s1BPP2ddD3uWgmzJ1vwg/viewform",
+    "restaurantInfo": "https://www.chick-fil-a.com/locations/tx/west-bryan",
+    "newTeamMember": ""
+  }
+}

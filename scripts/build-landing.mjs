@@ -108,6 +108,11 @@ if (missing.length) {
   process.exit(1);
 }
 
+// The web editor at /edit — a plain static page, copied verbatim rather than
+// run through esbuild since it has no React/JSX to compile.
+await mkdir(join(outDir, "edit"), { recursive: true });
+await copyFile(join(root, "scripts/landing-static/edit.html"), join(outDir, "edit", "index.html"));
+
 console.log(
-  `Built ${outDir}\n  index.html  ${(html.length / 1024).toFixed(1)} KB\n  ${IMAGES.length} images, ${FONTS.length} fonts\n  ${referenced.length} asset references, all resolved`,
+  `Built ${outDir}\n  index.html  ${(html.length / 1024).toFixed(1)} KB\n  edit/index.html\n  ${IMAGES.length} images, ${FONTS.length} fonts\n  ${referenced.length} asset references, all resolved`,
 );

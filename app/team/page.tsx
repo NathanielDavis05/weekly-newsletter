@@ -2,6 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LINKS, isLive, type Destination } from "./links";
+import {
+  META,
+  BRAND,
+  NAV,
+  HERO,
+  QUICK_LINKS,
+  FIND_SECTION,
+  CARDS,
+  NEW_TEAM_MEMBER,
+  SCORECARD_SECTION,
+  MORE_GRID,
+  FOOTER,
+} from "./content";
 import "./landing.css";
 
 // Static by design: the landing page holds no dates, counts, or issue content,
@@ -10,11 +23,7 @@ import "./landing.css";
 // the only one the build cannot classify.
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
-  title: "Team",
-  description:
-    "Everything the Chick-fil-A West Bryan team needs in one place — training, uniform orders, promotions, and the store scorecard.",
-};
+export const metadata: Metadata = META;
 
 /**
  * Renders a destination as a link when it has somewhere to go, and as inert
@@ -70,38 +79,38 @@ export default function TeamLanding() {
                 alt here would just make a screen reader say it twice. */}
             <img className="lp-brand__mark" src="/images/cfa-logo.png" alt="" width={46} height={46} />
             <span className="lp-wordmark">
-              <strong>Chick-fil-A</strong>
-              <em>West Bryan</em>
+              <strong>{BRAND.name}</strong>
+              <em>{BRAND.location}</em>
             </span>
           </span>
           <nav className="lp-navlinks" aria-label="Team pages">
-            <Destination to={LINKS.newsletter}>Newsletter</Destination>
-            <Destination to={LINKS.training}>Training</Destination>
-            <Destination to={LINKS.promotions}>Promotions</Destination>
-            <Destination to={LINKS.scorecard}>Scorecard</Destination>
+            <Destination to={LINKS.newsletter}>{NAV.newsletter}</Destination>
+            <Destination to={LINKS.training}>{NAV.training}</Destination>
+            <Destination to={LINKS.promotions}>{NAV.promotions}</Destination>
+            <Destination to={LINKS.scorecard}>{NAV.scorecard}</Destination>
             <span className="lp-navlinks__sep" aria-hidden="true" />
-            <Destination to={LINKS.restaurantInfo}>Restaurant info</Destination>
-            <Destination to={LINKS.newsletter} className="lp-pill">This week</Destination>
+            <Destination to={LINKS.restaurantInfo}>{NAV.restaurantInfo}</Destination>
+            <Destination to={LINKS.newsletter} className="lp-pill">{NAV.thisWeek}</Destination>
           </nav>
         </div>
       </header>
 
       <section className="lp-hero">
-        <p className="lp-kicker">Chick-fil-A West Bryan</p>
-        <h1>Everything the team needs, in one place</h1>
+        <p className="lp-kicker">{HERO.kicker}</p>
+        <h1>{HERO.heading}</h1>
       </section>
 
       <div className="lp-quick">
-        <Destination to={LINKS.uniform}>{icons.shirt}Uniform orders</Destination>
-        <Destination to={LINKS.pathway}>{icons.route}Pathway</Destination>
-        <Destination to={LINKS.breakMeal}>{icons.meal}Break meal policy</Destination>
+        <Destination to={LINKS.uniform}>{icons.shirt}{QUICK_LINKS.uniform}</Destination>
+        <Destination to={LINKS.pathway}>{icons.route}{QUICK_LINKS.pathway}</Destination>
+        <Destination to={LINKS.breakMeal}>{icons.meal}{QUICK_LINKS.breakMeal}</Destination>
       </div>
 
       <section className="lp-section">
         <div className="lp-wrap">
           <div className="lp-section-head">
-            <h2>Find what you need</h2>
-            <p className="lp-lead">Each of these has its own page that stays up to date on its own.</p>
+            <h2>{FIND_SECTION.heading}</h2>
+            <p className="lp-lead">{FIND_SECTION.lead}</p>
           </div>
           <div className="lp-cards">
             <article className="lp-card">
@@ -109,9 +118,9 @@ export default function TeamLanding() {
                 <img src="/images/food-pattern-red.png" alt="" width={2400} height={1350} />
               </div>
               <div className="lp-card__body">
-                <h3>Newsletter</h3>
-                <p>The weekly update for the store, plus every issue that came before it.</p>
-                <Destination to={LINKS.newsletter} className="lp-pill">Open the newsletter</Destination>
+                <h3>{CARDS.newsletter.heading}</h3>
+                <p>{CARDS.newsletter.body}</p>
+                <Destination to={LINKS.newsletter} className="lp-pill">{CARDS.newsletter.cta}</Destination>
               </div>
             </article>
 
@@ -120,9 +129,9 @@ export default function TeamLanding() {
                 <img src="/images/team-meeting.png" alt="" width={600} height={300} />
               </div>
               <div className="lp-card__body">
-                <h3>Training</h3>
-                <p>Every assignment for your role, and the ones you have already finished.</p>
-                <Destination to={LINKS.training} className="lp-pill">Go to training</Destination>
+                <h3>{CARDS.training.heading}</h3>
+                <p>{CARDS.training.body}</p>
+                <Destination to={LINKS.training} className="lp-pill">{CARDS.training.cta}</Destination>
               </div>
             </article>
 
@@ -131,9 +140,9 @@ export default function TeamLanding() {
                 <img src="/images/smores-milkshake.jpeg" alt="" width={589} height={492} style={{ objectPosition: "center 30%" }} />
               </div>
               <div className="lp-card__body">
-                <h3>Promotions</h3>
-                <p>Seasonal menu items, the builds for each one, and when they launch.</p>
-                <Destination to={LINKS.promotions} className="lp-pill">See promotions</Destination>
+                <h3>{CARDS.promotions.heading}</h3>
+                <p>{CARDS.promotions.body}</p>
+                <Destination to={LINKS.promotions} className="lp-pill">{CARDS.promotions.cta}</Destination>
               </div>
             </article>
           </div>
@@ -146,12 +155,9 @@ export default function TeamLanding() {
             <img src="/images/pos-training.png" alt="" width={734} height={418} style={{ objectPosition: "center 28%" }} />
           </div>
           <div>
-            <h2>New here? Start with the basics</h2>
-            <p className="lp-lead">
-              Everything a new team member needs in week one — uniform and parking, how a shift runs,
-              who to ask for what, and the words we use behind the counter.
-            </p>
-            <Destination to={LINKS.newTeamMember} className="lp-pill">Open the new team member guide</Destination>
+            <h2>{NEW_TEAM_MEMBER.heading}</h2>
+            <p className="lp-lead">{NEW_TEAM_MEMBER.lead}</p>
+            <Destination to={LINKS.newTeamMember} className="lp-pill">{NEW_TEAM_MEMBER.cta}</Destination>
           </div>
         </section>
 
@@ -160,12 +166,9 @@ export default function TeamLanding() {
             <img src="/images/west-bryan-badge.jpg" alt="" width={440} height={440} />
           </div>
           <div>
-            <h2>See how the store is doing</h2>
-            <p className="lp-lead">
-              Guest experience scores, the measures we track every month, and the one thing
-              leadership is focused on next.
-            </p>
-            <Destination to={LINKS.scorecard} className="lp-pill">Open the scorecard</Destination>
+            <h2>{SCORECARD_SECTION.heading}</h2>
+            <p className="lp-lead">{SCORECARD_SECTION.lead}</p>
+            <Destination to={LINKS.scorecard} className="lp-pill">{SCORECARD_SECTION.cta}</Destination>
           </div>
         </section>
       </div>
@@ -175,13 +178,13 @@ export default function TeamLanding() {
           <div className="lp-section-head"><h2>More for the team</h2></div>
           <div className="lp-more-grid">
             <Destination to={LINKS.timePunch}>
-              <strong>Time punch correction</strong><span>Fix a missed or wrong clock-in</span>
+              <strong>{MORE_GRID.timePunch.heading}</strong><span>{MORE_GRID.timePunch.subheading}</span>
             </Destination>
             <Destination to={LINKS.hrRequest}>
-              <strong>HR request</strong><span>Ask for time off or a schedule change</span>
+              <strong>{MORE_GRID.hrRequest.heading}</strong><span>{MORE_GRID.hrRequest.subheading}</span>
             </Destination>
             <Destination to={LINKS.restaurantInfo}>
-              <strong>Restaurant info</strong><span>Hours, address, and guest ordering</span>
+              <strong>{MORE_GRID.restaurantInfo.heading}</strong><span>{MORE_GRID.restaurantInfo.subheading}</span>
             </Destination>
           </div>
         </div>
@@ -189,8 +192,8 @@ export default function TeamLanding() {
 
       <footer className="lp-wrap">
         <div className="lp-foot">
-          <strong>Chick-fil-A West Bryan</strong>
-          <span>Bookmark this page or scan qr code on the back office door</span>
+          <strong>{FOOTER.name}</strong>
+          <span>{FOOTER.tagline}</span>
         </div>
       </footer>
     </div>
