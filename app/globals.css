@@ -862,12 +862,12 @@ h3 {
 
 .event-row {
   display: grid;
-  min-height: 56px;
-  padding: 13px 16px;
+  min-height: 64px;
+  padding: 15px 18px;
   align-items: center;
   border-bottom: 1px solid #eae3d9;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(132px, max-content) minmax(0, 1fr);
+  gap: 18px;
 }
 
 .event-row:last-child {
@@ -877,7 +877,15 @@ h3 {
 .event-row time {
   color: #6a7681;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.event-row span {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .event-row--featured {
@@ -891,6 +899,20 @@ h3 {
 
 .event-row--featured span {
   font-weight: 700;
+}
+
+@media (max-width: 620px) {
+  .event-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 15px 17px;
+  }
+
+  .event-row time {
+    color: var(--navy-soft);
+    font-size: 0.76rem;
+    letter-spacing: 0.02em;
+  }
 }
 
 .section--grow {
