@@ -47,3 +47,16 @@
  #classroom-root .cr-student-table th:nth-child(4):after{font-size:9px}
  #classroom-root .cr-sidebar nav button{min-height:47px;font-size:13px}
 }
+#classroom-root .cr-login-form{max-width:340px;margin:27px auto 0;text-align:left;padding:24px;background:#fffefa;border:1px solid #e1e7d8;border-radius:12px;box-shadow:0 8px 32px #30472b05}
+#classroom-root .cr-login-form h2{font-size:17px;font-weight:650;letter-spacing:-.3px;margin-bottom:20px}
+#classroom-root .cr-login-form label{display:block;font-size:12px;font-weight:600;color:#62784f;margin:14px 0 7px}
+#classroom-root .cr-login-form input{width:100%;min-height:44px;border:1px solid #dfe6d6;border-radius:7px;background:#fff;padding:11px 12px;font-size:14px}
+#classroom-root .cr-login-form>.cr-primary{width:100%;margin-top:22px;min-height:44px}
+#classroom-root .cr-login-form>.cr-error{margin-bottom:0}
+#classroom-root .cr-teacher>.cr-icon-button{margin-left:auto}
+#classroom-root .cr-access-card{padding-top:24px;padding-bottom:24px}
+#classroom-root .cr-access-illustration{margin-bottom:22px}
+#classroom-root .cr-access-card h1{font-size:46px;margin:13px 0 16px}
+#classroom-root .cr-access-card>p{margin-bottom:20px}
+#classroom-root .cr-access-footer{margin-top:25px;padding-top:21px}
+@media(max-width:650px){#classroom-root .cr-access-card h1{font-size:36px}#classroom-root .cr-access-illustration{margin-bottom:15px}#classroom-root .cr-login-form{padding:21px;margin-top:23px}#classroom-root .cr-login-form input{font-size:16px}#classroom-root .cr-access{padding-top:20px}#classroom-root .cr-access-card{padding-top:30px}}
