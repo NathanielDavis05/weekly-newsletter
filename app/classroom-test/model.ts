@@ -48,7 +48,7 @@ export function applyCommand(current: Classroom, command: Command, original?: { 
   const student = (value: unknown, includeArchived = false) => state.students.find(s => s.id === value && (includeArchived || !s.archived)) ?? fail('Student is unavailable. Refresh and try again.');
   const reward = (value: unknown, includeArchived = false) => state.rewards.find(r => r.id === value && (includeArchived || !r.archived)) ?? fail('Reward is unavailable.');
   const addPoints = (s: Student, delta: number, reason: string) => {
-    if (!Number.isSafeInteger(s.balance + delta) || s.balance + delta < 0) fail(`${s.name} does not have enough points.`);
+    if (!Number.isSafeInteger(s.balance + delta)) fail('The point balance is outside the supported number range.');
     s.balance += delta;
     entries.push({ studentId: s.id, delta, balanceAfter: s.balance, reason, periodId: s.periodId });
   };
@@ -123,6 +123,7 @@ export function applyCommand(current: Classroom, command: Command, original?: { 
       const s = student(command.studentId); const r = reward(command.rewardId); const quantity = whole(command.quantity, 1, 100);
       if (r.stock < quantity) fail('There is not enough stock for this purchase.');
       if (command.expectedCost !== r.cost) fail('The reward price changed. Review the new price and try again.');
+      if (s.balance < r.cost * quantity) fail(`${s.name} does not have enough points.`);
       addPoints(s, -r.cost * quantity, `${r.name} × ${quantity}`); r.stock -= quantity;
       summary = `${s.name} redeemed ${r.name}${quantity > 1 ? ` × ${quantity}` : ''}`; metadata = { rewardId: r.id, rewardName: r.name, quantity, unitCost: r.cost, studentId: s.id }; break;
     }
