@@ -16,6 +16,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { mkdir, copyFile, readFile, writeFile, rm, readdir } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { buildClassroom } from "./build-classroom.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, process.argv[2] ?? "dist-site");
@@ -112,6 +113,8 @@ if (missing.length) {
 // run through esbuild since it has no React/JSX to compile.
 await mkdir(join(outDir, "edit"), { recursive: true });
 await copyFile(join(root, "scripts/landing-static/edit.html"), join(outDir, "edit", "index.html"));
+
+await buildClassroom(outDir);
 
 console.log(
   `Built ${outDir}\n  index.html  ${(html.length / 1024).toFixed(1)} KB\n  edit/index.html\n  ${IMAGES.length} images, ${FONTS.length} fonts\n  ${referenced.length} asset references, all resolved`,

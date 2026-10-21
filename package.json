@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "drizzle-orm": "0.45.2",
     "immer": "^11.1.17",
+    "lucide-react": "^1.52.0",
     "nanoid": "^6.0.1",
     "next": "16.2.6",
     "react": "19.2.6",
